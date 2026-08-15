@@ -1,0 +1,49 @@
+@import "../styles.scss";
+.register_sec {
+  .imformation_sec {
+    .contact_icons {
+      @include alignCenter-justifyCenter;
+      div {
+        height: 50px;
+        width: 50px;
+        border-radius: 50%;
+        border: $border-1 solid $color-Carnelian;
+        @include alignCenter-justifyCenter;
+        svg {
+          font-size: $fs-25;
+        }
+      }
+    }
+    .contact_details {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      width: auto;
+    }
+    h6 {
+      color: $color-tyrian-purple;
+      margin-bottom: $m-6;
+    }
+    p {
+      font-size: $fs-14;
+      margin: $m-0;
+      letter-spacing: 0;
+    }
+  }
+  h4 {
+    color: $color-primary;
+    font-weight: $fw-400;
+  }
+  form {
+    .form_group {
+      margin-bottom: $m-15;
+      input:read-only {
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+      textarea {
+        width: $w-100;
+      }
+    }
+  }
+}

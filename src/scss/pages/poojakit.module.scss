@@ -1,0 +1,335 @@
+@import "../styles.scss";
+.pooja_samagri_details_sec {
+  .pooja_samagri_details {
+    .border_left {
+      border-left: $border-1 solid $border-gainsboro;
+    }
+    .pooja_samagri_image img {
+      width: $w-100;
+      height: $h-100;
+    }
+    .samagri_head {
+      color: $color-primary;
+      text-align: center;
+      margin: $m-15 $m-0;
+    }
+    .samagri_decoration {
+      @include displayRow;
+      gap: 10px;
+      .purva_kumbham {
+        width: 4%;
+        img {
+          width: 100%;
+          height: auto;
+        }
+      }
+      .gold_stick {
+        width: $w-100;
+        margin: auto $m-0;
+        img {
+          width: $w-100;
+          height: auto;
+        }
+      }
+    }
+    .pooja_samagri_checkbox_sec {
+      width: $w-100;
+      .check_label {
+        @include alignCenter-justifyStart;
+        margin-bottom: $m-10;
+        flex-direction: row;
+        input {
+          margin-right: $m-6;
+        }
+      }
+      .select_quantity {
+        display: flex;
+        flex-direction: row;
+        margin-bottom: $m-10;
+        .in_quntity,
+        .quantity_drop_down {
+          width: 60px;
+          height: 30px;
+          margin: $m-0;
+          border: $border-1 solid $border-thistle;
+          padding: $p-6;
+        }
+      }
+    }
+    .need_more_items_btn {
+      text-align: center;
+      margin-top: $m-10;
+      button {
+        width: 250px;
+        height: 40px;
+        font-size: $fs-18;
+      }
+    }
+    .add_item_option {
+      border: $border-1 solid $border-gainsboro;
+      border-radius: 8px;
+      padding: 6% 6% 3% 6%;
+      display: block;
+      .item_name_input {
+        label {
+          color: $color-primary;
+        }
+        input {
+          margin-top: $m-6;
+          width: $w-100;
+          height: 30px;
+          border: $border-1 solid $border-gainsboro;
+          border-radius: 4px;
+        }
+      }
+      .green_but {
+        padding: $p-6 $p-45;
+      }
+      .add_item_btn {
+        text-align: center;
+        margin-top: auto;
+        height: $w-100;
+        button {
+          width: 80%;
+          height: 30px;
+          margin-top: $m-15;
+          margin-bottom: $m-0;
+        }
+      }
+    }
+    .add_ons_items_sec {
+      .table_sec {
+        display: block;
+        width: $w-100;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        -ms-overflow-style: -ms-autohiding-scrollbar;
+        width: $w-100;
+        height: 300px;
+        margin: $m-30 $m-6;
+        border-collapse: collapse;
+        thead {
+          border-bottom: $border-1 solid $border-gainsboro;
+          position: sticky;
+          top: 1px;
+          background-color: $bg-white;
+          tr {
+            height: 40px;
+            padding-bottom: $p-20;
+            th {
+              text-align: start;
+            }
+            margin-bottom: $m-10;
+            .table_quantity,
+            .table_price,
+            .table_add {
+              width: 17%;
+              text-align: center;
+              padding: $p-20;
+            }
+          }
+        }
+        .table_body {
+          tr {
+            border-bottom: $border-1 solid $border-gainsboro;
+            height: 40px;
+            .table_quantity {
+              text-align: center;
+            }
+            .table_price {
+              color: $color-secondary;
+              text-align: center;
+            }
+            .table_add_btn {
+              text-align: center;
+              button {
+                width: 60px;
+                border-radius: 30px;
+                border: $border-2 solid $border-thistle;
+                background-color: $bg-white;
+                height: 30px;
+                color: $color-tyrian-purple;
+                font-weight: $fw-600;
+              }
+            }
+            .table_item {
+              line-height: 30px;
+            }
+          }
+        }
+        .select_quantity {
+          display: flex;
+          flex-direction: row;
+          justify-content: center;
+          margin: $m-0 $m-15;
+          .in_quntity,
+          .quantity_drop_down {
+            width: 60px;
+            height: 30px;
+            margin: $m-0;
+            border: $border-1 solid $border-thistle;
+            padding: $p-6;
+          }
+        }
+      }
+    }
+  }
+  .add_ons_sec {
+    @include alignCenter-justifyCenter;
+    flex-direction: row;
+    .add_on_img {
+      width: max-content;
+      img {
+        width: $w-100;
+        height: auto;
+      }
+    }
+    .add_on_head {
+      h5 {
+        margin: auto $m-15;
+        color: $color-primary;
+        text-wrap: nowrap;
+      }
+    }
+  }
+  .samagri_faq_sec {
+    .active .accordion_header {
+      border-bottom: $border-1 solid $border-primary;
+    }
+  }
+  .puja_samagri_invoice {
+    position: sticky;
+    top: 170px;
+    padding: $p-0 10%;
+    h6 {
+      margin-bottom: $m-25;
+    }
+    p {
+      margin-bottom: $m-20;
+    }
+    .puja_samagri_set {
+      @include aligncenter-justifyBetween;
+      border-bottom: $border-1 solid $border-gainsboro;
+      .puja_samagri_price_view {
+        gap: 15px;
+        @include displayRow;
+        .view {
+          color: $color-tyrian-purple;
+          margin: 0 $m-6;
+        }
+      }
+    }
+    .add_ons_price {
+      margin-top: $m-15;
+      @include aligncenter-justifyBetween;
+    }
+    .add_to_purchase {
+      @include displayRow;
+      gap: 10px;
+      border-bottom: $border-1 solid $border-gainsboro;
+      padding-bottom: $p-15;
+      p {
+        margin: auto $m-0;
+        color: $color-tyrian-purple;
+      }
+      button {
+        margin: $m-0;
+      }
+    }
+    .total_payable_sec {
+      margin-top: $m-10;
+      @include aligncenter-justifyBetween;
+      border-bottom: $border-1 solid $border-gainsboro;
+      p {
+        color: $color-tyrian-purple;
+        cursor: pointer;
+      }
+      .total_price {
+        color: $color-secondary;
+        margin-left: $m-10;
+      }
+    }
+    .cart_but {
+      .primary_but {
+        padding: $p-10 100px;
+        text-wrap: nowrap;
+        margin-bottom: $m-10;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        img {
+          height: 20px;
+          width: 20px;
+          margin-right: $m-6;
+        }
+      }
+      .green_but {
+        padding: $p-12 125px;
+      }
+    }
+  }
+}
+
+@media (max-width: 600px) {
+  .pooja_samagri_details_sec {
+    .puja_samagri_invoice {
+      margin-top: $m-30;
+      position: static;
+      top: auto;
+      padding: $p-0 $p-0;
+      .cart_but {
+        .primary_but {
+          padding: $p-10 60px !important;
+        }
+        .green_but {
+          padding: $p-12 85px;
+        }
+      }
+    }
+    .pooja_samagri_details {
+      .add_item_option {
+        .item_name_input {
+          margin-top: $m-10;
+        }
+      }
+    }
+  }
+  .booking_pooja_items_modal {
+    .calender_slot_book_item_sec {
+      .booking_image {
+        width: 250px;
+      }
+      .enter_item_details_sec {
+        .input_instructions {
+          padding-bottom: $p-4;
+        }
+        .input_box {
+          padding-bottom: $p-10;
+        }
+        .input_label {
+          display: flex;
+          justify-content: flex-start;
+          padding-bottom: $p-4;
+        }
+        p {
+          text-align: start !important;
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 1200px) {
+  .pooja_samagri_details_sec {
+    .puja_samagri_invoice {
+      .cart_but {
+        .primary_but {
+          padding: $p-10 60px !important;
+        }
+        .green_but {
+          padding: $p-12 85px;
+        }
+      }
+    }
+  }
+}

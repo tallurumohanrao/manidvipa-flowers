@@ -1,0 +1,23 @@
+.container {
+  width: 100%;
+  padding-right: 15px !important;
+  padding-left: 15px !important;
+  margin-right: auto;
+  margin-left: auto;
+  @include media-breakpoint-down($sm) {
+    max-width: 720px;
+    padding-right: 18px !important;
+    padding-left: 18px !important;
+  }
+  @include media-breakpoint-up($md) {
+    max-width: 1000px;
+  }
+
+  @include media-breakpoint-up($lg) {
+    max-width: 1140px;
+  }
+
+  @include media-breakpoint-up($xl) {
+    max-width: 1440px;
+  }
+}

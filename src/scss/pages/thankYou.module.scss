@@ -1,0 +1,60 @@
+@import "../styles.scss";
+
+.order_success_page {
+  .success_icon {
+    font-size: $fs-40;
+    color: $color-green;
+  }
+  .text_success {
+    color: $color-green;
+  }
+  .ship_address {
+    border: $border-1 solid $border-gainsboro;
+    padding: $p-10;
+    .order_id {
+      font-weight: bold;
+    }
+    .shipping_title {
+      color: $color-primary;
+    }
+  
+    .shipping_info {
+      line-height: 1.6;
+    }
+    .text_danger {
+      color: $color-primary;
+    }
+  }
+  .table_responsive {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    .table_bordered {
+      border: $border-1 solid $border-gainsboro;
+      width: 100%;
+      .product_image {
+        width: 80px;
+        height: auto;
+        display: block;
+        margin: $m-0 auto ;
+      }
+  
+      th,
+      td {
+        text-align: center;
+        vertical-align: middle;
+        padding: $p-10;
+      }
+  
+      th {
+        background-color: #f8f9fa;
+        font-weight: bold;
+      }
+      .total_row th {
+        font-weight: bold;
+        color: $color-green;
+      }
+    }
+  }
+}

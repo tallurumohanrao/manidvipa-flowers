@@ -1,0 +1,33 @@
+@import "../styles.scss";
+/* components/QuantityInput.module.css */
+.quantity_container {
+  display: flex;
+  align-items: center;
+  input {
+    padding: 9px;
+    border: 1px solid #ccc;
+    text-align: center;
+    width: 50px;
+    -moz-appearance: textfield;
+    appearance: textfield;
+
+    &::-webkit-outer-spin-button,
+    &::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+  }
+  .buttons {
+    display: flex;
+    flex-direction: column;
+    button {
+      border: $border-1 solid $border-gainsboro;
+      background-color: $bg-old-lace;
+      cursor: pointer;
+      font-size: 10px;
+      padding: 2px;
+      width: 40px;
+      text-align: center;
+    }
+  }
+}

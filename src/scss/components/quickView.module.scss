@@ -1,0 +1,185 @@
+@import "../styles.scss";
+.product_details_cart_sec {
+  .tanjore_painting_head {
+    color: $color-primary;
+    margin-bottom: $m-8;
+  }
+  .head_horizontal_line {
+    width: 10%;
+    height: 2px;
+    border: none;
+    background-color: $color-secondary;
+    margin-bottom: $m-15;
+  }
+  .product_image {
+    .selected_image {
+      margin: $m-10;
+      img {
+        width: $w-100;
+        height: auto;
+      }
+    }
+    .item_related_images {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      img {
+        height: 80px;
+        width: 80px;
+      }
+    }
+  }
+  .item_price_opions {
+    .available_options {
+      margin-bottom: $m-8;
+      color: $color-primary;
+    }
+    .horizontal_line {
+      width: 10%;
+      height: 2px;
+      border: none;
+      background-color: $color-secondary;
+      margin-bottom: $m-15;
+    }
+    .painting_price_details {
+      margin-top: $m-30;
+      .painting_price_head {
+        color: $color-primary;
+      }
+      .check_box_prices {
+        @include alignCenter-justifyStart;
+        flex-direction: row;
+        margin-bottom: $m-10;
+        input {
+          margin-right: $m-10;
+        }
+      }
+      .form_select {
+        padding: $p-10;
+        border: $border-1 solid $border-gainsboro;
+      }
+    }
+    .share_icons {
+      @include displayRow;
+      margin-top: $m-20;
+      h5 {
+        color: $color-primary;
+        margin: auto $m-0;
+      }
+      ul {
+        @include displayRow;
+        li {
+          list-style: none;
+          margin: $m-0 $m-10;
+          height: 30px;
+          width: 30px;
+          text-align: center;
+          img {
+            width: $w-100;
+            height: auto;
+          }
+        }
+      }
+    }
+    .assisted_checkout {
+      box-shadow: 2px 2px 12px 0px #0000001a;
+      padding: $p-20;
+      margin-top: $m-20;
+      h6 {
+        color: $color-primary;
+      }
+      .contact_btns {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        .whatsapp_btn {
+          @include alignCenter-justifyCenter;
+          flex-direction: row;
+          height: 45px;
+          margin: $m-0;
+        }
+        .call_btn {
+          @include alignCenter-justifyCenter;
+          flex-direction: row;
+          height: 45px;
+          margin: $m-0;
+        }
+      }
+    }
+  }
+  .buy_or_cart_sec {
+    margin-top: $m-30;
+    /* Chrome, Safari, Edge, Opera */
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    .number_input::-webkit-outer-spin-button,
+    .number_input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: $m-0;
+    }
+    /* Firefox */
+    .number_input[type="number"] {
+      -moz-appearance: textfield;
+    }
+    .number_input {
+      height: 40px;
+      width: 40px;
+      padding: $p-0 $p-4;
+      font-size: $fs-20;
+      text-align: center;
+      color: $color-primary;
+    }
+    .arrow1,
+    .arrow2 {
+      text-align: center;
+      border: $border-1 solid $border-black;
+      height: 20px;
+      width: 35px;
+      margin: $m-0;
+      padding: $p-0;
+      font-size: $fs-14;
+      font-weight: $fw-800;
+      background-color: $bg-albescent-White;
+    }
+    .arrow1 {
+      transform: rotate(180deg);
+    }
+    .add_to_cart_btn {
+      height: 40px;
+      margin: $m-0;
+      width: 50%;
+    }
+    .buy_now_btn {
+      height: 40px;
+      margin: $m-0;
+    }
+  }
+  .cart_horizontal_line {
+    width: 75%;
+    margin-top: $m-10;
+  }
+  .wish_list_compare {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    .wish_list {
+      @include alignCenter-justifyCenter;
+      text-decoration: none;
+      .heart_symbol {
+        font-size: $fs-34;
+      }
+      .wish_list_btn {
+        font-size: $fs-18;
+        margin-top: $m-4;
+        margin-left: $m-4;
+      }
+      .left_right_symbol {
+        border: $border-1 solid $border-black;
+        border-radius: 50%;
+        width: 25px;
+        text-align: center;
+      }
+    }
+  }
+}

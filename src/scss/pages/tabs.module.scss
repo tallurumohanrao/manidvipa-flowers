@@ -1,0 +1,205 @@
+@import "../styles.scss";
+
+.row > * {
+  @include media-breakpoint-down($sm) {
+    padding-right: $p-6;
+    padding-left: $p-6;
+  }
+}
+
+.goddess_card_width {
+  @include media-breakpoint-up($xl) {
+    width: 285px;
+  }
+
+  .store_block_card {
+    .store_card {
+      border: $border-1 solid $border-gainsboro;
+      border-radius: 0px 0px 6px 6px;
+      text-align: center;
+      margin: $m-0 $m-4;
+    }
+
+    a {
+      text-decoration: none;
+    }
+
+    .store_image img {
+      width: $w-100;
+      height: auto;
+    }
+
+    &:hover .store_hover_card {
+      display: block;
+    }
+
+    &:hover .store_card {
+      display: none;
+    }
+
+    .store_hover_card {
+      border: $border-1 solid $border-gainsboro;
+      border-radius: 0px 0px 6px 6px;
+      text-align: center;
+      display: none;
+
+      .store_hover_image {
+        position: relative;
+        img:first-child {
+          width: $w-100;
+          height: auto;
+        }
+        .fav_icon {
+          position: absolute;
+          top: 3%;
+          left: auto;
+          right: 3%;
+          bottom: auto;
+          display: flex;
+          flex-direction: column;
+          img {
+            background-color: #fff;
+            height: 37px;
+            width: 37px;
+            padding: $p-6;
+            border-radius: 50%;
+          }
+        }
+      }
+    }
+
+    .store_content {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-evenly;
+      height: 180px;
+      padding: $p-6;
+      .icons {
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+      }
+      @include media-breakpoint-down($sm) {
+        padding: $p-4;
+        height: 100px;
+      }
+      img {
+        width: 20px;
+        height: 20px;
+        @include media-breakpoint-down($sm) {
+          height: 10px;
+          width: 10px;
+        }
+      }
+      h6 {
+        color: $color-primary;
+        @include media-breakpoint-down($sm) {
+          font-size: $fs-12;
+          margin-bottom: $m-0;
+        }
+      }
+
+      .besides_btn {
+        display: flex;
+        justify-content: space-around;
+        a,
+        .quick_view {
+          width: $w-100;
+          padding: $p-2;
+          button {
+            width: 100%;
+            margin-top: $m-0;
+            padding: $p-6;
+            letter-spacing: 0;
+            word-spacing: 0;
+            @include media-breakpoint-down($sm) {
+              padding: $p-4 $p-2;
+              font-size: $fs-10;
+              margin-bottom: $m-2;
+            }
+            @include media-breakpoint-down($xl) {
+              padding: $p-6 $p-2;
+            }
+          }
+        }
+      }
+
+      .store_price {
+        margin-top: $m-10;
+        display: flex;
+        justify-content: space-around;
+        @include media-breakpoint-down($sm) {
+          margin-top: $m-4;
+        }
+        p:first-child {
+          text-decoration: line-through;
+        }
+        p {
+          color: $color-black;
+          @include media-breakpoint-down($sm) {
+            font-size: $fs-10;
+            margin-bottom: $m-4;
+          }
+        }
+      }
+    }
+  }
+}
+
+.tabButtonOuter {
+  padding-left: 0;
+  border: $border-1 solid $border-primary;
+  border-radius: $border-5;
+  padding: $p-10 $p-20;
+  display: flex;
+  overflow-x: scroll;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  .buttons {
+    list-style: none;
+    width: 100%;
+    padding: $p-10 $p-0;
+    background: none;
+    border: none;
+    font-size: $fs-18;
+    margin: $m-2;
+    text-align: center;
+    text-wrap: nowrap;
+    @include media-breakpoint-down($sm) {
+      padding: $p-10 $p-20;
+      font-size: $fs-14;
+    }
+    @include media-breakpoint-down($xl) {
+      padding: $p-10 $p-10;
+      font-size: $fs-14;
+    }
+  }
+  .active {
+    background-color: $bg-primary;
+    color: $color-white;
+    border-radius: 6px;
+  }
+}
+
+@media only screen and (min-width: 1024px) and (max-width: $lg) {
+  .fav_icon img {
+    height: 25px;
+    width: 25px;
+  }
+}
+@media only screen and (max-width: $sm) {
+  .fav_icon img {
+    height: 25px;
+    width: 25px;
+    margin-bottom: 0px;
+  }
+}
+@media only screen and (min-width: $xl) {
+  .fav_icon img {
+    height: 37px;
+    width: 37px;
+    margin-bottom: $m-2;
+  }
+}

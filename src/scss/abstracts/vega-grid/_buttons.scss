@@ -1,0 +1,87 @@
+.primary-but {
+  background-color: $bg-primary;
+  color: $color-white;
+  padding: $p-6 $p-25;
+  border: $border-0;
+  border-radius: $border-5;
+  margin: $m-10 $m-2;
+  cursor: pointer;
+  text-wrap: nowrap;
+}
+.secondary-but {
+  background-color: $bg-secondary;
+  color: $color-white;
+  padding: $p-6 $p-25;
+  border: $border-0;
+  border-radius: $border-3;
+  margin: $m-10 $m-2;
+  cursor: pointer;
+  text-wrap: nowrap;
+}
+.primary-outlined-but {
+  background-color: $bg-white;
+  color: $color-primary;
+  padding: $p-6 $p-25;
+  border: $border-1 solid $border-primary;
+  border-radius: $border-5;
+  margin: $m-10 $m-2;
+  &:hover {
+    background-color: $bg-primary;
+    color: $color-white;
+  }
+  cursor: pointer;
+  text-wrap: nowrap;
+}
+.secondary-outlined-but {
+  background-color: $bg-white;
+  color: $color-secondary;
+  padding: $p-6 $p-25;
+  border: $border-1 solid $border-secondary;
+  border-radius: $border-3;
+  margin: $m-10 $m-2;
+  &:hover {
+    background-color: $bg-secondary;
+    color: $color-white;
+  }
+  cursor: pointer;
+  text-wrap: nowrap;
+}
+.blue-but {
+  background-color: $bg-blue;
+  color: $color-white;
+  padding: $p-6 $p-25;
+  border: $border-0;
+  border-radius: $border-3;
+  margin: $m-10 $m-2;
+  cursor: pointer;
+  text-wrap: nowrap;
+}
+.green-but {
+  background-color: $bg-green;
+  color: $color-white;
+  padding: $p-6 $p-25;
+  border: $border-0;
+  border-radius: $border-3;
+  margin: $m-10 $m-2;
+  cursor: pointer;
+  text-wrap: nowrap;
+}
+.tyrian-purple {
+  background-color: $bg-tyrian-purple;
+  color: $color-white;
+  padding: $p-6 $p-25;
+  border: $border-0;
+  border-radius: $border-3;
+  margin: $m-10 $m-2;
+  cursor: pointer;
+  text-wrap: nowrap;
+}
+.form-button {
+  @include alignCenter-justifyCenter;
+  a {
+    width: 40%;
+    padding: $p-10 $p-4;
+    text-decoration: none;
+    text-align: center;
+  }
+}

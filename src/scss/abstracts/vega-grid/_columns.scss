@@ -1,0 +1,5 @@
+// Utility to create column classes
+@mixin grid-col($size, $columns: 12) {
+  width: calc(#{$size} / #{$columns} * 100%);
+  flex: 0 0 auto;
+}

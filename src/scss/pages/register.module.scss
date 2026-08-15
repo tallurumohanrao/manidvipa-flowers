@@ -1,0 +1,57 @@
+@import "../styles.scss";
+.register_sec {
+  h4 {
+    color: $color-primary;
+    font-weight: $fw-400;
+    text-align: center;
+  }
+  form {
+    .form_group {
+      margin-bottom: $m-15;
+      .changeButton {
+        width: 100%;
+        display: flex;
+        align-items: flex-end;
+        justify-content: flex-end;
+        button {
+          font-size: $fs-14;
+        }
+      }
+      input:read-only {
+        cursor: not-allowed;
+        // opacity: 0.6;
+        color: rgba(0, 0, 0, 0.6);
+        label {
+          span {
+            color: $color-primary;
+          }
+        }
+      }
+      span {
+        font-weight: $fw-400;
+        a {
+          color: $color-sky-blue !important;
+          text-underline-offset: 4px;
+          font-weight: $fw-400;
+        }
+      }
+    }
+    .customButton {
+      width: 100%;
+      button {
+        width: 25%;
+        text-align: center;
+        @media (min-width: 0px) and (max-width: 320px) {
+          padding: 6px 0px;
+        }
+      }
+      button:disabled {
+        cursor: not-allowed;
+        // opacity: 0.6;
+      }
+    }
+    .errorMessage {
+      color: $color-primary;
+    }
+  }
+}

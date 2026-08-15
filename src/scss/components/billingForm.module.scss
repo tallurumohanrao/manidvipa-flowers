@@ -1,0 +1,61 @@
+@import "../styles.scss";
+.billingform {
+  // display: flex;
+  // flex-direction: column;
+  // box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+  // box-shadow: rgba(50, 50, 93, 0.25) 0px 2px 5px -1px,
+  //   rgba(0, 0, 0, 0.3) 0px 1px 3px -1px;
+  // margin: 10px 10px;
+  // padding: 10px 10px;
+  width: 600px;
+  .title {
+    text-align: start;
+    .highlight {
+      text-decoration: underline;
+      text-decoration-color: $color-secondary;
+      text-underline-offset: 10px;
+    }
+  }
+  .formContent {
+    .input_group {
+      margin: 12px 0px;
+      .group_label {
+        display: flex;
+        flex-direction: column;
+        // justify-content: space-between;
+        padding: $p-6 $p-4;
+      }
+      span {
+        color: red;
+        font-size: 20px;
+      }
+    }
+    label {
+      font-size: 16px;
+      text-align: left;
+    }
+    select {
+      width: 100%;
+      padding: 10px;
+      overflow-y: auto;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+    }
+    button {
+      width: 100%;
+    }
+  }
+}
+.error {
+  color: red;
+  font-size: 13px;
+}
+
+@media (max-width: $sm) {
+  .billingform {
+    padding: 10px 10px;
+    width: 300px;
+  }
+}

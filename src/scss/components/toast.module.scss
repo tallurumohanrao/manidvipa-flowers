@@ -1,0 +1,42 @@
+@import "../styles.scss";
+.toast {
+  position: fixed;
+  top: 100px;
+  right: 20px;
+  padding: $p-10 $p-20;
+  color: $color-white;
+  border-radius: $border-5;
+  font-size: $fs-16;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+  &.success {
+    background-color: $bg-green;
+  }
+  &.error {
+    background-color: $bg-primary;
+  }
+  &.warning {
+    background-color: $bg-secondary;
+  }
+}
+
+.custom_button {
+  background: none;
+  margin-left: 5px;
+  font-size: $fs-20;
+  border: none;
+  color: $color-white;
+  cursor: pointer;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

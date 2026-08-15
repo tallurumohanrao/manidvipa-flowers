@@ -1,0 +1,25 @@
+//Note: Reference Breakpoints
+//Breakpoints
+// xs: "0px",
+// sm: "600px",
+// md: "900px",
+// lg: "1200px",
+// xl: "1536px",
+
+@mixin media-breakpoint-up($breakpoint) {
+  @media (min-width: $breakpoint) {
+    @content;
+  }
+}
+
+@mixin media-breakpoint-down($breakpoint) {
+  @media (max-width: $breakpoint) {
+    @content;
+  }
+}
+
+@mixin media-breakpoint-between($start, $end) {
+  @media (min-width: $start) and (max-width: $end) {
+    @content;
+  }
+}

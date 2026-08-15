@@ -1,0 +1,298 @@
+//Nav bar  css
+.header {
+  background-color: $bg-white;
+  color: #fff;
+  padding: 5px 0px 0px 0px;
+  width: 100%;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+.nav-exapnd-lg {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@media only screen and (max-width: 768px) {
+  nav {
+    .nav-exapnd-lg {
+      .search-input {
+        display: none !important;
+      }
+    }
+  }
+}
+@media only screen and (min-width: 768px) and (max-width: 900px) {
+  nav {
+    .nav-exapnd-lg {
+      justify-content: flex-start;
+    }
+  }
+}
+.menu-toggle {
+  background: none;
+  border: none;
+  color: #3e3e3e;
+  cursor: pointer;
+  display: none;
+  height: 24px;
+  width: 30px;
+  position: absolute;
+  right: 15px;
+}
+@media only screen and (max-width: 899px) {
+  .menu-toggle {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+}
+.bar {
+  background: $color-primary;
+  height: 2px;
+  width: 100%;
+  border-radius: 2px;
+  margin: 2px;
+}
+.close-btn {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 26px;
+  cursor: pointer;
+}
+.offcanvas-menu {
+  width: 100%;
+  position: fixed;
+  top: 0;
+  left: -500px;
+  // width: auto;
+  height: 100%;
+  background-color: $bg-primary;
+  color: #fff;
+  overflow: auto;
+  transition: left 0.3s ease-in-out;
+  z-index: 1000;
+  padding: 20px;
+  flex-direction: column;
+  @include media-breakpoint-up($md) {
+    display: none;
+  }
+
+  &.open {
+    left: 0;
+  }
+  .offecanvas-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .list {
+    li {
+      margin: 15px 0px;
+      list-style: none;
+      a {
+        color: #fff;
+        padding: 5px;
+        display: block;
+        text-transform: uppercase;
+        font-size: 16px;
+        font-weight: 500;
+        text-decoration: none;
+      }
+    }
+  }
+}
+.nav-links {
+  display: none;
+  align-items: center;
+  flex-direction: row;
+  @include media-breakpoint-up($md) {
+    display: flex;
+    li {
+      margin: 0px 5px;
+      list-style: none;
+    }
+    li a {
+      color: $color-white;
+      padding: 5px;
+      display: block;
+      font-size: 16px;
+      font-weight: 500;
+      text-decoration: none;
+      text-wrap: nowrap;
+      @include media-breakpoint-down($lg) {
+        font-size: 14px;
+        padding: 0px;
+      }
+    }
+  }
+  .auth-btn {
+    color: black;
+    background-color: #fff;
+    border-radius: 5px;
+    border: none;
+    padding: 5px 8px;
+  }
+}
+@include media-breakpoint-down($md) {
+  .open {
+    left: 0;
+  }
+}
+@include media-breakpoint-up($sm) {
+  .offcanvas-menu {
+    width: auto !important;
+  }
+}
+//Accordian css
+
+.modal {
+  display: none; /* Hidden by default */
+  position: fixed; /* Stay in place */
+  z-index: 9999; /* Sit on top */
+  padding-top: 10px;
+  left: 0;
+  top: 0;
+  width: 100%; /* Full width */
+  height: 100%; /* Full height */
+  overflow: auto; /* Enable scroll if needed */
+  background-color: rgb(0, 0, 0); /* Fallback color */
+  background-color: rgba(0, 0, 0, 0.4); /* Black w/ opacity */
+  background-color: rgb(0, 0, 0); /* Fallback color */
+  background-color: rgba(0, 0, 0, 0.6); /* Black w/ opacity */
+}
+/* Modal Content */
+.modal-content {
+  position: relative;
+  background-color: #fefefe;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  height: 98%;
+  margin: auto;
+  padding: 0;
+  border: 1px solid #888;
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+  -webkit-animation-name: animatetop;
+  -webkit-animation-duration: 0.4s;
+  animation-name: animatetop;
+  animation-duration: 0.4s;
+}
+/* Add Animation */
+@-webkit-keyframes animatetop {
+  from {
+    top: -300px;
+    opacity: 0;
+  }
+  to {
+    top: 0;
+    opacity: 1;
+  }
+}
+@keyframes animatetop {
+  from {
+    top: -300px;
+    opacity: 0;
+  }
+  to {
+    top: 0;
+    opacity: 1;
+  }
+}
+/* The Close Button */
+.close {
+  color: rgb(146, 146, 146);
+  float: right;
+  font-size: 28px;
+  font-weight: bold;
+  top: 10px;
+}
+.close:hover,
+.close:focus {
+  color: #000;
+  text-decoration: none;
+  cursor: pointer;
+}
+.modal-header {
+  position: sticky;
+  top: 10px;
+  padding: 2px 16px;
+  // background-color: #5cb85c;
+  color: white;
+  border-radius: 10px 10px 0px 0px;
+}
+.modal-body {
+  padding: 2px 16px;
+}
+.modal-footer {
+  padding: 2px 16px;
+  background-color: #5cb85c;
+  color: white;
+  border-radius: 0px 0px 10px 10px;
+}
+
+/* Basic styling for the dropdown */
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-toggle {
+  // background-color: #007bff;
+  // color: white;
+  padding: 10px 25px;
+  border: none;
+  cursor: pointer;
+  border-radius: 5px;
+  position: relative;
+}
+
+.dropdown-toggle::after {
+  content: "";
+  position: absolute;
+  right: 4%;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 12px;
+  background-image: url("/assets/icons/chev.png");
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+
+.dropdown-menu {
+  display: none;
+  position: absolute;
+  background-color: white;
+  min-width: 160px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  z-index: 1;
+  border-radius: 5px;
+  margin-top: 5px;
+  padding: 10px 0;
+}
+
+.dropdown-item {
+  padding: 10px 20px;
+  text-decoration: none;
+  color: black;
+  display: block;
+}
+
+.dropdown-item:hover {
+  background-color: #f1f1f1;
+}
+
+.dropdown.show .dropdown-menu {
+  display: block;
+}
+
+@media (max-width: 600px) {
+  .modal-content {
+    width: 97% !important;
+  }
+}

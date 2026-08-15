@@ -1,0 +1,195 @@
+@import "../styles.scss";
+
+.store_hover_card {
+  border: $border-1 solid $border-gainsboro;
+  border-radius: 16px;
+  text-align: center;
+  // height: 100%;
+
+  .store_hover_image {
+    position: relative;
+
+    img:first-child {
+      width: $w-100;
+      height: 260px;
+      object-fit: contain;
+      border-radius: 16px 16px 0 0;
+      @include media-breakpoint-down($sm) {
+        height: 160px;
+      }
+    }
+
+    .fav_icon {
+      position: absolute;
+      top: 3%;
+      left: auto;
+      right: 3%;
+      bottom: auto;
+      display: flex;
+      flex-direction: column;
+      // display: none;
+      cursor: pointer;
+
+      svg {
+        background-color: #fff;
+        padding: $p-6;
+        border-radius: 50%;
+        height: 30px;
+        width: 30px;
+      }
+    }
+  }
+
+  .store_content {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-evenly;
+    // height: 180px;
+    padding: $p-6;
+
+    svg {
+      color: rgb(255, 196, 0);
+      height: 25px;
+      width: 25px;
+      padding: $p-2;
+
+      @include media-breakpoint-down($sm) {
+        height: 15px;
+        width: 15px;
+      }
+    }
+
+    .icons {
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+    }
+
+    @include media-breakpoint-down($sm) {
+      padding: $p-4;
+      height: 110px;
+    }
+
+    .besides_btn {
+      display: flex;
+      justify-content: space-around;
+      button {
+        width: 100%;
+        // padding: $p-6;
+        letter-spacing: 0;
+        word-spacing: 0;
+        border-radius: 6px;
+        font-weight: $fw-500;
+
+        @include media-breakpoint-down($sm) {
+          padding: $p-6 11px !important;
+          font-size: $fs-10;
+          margin-bottom: $m-2;
+          margin-top: $m-0;
+        }
+
+        // @include media-breakpoint-down($xl) {
+        //   padding: $p-6 $p-2;
+        // }
+      }
+    }
+
+    h6 {
+      color: $color-primary;
+      // text-align: start;
+
+      @include media-breakpoint-down($sm) {
+        font-size: $fs-12;
+        margin-bottom: $m-0;
+      }
+    }
+
+    .store_price {
+      // margin-top: $m-10;
+      display: flex;
+      justify-content: space-around;
+      text-align: start;
+      .originalPrice {
+        color: $color-primary;
+        text-decoration: line-through;
+      }
+
+      @include media-breakpoint-down($sm) {
+        margin-top: $m-4;
+      }
+      p {
+        color: $color-black;
+        font-size: $fs-14;
+
+        @include media-breakpoint-down($sm) {
+          font-size: $fs-10;
+          margin-bottom: $m-4;
+        }
+      }
+    }
+
+    .cart_button {
+      margin-top: $m-0;
+
+      @include media-breakpoint-down($sm) {
+        width: 100%;
+        padding: $p-4 $p-2;
+        font-size: $fs-10;
+        margin-bottom: $m-4;
+      }
+    }
+  }
+
+  a {
+    text-decoration: none;
+  }
+
+  // &:hover {
+  //   .fav_icon {
+  //     display: block;
+  //     display: flex;
+  //     flex-direction: column;
+  //   }
+  // }
+}
+
+.fav_icon {
+  position: relative;
+
+  .shareIcon {
+    position: relative;
+    cursor: pointer;
+
+    .shareDropdown {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      background: white;
+      border: 1px solid #ddd;
+      box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+      border-radius: 4px;
+      z-index: 100;
+      padding: 8px 0;
+      a,
+      button {
+        display: block;
+        padding: 8px 16px;
+        text-decoration: none;
+        color: $color-secondary;
+        border: none;
+        background: none;
+        text-align: left;
+        width: 100%;
+
+        &:hover {
+          background-color: #f8f8f8;
+          color: $color-primary;
+        }
+      }
+
+      button {
+        cursor: pointer;
+      }
+    }
+  }
+}

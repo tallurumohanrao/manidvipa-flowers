@@ -1,0 +1,44 @@
+@import "../styles.scss";
+
+.bottom_panel_section {
+  background-color: $bg-primary;
+  text-align: center;
+  position: fixed;
+  height: 30px;
+  bottom: 0;
+  width: 100%;
+  border-top: $border-1 solid $color-white;
+  .faSearch {
+    border-right: $border-1 solid $color-white;
+  }
+  svg,
+  a {
+    color: $color-white;
+    // font-size: 20px;
+  }
+}
+.scroll_top_btn {
+  position: fixed;
+  bottom: 45px;
+  right: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: $bg-secondary;
+  color: $color-primary;
+  border: none;
+  border-radius: $border-2;
+  width: 40px;
+  height: 40px;
+  font-size: $fs-22;
+
+  cursor: pointer;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+@media (max-width: $sm) {
+  .scroll_top_btn {
+    width: 30px;
+    height: 30px;
+    font-size: $fs-18;
+  }
+}

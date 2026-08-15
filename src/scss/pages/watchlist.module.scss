@@ -1,0 +1,187 @@
+@import "../styles.scss";
+.all_banner_sec {
+  background-color: $bg-albescent-White;
+  padding: $p-25 $p-0;
+  h6 {
+    a {
+      text-decoration: none;
+      color: $color-blue;
+      font-size: $fs-18;
+    }
+  }
+  .banner_head {
+    margin: 1% $m-0;
+    color: $color-primary;
+    text-align: center;
+    font-weight: $fw-400 !important;
+  }
+}
+.watch_list {
+  padding: $p-10;
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+  h3,
+  h5 {
+    color: $color-primary;
+    font-weight: $fw-400;
+  }
+  h3 {
+    text-align: center;
+    padding-bottom: $p-20;
+  }
+  .list_head {
+    border-bottom: $border-1 solid $border-gainsboro;
+    padding-bottom: $p-10;
+    font-weight: $fw-600;
+    span {
+      margin-right: $m-10;
+    }
+  }
+  .card {
+    border: $border-1 solid $border-gainsboro;
+    border-radius: $border-8;
+    margin: $m-15 $m-0;
+    padding: $p-10;
+    .list {
+      margin: 0;
+      padding: 0;
+
+      li {
+        list-style: none;
+        margin: $m-15 $m-0;
+        span {
+          font-size: $fs-18;
+        }
+        h5 {
+          border: none;
+        }
+        .favourites {
+          display: flex;
+          li {
+            margin: $m-0 $m-4;
+          }
+        }
+        // .actions {
+        //   display: flex;
+        //   li {
+        //     margin: $m-0 $m-8;
+        //   }
+        //   .quantity_container {
+        //     display: flex;
+        //     align-items: center;
+        //     input {
+        //       padding: 9px;
+        //       border: 1px solid #ccc;
+        //       text-align: center;
+        //       width: 50px;
+        //       -moz-appearance: textfield;
+        //       appearance: textfield;
+
+        //       &::-webkit-outer-spin-button,
+        //       &::-webkit-inner-spin-button {
+        //         -webkit-appearance: none;
+        //         margin: 0;
+        //       }
+        //     }
+        //   }
+
+        //   .buttons {
+        //     display: flex;
+        //     flex-direction: column;
+        //     button {
+        //       border: $border-1 solid $border-gainsboro;
+        //       background-color: $bg-old-lace;
+        //       cursor: pointer;
+        //       font-size: 10px;
+        //       padding: 2px;
+        //       width: 40px;
+        //       text-align: center;
+        //     }
+        //   }
+        //   img {
+        //     width: 100%;
+        //     height: 30px;
+        //   }
+        // }
+      }
+    }
+    .close_icon svg {
+      border: $border-1 solid $border-Carnelian;
+      background-color: $bg-Carnelian;
+      color: $color-white;
+      border-radius: 3px;
+      font-size: $fs-30;
+      margin-top: $m-6;
+      margin-left: $m-6;
+    }
+    .title_price {
+      display: flex;
+      justify-content: flex-start;
+      align-items: center;
+      img {
+        object-fit: contain;
+        width: $w-100;
+      }
+    }
+    .cart_remove {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .cost {
+      text-align: center;
+      h6 {
+        color: $color-tertiary;
+        font-weight: $fw-400;
+        letter-spacing: 1px;
+        margin-bottom: $m-25;
+        font-size: $fs-24;
+      }
+      a {
+        text-decoration: none;
+      }
+    }
+  }
+}
+.empty_shopping_cart_sec {
+  @include alignCenter-justifyCenter;
+  flex-direction: column;
+  //   padding: 5% $p-0;
+  .cart-image {
+    width: auto;
+    img {
+      width: $w-100;
+    }
+  }
+  h5 {
+    margin: $m-10 $m-0;
+  }
+  .primary_but {
+    height: 50px;
+    width: 240px;
+    font-size: $fs-18;
+  }
+}
+@media (max-width: 600px) {
+  .empty_shopping_cart_sec {
+    .cart_image img {
+      width: 70%;
+      display: flex;
+      margin: $m-0 auto;
+      justify-content: center;
+    }
+  }
+}
+@media (max-width: $sm) {
+  .card {
+    @include alignCenter-justifyCenter;
+    .title_price {
+      justify-content: center !important;
+      align-items: center !important ;
+    }
+    .list {
+      text-align: center;
+    }
+  }
+}

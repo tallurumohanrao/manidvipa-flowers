@@ -1,0 +1,28 @@
+@import "../styles.scss";
+
+.addresses {
+  // border: $border-1 solid $border-gainsboro;
+  box-shadow: rgba(0, 0, 0, 0.16) 0px 1px 4px;
+  background-color: #fdfdfd;
+  margin-bottom: $m-10;
+  padding: $m-10;
+  @include aligncenter-justifyBetween;
+  p {
+    margin: $m-0;
+  }
+  .actionsButtons {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: $sm) {
+  .addresses {
+    .actionsButtons {
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+    }
+  }
+}

@@ -1,0 +1,99 @@
+.text-center {
+  text-align: center;
+}
+
+.text-start {
+  text-align: start;
+}
+
+.text-end {
+  text-align: end;
+}
+.text-auto {
+  text-align: auto;
+}
+.text-justify {
+  text-align: justify;
+}
+
+@include media-breakpoint-up($lg) {
+  .text-lg-center {
+    text-align: center !important;
+  }
+
+  .text-lg-start {
+    text-align: start !important;
+  }
+
+  .text-lg-end {
+    text-align: end !important;
+  }
+  .text-lg-auto {
+    text-align: auto !important;
+  }
+  .text-lg-justify {
+    text-align: justify !important;
+  }
+}
+
+@include media-breakpoint-up($md) {
+  .text-md-center {
+    text-align: center !important;
+  }
+
+  .text-md-start {
+    text-align: start !important;
+  }
+
+  .text-md-end {
+    text-align: end !important;
+  }
+  .text-md-auto {
+    text-align: auto !important;
+  }
+  .text-md-justify {
+    text-align: justify !important;
+  }
+}
+
+@include media-breakpoint-up($sm) {
+  .text-sm-center {
+    text-align: center !important;
+  }
+
+  .text-sm-start {
+    text-align: start !important;
+  }
+
+  .text-sm-end {
+    text-align: end !important;
+  }
+  .text-sm-auto {
+    text-align: auto !important;
+  }
+  .text-sm-justify {
+    display: flex;
+    text-align: justify !important;
+  }
+}
+
+@include media-breakpoint-up($xs) {
+  .text-xs-center {
+    text-align: center !important;
+  }
+
+  .text-xs-start {
+    text-align: start !important;
+  }
+
+  .text-xs-end {
+    text-align: end !important;
+  }
+  .text-xs-auto {
+    text-align: auto !important;
+  }
+  .text-xs-justify {
+    display: flex;
+    text-align: justify !important;
+  }
+}

@@ -1,0 +1,63 @@
+@import "../styles.scss";
+
+.testimonial {
+  background-color: white;
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: $m-15;
+  text-align: center;
+  .testimonialContent {
+    position: relative;
+    background-color: #fff5e6;
+    border: 2px solid #fff5e6;
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+    font-style: italic;
+
+    font-size: 1rem;
+    color: #555;
+    margin-bottom: 10px;
+    background-color: $bg-old-lace;
+    padding: $p-20;
+    border-radius: 50px;
+    &::before {
+      content: "";
+      position: absolute;
+      bottom: -30px;
+      left: 45px;
+      width: 0;
+      height: 0;
+      border-style: solid;
+      border-width: 30px 30px 0 30px;
+      border-color: #fff5e6 transparent transparent transparent; // Triangle color matches the border
+    }
+  }
+  .testimonial_name {
+    display: flex;
+    align-items: center;
+    margin-top: 28px;
+    img {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-right: $m-10;
+    }
+    h6 {
+      margin: $m-0;
+      text-align: left;
+      color: $color-primary;
+    }
+    .review_rating {
+      color: $color-secondary;
+      text-align: start;
+      svg {
+        margin-right: $m-4;
+      }
+    }
+    span {
+      color: $color-secondary;
+    }
+  }
+}

@@ -1,0 +1,138 @@
+//Colors
+$color-primary: #b31b1b;
+$color-secondary: #ff9900;
+$color-tertiary: #cc0000;
+$color-green: #28a745;
+$color-blue: rgba(15, 58, 141, 1);
+$color-black: #000;
+$color-white: #fff;
+$color-Carnelian: #a11818;
+$color-medium-blue: #00529f;
+$color-sky-blue: #00aaf3;
+$color-tyrian-purple: #560835;
+$color-dark-charcol: #333333;
+$color-dim-grey: #696973;
+
+// Background colors
+$bg-primary: #b31b1b;
+$bg-secondary: #ff9900;
+$bg-tertiary: #b30000;
+$bg-green: #28a745;
+$bg-tyrian-purple: #560835;
+$bg-blue: rgba(15, 58, 141, 1);
+$bg-black: #000;
+$bg-white: #fff;
+$bg-old-lace: #fff5e6;
+$bg-Carnelian: #a11818;
+$bg-albescent-White: #fff5e6;
+$bg-sky-blue: #00aaf3;
+
+// font Size
+$fs-10: 10px;
+$fs-12: 12px;
+$fs-14: 14px;
+$fs-16: 16px;
+$fs-18: 18px;
+$fs-20: 20px;
+$fs-21: 21px;
+$fs-22: 22px;
+$fs-23: 23px;
+$fs-24: 24px;
+$fs-25: 25px;
+$fs-26: 26px;
+$fs-28: 28px;
+$fs-30: 30px;
+$fs-32: 32px;
+$fs-34: 34px;
+$fs-36: 36px;
+$fs-38: 38px;
+$fs-40: 40px;
+$fs-42: 42px;
+$fs-46: 46px;
+$fs-52: 52px;
+
+// Font weight
+$fw-400: 400;
+$fw-500: 500;
+$fw-600: 600;
+$fw-700: 700;
+$fw-800: 800;
+$fw-bold: bold;
+
+// Border colors
+$border-primary: #b31b1b;
+$border-secondary: #ff9900;
+$border-tertiary: #b30000;
+$border-green: #28a745;
+$border-blue: rgba(15, 58, 141, 1);
+$border-black: #000;
+$border-white: #fff;
+$border-Carnelian: #a11818;
+$border-medium-blue: #00529f;
+$border-sky-blue: #00aaf3;
+$border-gainsboro: #dbdbdb;
+$border-thistle: #e0cce6;
+$border-tyrian-purple: rgba(86, 8, 53, 0.15);
+
+// Border
+$border-0: 0px;
+$border-1: 1px;
+$border-2: 2px;
+$border-3: 3px;
+$border-5: 5px;
+$border-8: 8px;
+$border-10: 10px;
+$border-15: 15px;
+$border-20: 20px;
+$border-30: 30px;
+$border-40: 40px;
+
+// Padding
+$p-0: 0px;
+$p-2: 2px;
+$p-4: 4px;
+$p-6: 6px;
+$p-8: 8px;
+$p-10: 10px;
+$p-12: 12px;
+$p-15: 15px;
+$p-20: 20px;
+$p-25: 25px;
+$p-30: 30px;
+$p-35: 35px;
+$p-40: 40px;
+$p-45: 45px;
+$p-50: 50px;
+
+// Margin
+$m-0: 0px;
+$m-2: 2px;
+$m-4: 4px;
+$m-6: 6px;
+$m-8: 8px;
+$m-10: 10px;
+$m-15: 15px;
+$m-20: 20px;
+$m-25: 25px;
+$m-30: 30px;
+$m-35: 35px;
+$m-40: 40px;
+$m-50: 50px;
+
+// height&width
+$h-100: 100%;
+$w-100: 100%;
+
+// Break Points
+$xs: 0px;
+$sm: 600px;
+$md: 900px;
+$lg: 1200px;
+$xl: 1536px;
+
+$font-Rubik: "Rubik";
+
+@font-face {
+  font-family: "Rubik";
+  src: url("/assets/font/Rubik-Regular.ttf");
+}

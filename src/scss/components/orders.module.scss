@@ -1,0 +1,125 @@
+@import "../styles.scss";
+.orders_page {
+  padding: 0px 20px 20px;
+  .order_card {
+    border-radius: 5px;
+    margin-bottom: 20px;
+    background-color: #fff;
+    box-shadow: rgba(0, 0, 0, 0.16) 0px 1px 4px;
+  }
+  .order_header {
+    border-bottom: 1px solid #ddd;
+    padding: 10px 0;
+    background-color: $bg-primary;
+    color: $color-white;
+  }
+  .order_footer {
+    border-top: 1px solid #ddd;
+    padding: 10px 0;
+    background-color: $bg-primary;
+    color: $color-white;
+    margin: $m-0;
+  }
+  .order_top {
+    display: flex;
+    justify-content: space-between;
+    div {
+      margin: $m-0 $m-10;
+    }
+  }
+  .order_details {
+    padding: 15px 0;
+  }
+  .product {
+    margin-bottom: 15px;
+  }
+
+  .product_image {
+    display: flex;
+    justify-content: center;
+    img {
+      max-width: 50%;
+      height: auto;
+    }
+  }
+
+  .product_info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .custom_display {
+    display: none;
+  }
+  .view_item_button {
+    cursor: pointer;
+    width: fit-content;
+    @media (min-width: 900px) and (max-width: 1199px) {
+      padding: 6px 8px;
+    }
+  }
+}
+.product_amount {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: $fs-20;
+  color: $color-primary;
+  font-weight: $fw-600;
+}
+.product_mobile_amount {
+  font-size: $fs-20;
+  color: $color-primary;
+  font-weight: $fw-600;
+  margin: $m-10 $m-0;
+}
+@media (max-width: 599px) {
+  .product_amount p {
+    display: none;
+  }
+}
+@media (min-width: 600px) {
+  .product_mobile_amount {
+    display: none;
+  }
+}
+@media (max-width: 600px) {
+  .orders_page {
+    padding: 20px 0px 0px;
+  }
+  .product_image img {
+    max-width: 100%;
+    object-fit: contain;
+  }
+  .order_card p {
+    margin-bottom: $m-4;
+    font-size: $fs-14;
+  }
+  .order_top {
+    flex-direction: column;
+    div {
+      display: flex;
+    }
+  }
+}
+.ship_to_dropdown {
+  position: relative;
+}
+.dropdown_content {
+  width: 150px;
+  margin-top: 5px;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  position: absolute;
+  left: 0;
+  top: 100%;
+  z-index: 1;
+  word-wrap: break-word;
+  color: #000;
+}
+.icon {
+  margin-left: 8px;
+  font-size: 16px;
+}

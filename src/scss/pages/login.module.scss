@@ -1,0 +1,35 @@
+@import "../styles.scss";
+.login_sec {
+  h4 {
+    color: $color-primary;
+    font-weight: $fw-400;
+    text-align: center;
+  }
+  form {
+    .form_group {
+      margin-bottom: $m-15;
+      span {
+        font-weight: $fw-400;
+        a {
+          color: $color-sky-blue;
+          text-underline-offset: 4px;
+          font-weight: $fw-400;
+        }
+      }
+      .password_wrapper {
+        position: relative;
+        .eye_icon {
+          position: absolute;
+          right: 10px;
+          top: 60%;
+          transform: translateY(-50%);
+          cursor: pointer;
+          color: $color-tyrian-purple;
+        }
+      }
+    }
+  }
+  .error_message {
+    color: red;
+  }
+}

@@ -1,0 +1,101 @@
+.row {
+  --bs-gutter-x: 1.5rem;
+  --bs-gutter-y: 0;
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: calc(-1 * var(--bs-gutter-y));
+  margin-right: calc(-0.5 * var(--bs-gutter-x));
+  margin-left: calc(-0.5 * var(--bs-gutter-x));
+}
+.row > * {
+  box-sizing: border-box;
+  flex-shrink: 0;
+  width: $w-100;
+  max-width: $w-100;
+  padding-right: calc(var(--bs-gutter-x) * 0.5);
+  padding-left: calc(var(--bs-gutter-x) * 0.5);
+  margin-top: var(--bs-gutter-y);
+}
+
+$xs: 0px;
+$sm: 600px;
+$md: 900px;
+$lg: 1200px;
+$xl: 1536px;
+
+.col,
+.col-auto,
+.col-1,
+.col-2,
+.col-3,
+.col-4,
+.col-5,
+.col-6,
+.col-7,
+.col-8,
+.col-9,
+.col-10,
+.col-11,
+.col-12 {
+  flex: 1 0 0%;
+}
+
+.col-auto {
+  width: auto;
+}
+
+@for $i from 1 through 12 {
+  .col-#{$i} {
+    @include grid-col($i);
+  }
+}
+
+.row-cols-auto > * {
+  flex: 0 0 auto;
+  width: auto;
+}
+
+@for $i from 1 through 6 {
+  .row-cols-#{$i} > * {
+    flex: 0 0 auto;
+    width: calc(100% / #{$i});
+  }
+}
+
+@for $i from 1 through 12 {
+  .col-xs-#{$i} {
+    @include grid-col($i);
+  }
+}
+
+@include media-breakpoint-up($sm) {
+  @for $i from 1 through 12 {
+    .col-sm-#{$i} {
+      @include grid-col($i);
+    }
+  }
+}
+
+@include media-breakpoint-up($md) {
+  @for $i from 1 through 12 {
+    .col-md-#{$i} {
+      @include grid-col($i);
+    }
+  }
+}
+
+@include media-breakpoint-up($lg) {
+  @for $i from 1 through 12 {
+    .col-lg-#{$i} {
+      @include grid-col($i);
+    }
+  }
+}
+
+@include media-breakpoint-up($xl) {
+  @for $i from 1 through 12 {
+    .col-xl-#{$i} {
+      @include grid-col($i);
+    }
+  }
+}

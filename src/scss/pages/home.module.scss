@@ -1,0 +1,1212 @@
+@import "../styles.scss";
+
+.homePage {
+  background-color: $bg-white;
+  color: $color-black;
+  overflow: hidden;
+
+  h1,
+  h2,
+  h3,
+  p {
+    font-family: inherit;
+  }
+
+  h2 {
+    font-size: $fs-28;
+    line-height: 1.2;
+  }
+}
+
+.homeContainer {
+  width: calc(100% - 48px);
+  max-width: 1680px;
+  margin: 0 auto;
+}
+
+.heroSection {
+  background-color: $bg-old-lace;
+  border-bottom: $border-1 solid $border-gainsboro;
+}
+
+.heroGrid {
+  display: grid;
+  grid-template-columns: 45% 55%;
+  min-height: 465px;
+  align-items: stretch;
+}
+
+.heroContent {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: $p-40 $p-35 $p-40 $p-0;
+
+  h1 {
+    color: $color-black;
+    font-size: $fs-42;
+    line-height: 1.08;
+    margin-bottom: $m-20;
+    letter-spacing: 0;
+  }
+}
+
+.heroDescription {
+  max-width: 620px;
+  font-size: $fs-16;
+  line-height: 1.65;
+}
+
+.heroBenefits {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: $m-15;
+  max-width: 660px;
+  margin: $m-15 $m-0;
+
+  div {
+    border-left: $border-3 solid $border-secondary;
+    padding-left: $p-10;
+  }
+
+  strong,
+  span {
+    display: block;
+  }
+
+  strong {
+    color: $color-primary;
+    font-size: $fs-14;
+    line-height: 1.25;
+  }
+
+  span {
+    font-size: $fs-12;
+    line-height: 1.25;
+    margin-top: $m-4;
+  }
+}
+
+.heroActions,
+.inlineActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: $m-10;
+}
+
+.heroActions {
+  margin-top: $m-10;
+
+  a {
+    text-decoration: none;
+  }
+}
+
+.whatsappTextLink,
+.textLink {
+  color: $color-primary;
+  text-decoration: underline;
+}
+
+.whatsappTextLink {
+  margin-top: $m-15;
+  width: fit-content;
+  font-size: $fs-14;
+}
+
+.heroImageWrap {
+  min-height: 465px;
+  overflow: hidden;
+
+  img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+  }
+}
+
+.sectionWhite,
+.sectionSoft,
+.benefitStrip {
+  padding: $p-40 $p-0;
+}
+
+.sectionWhite {
+  background-color: $bg-white;
+}
+
+.sectionSoft {
+  background-color: $bg-old-lace;
+}
+
+.centerSectionTitle {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: $m-15;
+  margin-bottom: $m-25;
+
+  h2 {
+    color: $color-primary;
+    margin: 0;
+  }
+
+  img {
+    width: 46px;
+    height: auto;
+    object-fit: contain;
+  }
+}
+
+.sectionTitleRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: $m-15;
+  margin-bottom: $m-20;
+  min-height: 56px;
+
+  h2 {
+    color: $color-primary;
+    margin-bottom: $m-4;
+  }
+
+  p {
+    font-size: $fs-14;
+    line-height: 1.35;
+    margin-bottom: 0;
+  }
+}
+
+.textLink {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  margin-bottom: $m-4;
+  font-size: 13px;
+}
+
+.categoryGrid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: $m-15;
+}
+
+.categoryCardV2 {
+  min-width: 0;
+  min-height: 235px;
+  border: $border-1 solid $border-gainsboro;
+  background-color: $bg-old-lace;
+  border-radius: $border-10;
+  padding: $p-15 $p-12 $p-12;
+  text-align: center;
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+
+  img {
+    width: 132px;
+    height: 132px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: $border-1 solid $border-primary;
+    margin-bottom: $m-10;
+    flex: 0 0 auto;
+  }
+
+  h3 {
+    color: $color-primary;
+    font-size: $fs-18;
+    line-height: 1.15;
+    margin-bottom: $m-6;
+  }
+
+  p {
+    color: $color-black;
+    font-size: $fs-12;
+    line-height: 1.35;
+    margin: 0;
+  }
+}
+
+.subscriptionLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.62fr) minmax(360px, 1fr);
+  gap: $m-25;
+  align-items: stretch;
+}
+
+.subscriptionArea {
+  min-width: 0;
+}
+
+.subscriptionGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: $m-10;
+}
+
+.subscriptionCard {
+  min-width: 0;
+  min-height: 190px;
+  background-color: $bg-white;
+  border: $border-1 solid $border-gainsboro;
+  border-radius: $border-8;
+  padding: $p-12 $p-8;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  h3 {
+    color: $color-primary;
+    font-size: $fs-14;
+    line-height: 1.22;
+    margin-bottom: $m-8;
+  }
+
+  p {
+    font-size: 11px;
+    line-height: 1.35;
+    min-height: 45px;
+    margin-bottom: $m-10;
+  }
+}
+
+.subscriptionIcon {
+  width: 38px;
+  height: 38px;
+  border: $border-1 solid $border-secondary;
+  border-radius: 50%;
+  margin: 0 auto $m-10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $color-primary;
+  background-color: $bg-old-lace;
+  font-size: $fs-14;
+  font-weight: $fw-700;
+}
+
+.smallPrimaryButton,
+.smallGreenButton,
+.whiteCtaButton,
+.productButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: $border-5;
+  text-decoration: none;
+  font-weight: $fw-500;
+  line-height: 1;
+}
+
+.smallPrimaryButton {
+  margin-top: auto;
+  padding: $p-8 $p-15;
+  background-color: $bg-primary;
+  color: $color-white;
+  font-size: 11px;
+}
+
+.smallGreenButton {
+  padding: $p-10 $p-15;
+  background-color: $bg-green;
+  color: $color-white;
+  font-size: $fs-12;
+}
+
+.whiteCtaButton {
+  padding: $p-10 $p-20;
+  background-color: $bg-white;
+  color: $color-primary;
+  font-size: $fs-12;
+}
+
+.subscriptionMeta {
+  margin-top: $m-10;
+  min-height: 36px;
+  border: $border-1 solid $border-gainsboro;
+  border-radius: $border-8;
+  padding: $p-8 $p-12;
+  background-color: $bg-white;
+  display: flex;
+  gap: $m-20;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+
+  span,
+  strong {
+    font-size: 11px;
+  }
+
+  span {
+    color: $color-primary;
+  }
+}
+
+.pujaBoxCard,
+.decorationService {
+  background-color: $bg-white;
+  border: $border-1 solid $border-gainsboro;
+  border-radius: $border-10;
+  overflow: hidden;
+}
+
+.pujaBoxCard {
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  min-height: 300px;
+  align-items: stretch;
+}
+
+.pujaBoxContent {
+  padding: $p-25;
+  align-self: center;
+
+  h2 {
+    color: $color-primary;
+    margin-bottom: $m-8;
+  }
+
+  p {
+    font-size: 13px;
+  }
+
+  ul {
+    list-style: none;
+    margin: $m-15 $m-0;
+    padding: 0;
+  }
+
+  li {
+    font-size: 13px;
+    margin-bottom: $m-8;
+  }
+}
+
+.pujaBoxImage {
+  min-width: 0;
+  height: 100%;
+
+  img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 300px;
+    object-fit: cover;
+  }
+}
+
+.threeProductColumns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.42fr) minmax(0, 0.96fr) minmax(0, 1.12fr);
+  gap: 0;
+  align-items: start;
+  border: $border-1 solid $border-gainsboro;
+  border-radius: $border-8;
+  overflow: hidden;
+  background-color: $bg-white;
+}
+
+.freshProductSection,
+.collectionPanel,
+.rareCollectionPanel {
+  min-width: 0;
+  padding: $p-20;
+  background-color: $bg-white;
+}
+
+.collectionPanel,
+.rareCollectionPanel {
+  border-left: $border-1 solid $border-gainsboro;
+}
+
+.threeProductColumns .sectionTitleRow {
+  margin-bottom: 12px;
+
+  h2 {
+    font-size: $fs-20;
+    line-height: 1.18;
+  }
+
+  p {
+    margin-top: $m-4;
+    font-size: $fs-10;
+    line-height: 1.35;
+  }
+
+  a {
+    font-size: $fs-10;
+    white-space: nowrap;
+  }
+}
+
+.freshArrivalGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: $m-8;
+}
+
+.freshArrivalCard {
+  min-width: 0;
+  overflow: hidden;
+  background-color: $bg-white;
+  border: $border-1 solid $border-gainsboro;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+}
+
+.freshArrivalImage {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1.03 / 1;
+  overflow: hidden;
+
+  img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.freshBadge {
+  position: absolute;
+  z-index: 1;
+  left: $p-4;
+  top: $p-4;
+  padding: 2px 5px;
+  border-radius: $border-5;
+  background-color: $bg-green;
+  color: $color-white;
+  font-size: 7px;
+  line-height: 1.2;
+}
+
+.freshArrivalBody {
+  padding: $p-8;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+
+  h3 {
+    min-height: 28px;
+    margin-bottom: $m-4;
+    color: $color-black;
+    font-size: 11px;
+    line-height: 1.2;
+  }
+}
+
+.freshStars {
+  color: $color-secondary;
+  font-size: 9px;
+  letter-spacing: 0;
+  line-height: 1;
+  margin-bottom: $m-4;
+}
+
+.freshPrice {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: $m-4;
+  min-height: 24px;
+  margin-bottom: $m-6;
+
+  span {
+    color: $color-dim-grey;
+    font-size: 8px;
+    text-decoration: line-through;
+  }
+
+  strong {
+    color: $color-primary;
+    font-size: $fs-10;
+  }
+}
+
+.freshQuantity {
+  min-height: 26px;
+  margin: auto -8px 0;
+  border-top: $border-1 solid $border-gainsboro;
+  display: grid;
+  grid-template-columns: 1fr auto auto 1fr;
+  align-items: center;
+  justify-items: center;
+  gap: $m-4;
+  padding: $p-4 $p-8;
+
+  span,
+  strong {
+    font-size: 8px;
+    color: $color-dim-grey;
+  }
+}
+
+.freshAddButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  margin: 0 -8px -8px;
+  background-color: $bg-primary;
+  color: $color-white;
+  text-decoration: none;
+  font-size: 8px;
+  font-weight: $fw-500;
+}
+
+.premiumProductGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $m-8;
+}
+
+.premiumProductCard {
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 6px;
+  background-color: $bg-white;
+}
+
+.premiumProductImage {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1.5 / 1;
+  overflow: hidden;
+  border-radius: $border-5;
+
+  img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.premiumProductInfo {
+  padding-top: 5px;
+
+  h3 {
+    color: $color-black;
+    font-size: $fs-10;
+    line-height: 1.2;
+    margin-bottom: 2px;
+  }
+
+  p {
+    color: $color-primary;
+    font-size: 8px;
+    line-height: 1.2;
+  }
+
+  strong {
+    font-weight: $fw-500;
+  }
+}
+
+.rareProductGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: $m-8;
+}
+
+.rareProductCard {
+  min-width: 0;
+  overflow: hidden;
+  border: $border-1 solid $border-gainsboro;
+  border-radius: 6px;
+  background-color: $bg-white;
+}
+
+.rareProductImage {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1.13 / 1;
+  overflow: hidden;
+
+  img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.rareBadge {
+  position: absolute;
+  left: 50%;
+  bottom: 5px;
+  transform: translateX(-50%);
+  max-width: calc(100% - 10px);
+  padding: 2px 5px;
+  border-radius: $border-5;
+  color: $color-white;
+  font-size: 7px;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.rareBadgeLimited {
+  background-color: $bg-secondary;
+}
+
+.rareBadgeSeasonal {
+  background-color: $bg-green;
+}
+
+.rareBadgeRare {
+  background-color: $bg-old-lace;
+  color: $color-dim-grey;
+  border: $border-1 solid $border-gainsboro;
+}
+
+.rareProductInfo {
+  padding: $p-6;
+
+  h3 {
+    min-height: 25px;
+    margin-bottom: $m-4;
+    color: $color-black;
+    font-size: $fs-10;
+    line-height: 1.2;
+    text-align: center;
+  }
+}
+
+.rarePrice {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  gap: $m-4;
+
+  span {
+    color: $color-dim-grey;
+    font-size: 8px;
+    text-decoration: line-through;
+  }
+
+  strong {
+    color: $color-primary;
+    font-size: 9px;
+  }
+}
+
+.occasionDecorationGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.98fr);
+  gap: $m-25;
+  align-items: stretch;
+}
+
+.occasionArea {
+  min-width: 0;
+}
+
+.occasionGrid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: $m-10;
+}
+
+.occasionCard {
+  min-width: 0;
+  text-align: center;
+  text-decoration: none;
+
+  img {
+    width: 92px;
+    height: 92px;
+    border-radius: 50%;
+    border: $border-1 solid $border-gainsboro;
+    object-fit: cover;
+    background-color: $bg-white;
+    padding: $p-4;
+  }
+
+  span {
+    display: block;
+    margin-top: $m-8;
+    color: $color-black;
+    font-size: 11px;
+    line-height: 1.3;
+  }
+}
+
+.decorationService {
+  display: grid;
+  grid-template-columns: 0.95fr 1.05fr;
+  min-height: 310px;
+  align-items: stretch;
+}
+
+.decorationContent {
+  padding: $p-25;
+  align-self: center;
+
+  h2 {
+    color: $color-primary;
+    margin-bottom: $m-8;
+  }
+
+  p {
+    font-size: 13px;
+  }
+
+  ul {
+    padding: 0;
+    list-style: none;
+    margin: $m-15 $m-0;
+  }
+
+  li {
+    font-size: 13px;
+    margin-bottom: $m-8;
+  }
+}
+
+.decorationImage {
+  min-width: 0;
+  height: 100%;
+
+  img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 310px;
+    object-fit: cover;
+  }
+}
+
+.benefitStrip {
+  background-color: $bg-white;
+  border-top: $border-1 solid $border-gainsboro;
+  border-bottom: $border-1 solid $border-gainsboro;
+  padding-top: $p-25;
+  padding-bottom: $p-25;
+}
+
+.benefitGrid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: $m-15;
+}
+
+.benefitItem {
+  min-width: 0;
+  display: flex;
+  gap: $m-10;
+  align-items: center;
+
+  img {
+    width: 38px;
+    height: 38px;
+    object-fit: contain;
+    flex: 0 0 auto;
+  }
+
+  strong,
+  span {
+    display: block;
+  }
+
+  strong {
+    color: $color-primary;
+    font-size: 11px;
+    line-height: 1.25;
+  }
+
+  span {
+    font-size: $fs-10;
+    line-height: 1.25;
+    margin-top: $m-4;
+  }
+}
+
+.galleryTestimonialsGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr);
+  gap: $m-25;
+}
+
+.decorationGallery {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: $m-10;
+}
+
+.galleryCard {
+  min-width: 0;
+  border: $border-1 solid $border-gainsboro;
+  border-radius: $border-8;
+  overflow: hidden;
+  background-color: $bg-white;
+
+  img {
+    display: block;
+    width: 100%;
+    height: 145px;
+    object-fit: cover;
+  }
+
+  span {
+    display: block;
+    text-align: center;
+    padding: $p-8;
+    font-size: 11px;
+  }
+}
+
+.testimonialGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: $m-10;
+}
+
+.testimonialCard {
+  min-width: 0;
+  min-height: 190px;
+  border: $border-1 solid $border-gainsboro;
+  border-radius: $border-8;
+  padding: $p-15;
+  background-color: $bg-old-lace;
+
+  p,
+  span {
+    font-size: $fs-12;
+    line-height: 1.5;
+  }
+
+  span {
+    color: $color-primary;
+  }
+}
+
+.stars {
+  color: $color-secondary;
+  margin-bottom: $m-10;
+  letter-spacing: 0;
+}
+
+.instagramGrid {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: $m-8;
+
+  a {
+    display: block;
+    min-width: 0;
+  }
+
+  img {
+    display: block;
+    width: 100%;
+    height: 130px;
+    object-fit: cover;
+    border-radius: $border-8;
+    border: $border-1 solid $border-gainsboro;
+  }
+}
+
+.finalCta {
+  background-color: $bg-primary;
+  color: $color-white;
+  overflow: hidden;
+}
+
+.finalCtaGrid {
+  min-height: 185px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(360px, 0.65fr);
+  align-items: center;
+  gap: $m-20;
+
+  h2,
+  p {
+    color: $color-white;
+  }
+
+  h2 {
+    margin-bottom: $m-8;
+  }
+
+  p {
+    font-size: $fs-14;
+  }
+
+  img {
+    display: block;
+    width: 100%;
+    height: 185px;
+    object-fit: cover;
+  }
+}
+
+@media (max-width: 1536px) {
+  .heroGrid {
+    min-height: 420px;
+  }
+
+  .heroImageWrap {
+    min-height: 420px;
+  }
+
+  .categoryCardV2 img {
+    width: 116px;
+    height: 116px;
+  }
+
+  .categoryCardV2 {
+    min-height: 220px;
+  }
+
+  .occasionCard img {
+    width: 80px;
+    height: 80px;
+  }
+}
+
+@media (max-width: $lg) {
+  .categoryGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .subscriptionGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .subscriptionLayout,
+  .threeProductColumns,
+  .occasionDecorationGrid,
+  .galleryTestimonialsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .freshArrivalGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .premiumProductGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .rareProductGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .collectionPanel,
+  .rareCollectionPanel {
+    border-left: 0;
+    border-top: $border-1 solid $border-gainsboro;
+  }
+
+  .benefitGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .homeContainer {
+    width: calc(100% - 36px);
+  }
+
+  .heroGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .heroContent {
+    padding: $p-35 $p-0;
+  }
+
+  .heroImageWrap {
+    min-height: 340px;
+  }
+
+  .occasionGrid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .instagramGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: $md) {
+  .sectionWhite,
+  .sectionSoft {
+    padding: $p-30 $p-0;
+  }
+
+  .homePage h2 {
+    font-size: $fs-24;
+  }
+
+  .heroContent h1 {
+    font-size: $fs-36;
+  }
+
+  .categoryGrid,
+  .subscriptionGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .freshArrivalGrid,
+  .premiumProductGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .rareProductGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .pujaBoxCard,
+  .decorationService {
+    grid-template-columns: 1fr;
+  }
+
+  .pujaBoxImage img,
+  .decorationImage img {
+    min-height: 250px;
+    max-height: 320px;
+  }
+
+  .benefitGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .testimonialGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .decorationGallery {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .finalCtaGrid {
+    grid-template-columns: 1fr;
+    padding-top: $p-25;
+  }
+
+  .finalCtaGrid img {
+    height: 220px;
+  }
+}
+
+@media (max-width: $sm) {
+  .homeContainer {
+    width: calc(100% - 28px);
+  }
+
+  .heroContent h1 {
+    font-size: $fs-30;
+  }
+
+  .heroBenefits {
+    grid-template-columns: 1fr;
+  }
+
+  .heroActions,
+  .inlineActions {
+    align-items: stretch;
+    flex-direction: column;
+
+    a {
+      width: 100%;
+      text-align: center;
+    }
+  }
+
+  .heroImageWrap {
+    min-height: auto;
+  }
+
+  .heroImageWrap img {
+    height: auto;
+  }
+
+  .centerSectionTitle {
+    gap: $m-8;
+  }
+
+  .centerSectionTitle img {
+    width: 28px;
+  }
+
+  .sectionTitleRow {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: $m-6;
+    min-height: 0;
+  }
+
+  .categoryGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: $m-8;
+  }
+
+  .categoryCardV2 {
+    min-height: 205px;
+    padding: $p-10 $p-6;
+  }
+
+  .categoryCardV2 img {
+    width: 92px;
+    height: 92px;
+  }
+
+  .categoryCardV2 h3 {
+    font-size: $fs-14;
+  }
+
+  .subscriptionGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .freshProductSection,
+  .collectionPanel,
+  .rareCollectionPanel {
+    padding: $p-15;
+  }
+
+  .freshArrivalGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .premiumProductGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .rareProductGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .subscriptionMeta {
+    justify-content: flex-start;
+  }
+
+  .occasionGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .benefitGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .instagramGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .finalCtaGrid img {
+    height: auto;
+  }
+}
