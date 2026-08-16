@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import styles from "@/scss/pages/register.module.scss";
 import Banner from "@/components/banner";
 import { useRouter } from "next/navigation";
-import { useUser } from "../context/page";
+import { useUser } from "@/context/UserContext";
 import Link from "next/link";
 
 export default function RegisterPage() {

@@ -11,10 +11,10 @@ import {
   fetchUser,
   formatPrice,
 } from "../../../../hook/userCookie";
-import { useToast, useUser, useWatchlistCount } from "../context/page";
+import { useToast, useUser, useWatchlistCount } from "@/context/UserContext";
 import Cart from "@/components/Cart";
 import Toast from "@/components/Toast";
-import { useCartCount } from "../context/page";
+import { useCartCount } from "@/context/UserContext";
 import Image from "next/image";
 import Link from "next/link";
 

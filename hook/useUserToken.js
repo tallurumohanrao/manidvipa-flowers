@@ -18,9 +18,17 @@ export const useUserToken = () => {
 };
 
 export function generateRandomString(length) {
+  const cookieOptions = {
+    secure:
+      typeof window !== "undefined" && window.location.protocol === "https:",
+    sameSite: "Lax",
+    expires: 730,
+    path: "/",
+  };
   const guestSession = Cookies.get("guestSession");
 
   if (guestSession) {
+    Cookies.set("guestSession", guestSession, cookieOptions);
     return guestSession;
   }
 
@@ -33,11 +41,7 @@ export function generateRandomString(length) {
     result += characters[randomIndex];
   }
 
-  Cookies.set("guestSession", result, {
-    secure: true,
-    sameSite: "Strict",
-    expires: 730,
-  });
+  Cookies.set("guestSession", result, cookieOptions);
 
   return result;
 }

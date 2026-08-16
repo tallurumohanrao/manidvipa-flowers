@@ -1,15 +1,13 @@
 "use client";
 import styles from "@/scss/pages/register.module.scss";
 import { useRouter } from "next/navigation";
-import { fetchUser } from "../../hook/userCookie";
 import Cookies from "js-cookie";
 import { useState } from "react";
 
 const url = process.env.NEXT_PUBLIC_MANIDVIPA_URL;
 
-const ChangePassword = () => {
+const ChangePassword = ({ userToken }) => {
   const router = useRouter();
-  const user = fetchUser();
   const [formData, setFormData] = useState({
     current_password: "",
     new_password: "",
@@ -44,6 +42,10 @@ const ChangePassword = () => {
   const handleUpdate = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
+    if (!userToken) {
+      setMessage("Please login again before changing your password");
+      return;
+    }
     const data = {
       current_password: formData.current_password,
       new_password: formData.new_password,
@@ -52,7 +54,7 @@ const ChangePassword = () => {
       const response = await fetch(`${url}/update-user-password`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${user}`,
+          Authorization: `Bearer ${userToken}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(data),
@@ -62,7 +64,7 @@ const ChangePassword = () => {
         const errorDetails = await response.text();
         throw new Error(`Update failed: ${response.status} ${errorDetails}`);
       } else {
-        Cookies.remove("userSession", { sameSite: "Strict" });
+        Cookies.remove("userSession", { sameSite: "Strict", path: "/" });
         router.push("/login");
       }
     } catch (error) {

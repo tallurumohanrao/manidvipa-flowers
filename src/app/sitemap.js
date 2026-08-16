@@ -27,10 +27,10 @@ export default async function sitemap() {
 
     return [
       {
-        url: "https://example.com",
+        url: "https://manidvipaflowers.com",
         lastModified: new Date(),
         changefreq: "daily",
-        priority: "1.0",
+        priority: 1,
       },
     ];
   }

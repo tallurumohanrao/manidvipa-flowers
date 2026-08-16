@@ -3,6 +3,7 @@ import ContactUs from "@/components/pages/ContactUs";
 import {
   fetchCategoryData,
   fetchListingData,
+  fetchSiteSettingsData,
 } from "../../../../hook/userCookie";
 import { cookies } from "next/headers";
 
@@ -29,15 +30,17 @@ export default async function Page() {
       console.error("Failed to parse userSession cookie:", error);
     }
   }
-  const contactDetails = await fetchAboutData(
-    `static-page?page_name=contact-us`
-  );
-  const produtTitles = await fetchCategoryData(`categories`);
+  const [contactDetails, produtTitles, siteSettings] = await Promise.all([
+    fetchAboutData(`static-page?page_name=contact-us`),
+    fetchCategoryData(userToken),
+    fetchSiteSettingsData(userToken),
+  ]);
   return (
     <ContactUs
       contactDetails={contactDetails}
       produtTitles={produtTitles}
       userToken={userToken}
+      siteSettings={siteSettings}
     />
   );
 }

@@ -1,15 +1,4 @@
 import Cookies from "js-cookie";
-import { revalidatePath } from "next/cache";
-
-export default function handler(req, res) {
-  const token = req.headers["x-user-token"];
-
-  if (!token) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
-
-  res.status(200).json({ token });
-}
 
 export function fetchUser() {
   const userSession = Cookies.get("userSession");
@@ -49,9 +38,13 @@ export async function fetchListingData(
       options.body = JSON.stringify(formData);
     }
 
+    const isBannerEndpoint =
+      typeof endpoint === "string" && endpoint.startsWith("banners");
     const fetchOptions =
       req_method === "GET"
-        ? { ...options, next: { cache: "no-store" } }
+        ? isBannerEndpoint
+          ? { ...options, cache: "no-store" }
+          : { ...options, next: { revalidate: 60 } }
         : options;
 
     const response = await fetch(`${url}/${endpoint}`, fetchOptions);
@@ -74,6 +67,39 @@ export async function fetchListingData(
     console.log("Error fetching data:", error);
     return null;
   }
+}
+
+export function getCartItems(cartResponse) {
+  if (Array.isArray(cartResponse?.data?.data)) return cartResponse.data.data;
+  if (Array.isArray(cartResponse?.data?.cart)) return cartResponse.data.cart;
+  if (Array.isArray(cartResponse?.data?.items)) return cartResponse.data.items;
+  if (Array.isArray(cartResponse?.data)) return cartResponse.data;
+  if (Array.isArray(cartResponse?.cart)) return cartResponse.cart;
+  if (Array.isArray(cartResponse?.items)) return cartResponse.items;
+  return [];
+}
+
+export function getCartCount(cartResponse) {
+  const explicitCount =
+    cartResponse?.totals?.items_count ??
+    cartResponse?.totals?.item_count ??
+    cartResponse?.cart_count ??
+    cartResponse?.count ??
+    cartResponse?.data?.count;
+  const numericCount = Number(explicitCount);
+
+  if (Number.isFinite(numericCount)) return numericCount;
+
+  return getCartItems(cartResponse).length;
+}
+
+export async function fetchCartBySession(guestSession, userToken) {
+  if (!guestSession) return { data: [] };
+
+  return fetchCartSessionData(
+    `get-cart?cart_session=${encodeURIComponent(guestSession)}`,
+    userToken
+  );
 }
 
 export async function fetchPageData(
@@ -177,11 +203,11 @@ export async function fetchCartSessionData(query, userToken) {
   try {
     const response = await fetch(`${PUBLIC_URL}/${query}`, {
       method: "GET",
+      cache: "no-store",
       headers: {
         ...(userToken && { Authorization: `Bearer ${userToken}` }),
         "Content-Type": "application/json",
       },
-      revalidate: 60,
     });
     const resJson = await response.json();
     return resJson;

@@ -1,0 +1,24 @@
+User-Agent: *
+Allow: /
+
+#Google Ads
+
+User-Agent: Googlebot
+allow: /
+
+User-agent: bingbot
+crawl-delay: 20
+
+Disallow: /admin
+
+Disallow: /storage
+Disallow: /storage/*
+Disallow: /assets/*
+Disallow: /index.php
+Disallow: /index.php/*
+Disallow: /public/index.php/
+Disallow: /public
+Disallow: /public/*
+Disallow: *.pdf
+
+Sitemap: https://www.srisriparinaya.com/sitemap.xml

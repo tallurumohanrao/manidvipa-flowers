@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import HoverCard from "@/components/hoverCard";
 import styles from "@/scss/pages/listingPage.module.scss";
 import { useParams } from "next/navigation";
-import { useToast, useUser } from "../../context/page";
+import { useToast, useUser } from "@/context/UserContext";
 import Toast from "@/components/Toast";
 
 const url = process.env.NEXT_PUBLIC_MANIDVIPA_URL;
@@ -11,6 +11,9 @@ const IMG_URL = process.env.NEXT_PUBLIC_IMG_URL;
 
 export default function Page() {
   const { searchvalue } = useParams();
+  const searchQuery = Array.isArray(searchvalue)
+    ? searchvalue.join("/")
+    : searchvalue;
   const { guestSession } = useUser();
   const { showToast } = useToast();
   const [productCategory, setProductCategory] = useState([]);
@@ -19,8 +22,9 @@ export default function Page() {
 
   useEffect(() => {
     const fetchData = async () => {
-      if (searchvalue != "all") {
-        const res = await fetch(`${url}/search?q=${searchvalue}`);
+      if (searchQuery != "all") {
+        const searchParams = new URLSearchParams({ q: searchQuery });
+        const res = await fetch(`${url}/search?${searchParams.toString()}`);
         const result = await res.json();
         setProductCategory(result.data.data);
       } else {
@@ -30,7 +34,7 @@ export default function Page() {
       }
     };
     fetchData();
-  }, [searchvalue]);
+  }, [searchQuery]);
 
   const handleSortChange = (e) => {
     setSortOption(e.target.value);
@@ -65,7 +69,7 @@ export default function Page() {
               <div>
                 <div className={`${styles.selecting_butn} py-2 my-2 mt-4`}>
                   <div className={`${styles.list_style_butn} calc`}>
-                    <h3 className="mb-0">{searchvalue}</h3>
+                    <h3 className="mb-0">{searchQuery}</h3>
                   </div>
                   <div className={`${styles.sorting_butn} px-2`}>
                     <h5>Sort by</h5>

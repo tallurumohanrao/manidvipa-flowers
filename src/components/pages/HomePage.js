@@ -3,8 +3,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { FaInstagram, FaShoppingBasket, FaWhatsapp } from "react-icons/fa";
+import Slick from "@/components/Slick";
 import styles from "@/scss/pages/home.module.scss";
-import { fetchListingData } from "../../../hook/userCookie";
+import { useCartCount, useToast, useUser } from "@/context/UserContext";
+import {
+  fetchCartBySession,
+  fetchListingData,
+  getCartCount,
+} from "../../../hook/userCookie";
 
 const IMG_URL = process.env.NEXT_PUBLIC_IMG_URL;
 
@@ -64,6 +71,208 @@ const benefits = [
   ["/assets/images/security.png", "Secure Payments", "Safe and secure payments"],
 ];
 
+const subscriptionPlans = [
+  {
+    title: "Daily Puja Subscription",
+    description: "Fresh puja flowers delivered daily.",
+    price: "₹299",
+    cadence: "/ week",
+    image: "/assets/images/kumbham-img-1.png",
+  },
+  {
+    title: "Weekly Subscription",
+    description: "3 deliveries every week.",
+    price: "₹799",
+    cadence: "/ month",
+    image: "/assets/images/home-v2/category-patri.jpg",
+  },
+  {
+    title: "Temple Subscription",
+    description: "Bulk flowers, garlands & leaves.",
+    price: "₹1,199",
+    cadence: "/ month",
+    image: "/assets/images/home-v2/category-temple.jpg",
+  },
+  {
+    title: "Home Subscription",
+    description: "Fresh flowers for puja & decor.",
+    price: "₹1,099",
+    cadence: "/ month",
+    image: "/assets/images/home-v2/category-daily-puja.jpg",
+  },
+  {
+    title: "Office / Business Subscription",
+    description: "Office, temple & reception flowers.",
+    price: "₹1,499",
+    cadence: "/ month",
+    image: "/assets/images/home-v2/category-gifting.jpg",
+  },
+];
+
+const visibleSubscriptionPlans = subscriptionPlans.length
+  ? subscriptionPlans
+  : subscriptions.map(([title, description]) => ({
+      title,
+      description,
+      price: "₹299",
+      cadence: "/ week",
+      image: "/assets/images/kumbham-img-1.png",
+    }));
+
+const defaultHeroSlides = [
+  {
+    titleLines: ["Fresh Flowers.", "Delivered With Devotion."],
+    description:
+      "From Daily Puja Flowers to Premium & Rare Blooms — Freshly Sourced and Delivered to Your Doorstep.",
+    benefits: [
+      ["/assets/images/free-shipping.png", "Fresh Every Morning", "Sourced Daily"],
+      ["/assets/images/free-shipping.png", "Same-Day Delivery", "Across Hyderabad"],
+      ["/assets/images/kumbham-img-1.png", "Puja Ready", "Flowers & Leaves"],
+    ],
+    primary: { label: "SHOP FRESH FLOWERS", href: "/flowers" },
+    secondary: { label: "START A SUBSCRIPTION", href: "/subscriptions" },
+    image: "/assets/images/home-v2/hero-flowers.jpg",
+    alt: "Fresh puja flowers arranged in a traditional tray",
+  },
+  {
+    titleLines: ["Daily Puja Flowers.", "Ready Every Morning."],
+    description:
+      "Marigold, jasmine, lotus, tulasi and leaves packed fresh for your morning rituals.",
+    benefits: [
+      ["/assets/images/kumbham-img-1.png", "Puja Essentials", "Flowers & Leaves"],
+      ["/assets/images/free-shipping.png", "Morning Freshness", "Prepared Daily"],
+      ["/assets/icons/whatsapp.png", "Quick Ordering", "WhatsApp Support"],
+    ],
+    primary: { label: "SHOP PUJA FLOWERS", href: "/puja-flowers" },
+    secondary: { label: "ORDER ON WHATSAPP", href: "whatsapp" },
+    image: "/assets/images/home-v2/hero-flowers.jpg",
+    alt: "Fresh flowers and lotus for daily puja",
+  },
+  {
+    titleLines: ["Flowers For Every", "Occasion & Ritual."],
+    description:
+      "Fresh flowers, garlands and decoration support for homes, temples, weddings and events.",
+    benefits: [
+      ["/assets/images/online-support.png", "Easy Planning", "Support Available"],
+      ["/assets/images/free-shipping.png", "Local Delivery", "Across Hyderabad"],
+      ["/assets/images/security.png", "Trusted Quality", "Fresh Selection"],
+    ],
+    primary: { label: "VIEW DECORATIONS", href: "/decorations" },
+    secondary: { label: "CONTACT US", href: "/contact-us" },
+    image: "/assets/images/home-v2/hero-flowers.jpg",
+    alt: "Premium fresh flowers for rituals and decorations",
+  },
+];
+
+const heroSliderSettings = {
+  dots: true,
+  arrows: false,
+  infinite: true,
+  autoplay: true,
+  autoplaySpeed: 4500,
+  speed: 650,
+  slidesToShow: 1,
+  slidesToScroll: 1,
+  pauseOnHover: true,
+  responsive: [
+    {
+      breakpoint: 1200,
+      settings: {
+        slidesToShow: 1,
+        slidesToScroll: 1,
+      },
+    },
+    {
+      breakpoint: 900,
+      settings: {
+        slidesToShow: 1,
+        slidesToScroll: 1,
+      },
+    },
+    {
+      breakpoint: 600,
+      settings: {
+        slidesToShow: 1,
+        slidesToScroll: 1,
+      },
+    },
+  ],
+};
+
+function cleanHeroText(value) {
+  return String(value || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function splitHeroTitleLines(value) {
+  const rawTitle = String(value || "").trim();
+  if (!rawTitle) return [];
+
+  const explicitLines = rawTitle
+    .split(/\s*(?:\||<br\s*\/?>|\r?\n)\s*/i)
+    .map(cleanHeroText)
+    .filter(Boolean);
+
+  if (explicitLines.length > 1) return explicitLines;
+
+  const cleanTitle = cleanHeroText(rawTitle);
+  const sentenceLines = cleanTitle
+    .split(/(?<=\.)\s+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  return sentenceLines.length > 1 && sentenceLines.length <= 3
+    ? sentenceLines
+    : [cleanTitle];
+}
+
+function normalizeHeroUrl(value, fallbackHref) {
+  const url = String(value || "").trim();
+  if (!url) return fallbackHref;
+  if (url === "whatsapp") return url;
+  if (/^(https?:)?\/\//i.test(url) || /^(tel|mailto):/i.test(url)) return url;
+  return url.startsWith("/") ? url : `/${url.replace(/^\/+/, "")}`;
+}
+
+function buildHeroSlides(homeBanners = []) {
+  const banners = Array.isArray(homeBanners)
+    ? homeBanners.filter((banner) => banner?.image_url || banner?.image || banner?.title)
+    : [];
+
+  if (!banners.length) return defaultHeroSlides;
+
+  return banners.map((banner, index) => {
+    const fallbackSlide = defaultHeroSlides[index % defaultHeroSlides.length];
+    const titleLines = splitHeroTitleLines(banner.title);
+    const description = cleanHeroText(banner.banner_text);
+    const image = banner.image_url || banner.image || fallbackSlide.image;
+
+    return {
+      ...fallbackSlide,
+      id: banner.id || `${image}-${index}`,
+      titleLines: titleLines.length ? titleLines : fallbackSlide.titleLines,
+      description: description || fallbackSlide.description,
+      primary: {
+        label: cleanHeroText(banner.button_text) || fallbackSlide.primary.label,
+        href: normalizeHeroUrl(banner.url, fallbackSlide.primary.href),
+      },
+      secondary: fallbackSlide.secondary,
+      image,
+      alt: cleanHeroText(banner.alt) || cleanHeroText(banner.title) || fallbackSlide.alt,
+    };
+  });
+}
+
+function resolveHeroHref(href, whatsappHref) {
+  return href === "whatsapp" ? whatsappHref : href || "/flowers";
+}
+
+function opensInNewTab(href) {
+  return /^(https?:)?\/\//i.test(String(href || ""));
+}
+
 const occasions = [
   ["Daily Puja", "/assets/images/home-v2/category-daily-puja.jpg"],
   ["Temple Offering", "/assets/images/home-v2/category-temple.jpg"],
@@ -74,16 +283,322 @@ const occasions = [
 ];
 
 const decorationGallery = [
-  ["Weddings", "/assets/images/home-v2/decoration-wedding.jpg"],
-  ["Pooja Decorations", "/assets/images/home-v2/decoration-pooja.jpg"],
-  ["Temple Decorations", "/assets/images/home-v2/decoration-temple.jpg"],
-  ["Events", "/assets/images/home-v2/decoration-events.jpg"],
+  ["Wedding Decorations", "/assets/images/home-v2/recent-decorations/recent-decoration-wedding.jpg"],
+  ["Pooja Decorations", "/assets/images/home-v2/recent-decorations/recent-decoration-pooja.jpg"],
+  ["Temple Decorations", "/assets/images/home-v2/recent-decorations/recent-decoration-temple.jpg"],
+  ["Event Decorations", "/assets/images/home-v2/recent-decorations/recent-decoration-events.jpg"],
 ];
 
-const instagramImages = Array.from(
-  { length: 8 },
-  (_, index) => `/assets/images/home-v2/insta-${index + 1}.jpg`
-);
+const instagramImages = [
+  ...Array.from(
+    { length: 9 },
+    (_, index) => `/assets/images/home-v2/instagram-gallery/instagram-gallery-${index + 1}.jpg`
+  ),
+];
+
+const fallbackProducts = [
+  {
+    title: "Red Roses",
+    sell_price: "250",
+    list_price: "300",
+    slug: "red-roses",
+    localImage: "/assets/images/home-v2/category-premium.jpg",
+  },
+  {
+    title: "Chamanthi Flowers",
+    sell_price: "120",
+    list_price: "150",
+    slug: "chamanthi-flowers",
+    localImage: "/assets/images/home-v2/category-daily-puja.jpg",
+  },
+  {
+    title: "Kanakambaram",
+    sell_price: "250",
+    list_price: "300",
+    slug: "kanakambaram",
+    localImage: "/assets/images/home-v2/category-temple.jpg",
+  },
+  {
+    title: "Lotus Flowers",
+    sell_price: "60",
+    list_price: "80",
+    slug: "lotus-flowers",
+    localImage: "/assets/images/home-v2/category-rare.jpg",
+    unit: "piece",
+  },
+  {
+    title: "Banthi Flowers",
+    sell_price: "120",
+    list_price: "150",
+    slug: "banthi-flowers",
+    localImage: "/assets/images/home-v2/category-daily-puja.jpg",
+  },
+  {
+    title: "Premium Roses",
+    sell_price: "150",
+    list_price: "200",
+    slug: "premium-roses",
+    localImage: "/assets/images/home-v2/category-premium.jpg",
+    unit: "bunch",
+  },
+  {
+    title: "Lilies",
+    sell_price: "300",
+    list_price: "380",
+    slug: "lilies",
+    localImage: "/assets/images/home-v2/category-gifting.jpg",
+    unit: "bunch",
+  },
+  {
+    title: "Orchid Flowers",
+    sell_price: "450",
+    list_price: "550",
+    slug: "orchid-flowers",
+    localImage: "/assets/images/home-v2/category-rare.jpg",
+    unit: "bunch",
+  },
+  {
+    title: "Lotus",
+    sell_price: "180",
+    list_price: "220",
+    slug: "lotus",
+    localImage: "/assets/images/home-v2/category-rare.jpg",
+    unit: "bunch",
+  },
+  {
+    title: "Dreshta Flowers",
+    sell_price: "750",
+    list_price: "900",
+    slug: "dreshta-flowers",
+    localImage: "/assets/images/home-v2/category-temple.jpg",
+    unit: "bunch",
+  },
+  {
+    title: "Imported Tulips",
+    sell_price: "600",
+    list_price: "750",
+    slug: "imported-tulips",
+    localImage: "/assets/images/home-v2/category-gifting.jpg",
+    unit: "bunch",
+  },
+  {
+    title: "Rare Jasmine",
+    sell_price: "320",
+    list_price: "420",
+    slug: "rare-jasmine",
+    localImage: "/assets/images/home-v2/category-patri.jpg",
+    unit: "bunch",
+  },
+  {
+    title: "Seasonal Marigold",
+    sell_price: "140",
+    list_price: "180",
+    slug: "seasonal-marigold",
+    localImage: "/assets/images/home-v2/category-temple.jpg",
+    unit: "kg",
+  },
+  {
+    title: "White Tuberose",
+    sell_price: "280",
+    list_price: "350",
+    slug: "white-tuberose",
+    localImage: "/assets/images/home-v2/category-patri.jpg",
+    unit: "bunch",
+  },
+  {
+    title: "Mixed Ritual Flowers",
+    sell_price: "220",
+    list_price: "280",
+    slug: "mixed-ritual-flowers",
+    localImage: "/assets/images/home-v2/hero-flowers.jpg",
+    unit: "kg",
+  },
+  {
+    title: "Decor Flower Mix",
+    sell_price: "500",
+    list_price: "650",
+    slug: "decor-flower-mix",
+    localImage: "/assets/images/home-v2/cta-flowers.jpg",
+    unit: "bunch",
+  },
+  {
+    title: "Temple Garland Flowers",
+    sell_price: "350",
+    list_price: "450",
+    slug: "temple-garland-flowers",
+    localImage: "/assets/images/home-v2/puja-box.jpg",
+    unit: "bunch",
+  },
+];
+
+const freshArrivalSeeds = [
+  {
+    title: "Red Roses",
+    keywords: ["red rose", "rose", "roses"],
+    startingPrice: "250",
+    listPrice: "300",
+    image: "/assets/images/home-v2/fresh-arrivals/fresh-red-roses.jpg",
+    href: "/search/rose",
+    unit: "kg",
+  },
+  {
+    title: "Chamanthi Flowers",
+    keywords: ["chamanthi", "chrysanthemum"],
+    startingPrice: "120",
+    listPrice: "150",
+    image: "/assets/images/home-v2/fresh-arrivals/fresh-chamanthi.jpg",
+    href: "/search/chamanthi",
+    unit: "kg",
+  },
+  {
+    title: "Kanakambaram",
+    keywords: ["kanakambaram", "crossandra"],
+    startingPrice: "250",
+    listPrice: "300",
+    image: "/assets/images/home-v2/fresh-arrivals/fresh-kanakambaram.jpg",
+    href: "/search/kanakambaram",
+    unit: "kg",
+  },
+  {
+    title: "Lotus Flowers",
+    keywords: ["lotus"],
+    startingPrice: "60",
+    listPrice: "80",
+    image: "/assets/images/home-v2/fresh-arrivals/fresh-lotus.jpg",
+    href: "/search/lotus",
+    unit: "piece",
+  },
+  {
+    title: "Banthi Flowers",
+    keywords: ["banthi", "marigold"],
+    startingPrice: "120",
+    listPrice: "150",
+    image: "/assets/images/home-v2/fresh-arrivals/fresh-banthi.jpg",
+    href: "/search/banthi",
+    unit: "kg",
+  },
+  {
+    title: "Yellow Sevanthi",
+    keywords: ["yellow sevanthi", "sevanthi"],
+    startingPrice: "60",
+    listPrice: "80",
+    image: "/assets/images/home-v2/fresh-arrivals/fresh-yellow-sevanthi.jpg",
+    href: "/search/sevanthi",
+    unit: "kg",
+  },
+];
+
+const premiumCollectionSeeds = [
+  {
+    title: "Premium Roses",
+    keywords: ["premium rose", "rose", "roses"],
+    startingPrice: "150",
+    image: "/assets/images/home-v2/premium-collection/premium-roses.jpg",
+    href: "/search/rose",
+  },
+  {
+    title: "Tulips",
+    keywords: ["tulip", "tulips", "imported tulip"],
+    startingPrice: "600",
+    image: "/assets/images/home-v2/premium-collection/premium-tulips.jpg",
+    href: "/search/tulip",
+  },
+  {
+    title: "Orchids",
+    keywords: ["orchid", "orchids"],
+    startingPrice: "450",
+    image: "/assets/images/home-v2/premium-collection/premium-orchids.jpg",
+    href: "/search/orchid",
+  },
+  {
+    title: "Lilies",
+    keywords: ["lily", "lilies"],
+    startingPrice: "300",
+    image: "/assets/images/home-v2/premium-collection/premium-lilies.jpg",
+    href: "/search/lilies",
+  },
+  {
+    title: "Imported / Exotic Flowers",
+    keywords: ["imported", "exotic", "rare"],
+    startingPrice: "600",
+    image: "/assets/images/home-v2/premium-collection/premium-exotic.jpg",
+    href: "/search/imported",
+  },
+];
+
+const rareSeasonalCollectionSeeds = [
+  {
+    title: "Lotus Flowers",
+    keywords: ["lotus"],
+    startingPrice: "60",
+    image: "/assets/images/home-v2/rare-seasonal/rare-lotus.jpg",
+    href: "/search/lotus",
+    unit: "piece",
+    tag: "Puja Special",
+  },
+  {
+    title: "Rare Jasmine",
+    keywords: ["jasmine", "malli", "malle"],
+    startingPrice: "320",
+    image: "/assets/images/home-v2/rare-seasonal/rare-jasmine.jpg",
+    href: "/search/jasmine",
+    unit: "bunch",
+    tag: "Limited Stock",
+  },
+  {
+    title: "Kanakambaram",
+    keywords: ["kanakambaram", "crossandra"],
+    startingPrice: "250",
+    image: "/assets/images/home-v2/rare-seasonal/rare-kanakambaram.jpg",
+    href: "/search/kanakambaram",
+    unit: "kg",
+    tag: "Seasonal",
+  },
+  {
+    title: "Seasonal Marigold",
+    keywords: ["marigold", "banthi", "seasonal"],
+    startingPrice: "140",
+    image: "/assets/images/home-v2/rare-seasonal/rare-marigold.jpg",
+    href: "/search/marigold",
+    unit: "kg",
+    tag: "Seasonal",
+  },
+  {
+    title: "White Tuberose",
+    keywords: ["tuberose", "rajanigandha"],
+    startingPrice: "280",
+    image: "/assets/images/home-v2/rare-seasonal/rare-tuberose.jpg",
+    href: "/search/tuberose",
+    unit: "bunch",
+    tag: "Fragrant",
+  },
+  {
+    title: "Sampangi Flowers",
+    keywords: ["sampangi", "champaca", "champak"],
+    startingPrice: "300",
+    image: "/assets/images/home-v2/rare-seasonal/rare-sampangi.jpg",
+    href: "/search/sampangi",
+    unit: "bunch",
+    tag: "Rare",
+  },
+];
+
+const pujaBoxOptions = {
+  flowers: [
+    "Daily Puja Mix",
+    "Chamanthi + Banthi",
+    "Lotus + Jasmine",
+    "Custom Flower Mix",
+  ],
+  leaves: [
+    "Tulasi + Bilva",
+    "Mango Leaves",
+    "Patri Combo",
+    "No Leaves",
+  ],
+  quantity: ["250g", "500g", "1kg", "Custom quantity"],
+  delivery: ["Tomorrow Morning", "Today Evening", "Daily Subscription", "Pick a Date"],
+};
 
 function normalizeWhatsApp(value) {
   if (!value) return "/contact-us";
@@ -92,7 +607,55 @@ function normalizeWhatsApp(value) {
   return phone ? `https://wa.me/${phone}` : "/contact-us";
 }
 
-function SectionTitle({ title, subtitle, actionText, actionHref = "/search/all" }) {
+function appendWhatsAppMessage(href, message) {
+  if (!href || !href.startsWith("http")) return href || "/contact-us";
+  const separator = href.includes("?") ? "&" : "?";
+  return `${href}${separator}text=${encodeURIComponent(message)}`;
+}
+
+function getInstagramHandle(value) {
+  if (!value || value === "#") return "manidvipaflowers";
+
+  try {
+    const pathname = new URL(value).pathname;
+    return pathname.split("/").filter(Boolean)[0] || "manidvipaflowers";
+  } catch {
+    return value.replace(/^@/, "") || "manidvipaflowers";
+  }
+}
+
+function cleanPlainText(value) {
+  return String(value || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getHomepageCategoryImage(category, index) {
+  if (category?.image_url) return category.image_url;
+  if (category?.image && String(category.image).startsWith("http")) return category.image;
+  return categoryCards[index % categoryCards.length]?.image || "/assets/images/no-image.png";
+}
+
+function buildHomepageCategoryCards(categories = []) {
+  const dynamicCategories = Array.isArray(categories)
+    ? categories.filter((category) => category?.slug || category?.title)
+    : [];
+
+  if (!dynamicCategories.length) return categoryCards;
+
+  return dynamicCategories.map((category, index) => ({
+    title: category?.title || "Fresh Flowers",
+    description:
+      cleanPlainText(category?.short_description) ||
+      "Fresh flowers selected and packed for your needs.",
+    image: getHomepageCategoryImage(category, index),
+    href: category?.slug ? `/products/${category.slug}` : "/flowers",
+    terms: [category?.title, category?.slug].filter(Boolean),
+  }));
+}
+
+function SectionTitle({ title, subtitle, actionText, actionHref = "/flowers" }) {
   return (
     <div className={styles.sectionTitleRow}>
       <div>
@@ -101,7 +664,7 @@ function SectionTitle({ title, subtitle, actionText, actionHref = "/search/all" 
       </div>
       {actionText ? (
         <Link href={actionHref} className={styles.textLink}>
-          {actionText} →
+          {actionText} <span aria-hidden="true">&rarr;</span>
         </Link>
       ) : null}
     </div>
@@ -109,18 +672,330 @@ function SectionTitle({ title, subtitle, actionText, actionHref = "/search/all" 
 }
 
 function getProductImage(product) {
-  return product?.image_name
+  return product?.localImage
+    ? product.localImage
+    : product?.image_name
     ? `${IMG_URL}/${product.image_name}`
     : "/assets/images/no-image.png";
 }
 
 function getProductHref(product) {
-  return product?.slug ? `/product-details/${product.slug}` : "/search/all";
+  if (product?.href) return product.href;
+  if (product?.localImage && !product?.product_id) return "/flowers";
+  return product?.slug ? `/product-details/${product.slug}` : "/flowers";
 }
 
-function FreshArrivalCard({ product }) {
+function formatPrice(value) {
+  if (!value) return "--";
+  const price = String(value);
+  return price.includes("₹") || price.toLowerCase().includes("rs") ? price : `₹${price}`;
+}
+
+function getProductUnit(product, fallback = "kg") {
+  return product?.unit || product?.units || product?.measurement || fallback;
+}
+
+function getSearchableProductText(product) {
+  return [product?.title, product?.slug, product?.category_name, product?.category]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function buildFreshArrivalProducts(products = []) {
+  const usedProductKeys = new Set();
+
+  return freshArrivalSeeds.map((seed) => {
+    const matchedProduct = products.find((product) => {
+      const productKey = product?.product_id || product?.id || product?.slug || product?.title;
+
+      if (productKey && usedProductKeys.has(productKey)) return false;
+
+      const searchableText = getSearchableProductText(product);
+      return seed.keywords.some((keyword) => searchableText.includes(keyword));
+    });
+
+    if (matchedProduct) {
+      const productKey =
+        matchedProduct?.product_id || matchedProduct?.id || matchedProduct?.slug || matchedProduct?.title;
+      if (productKey) usedProductKeys.add(productKey);
+    }
+
+    return {
+      ...matchedProduct,
+      title: seed.title,
+      sell_price: matchedProduct?.sell_price || seed.startingPrice,
+      list_price: matchedProduct?.list_price || seed.listPrice,
+      localImage: seed.image,
+      href: matchedProduct?.slug ? `/product-details/${matchedProduct.slug}` : seed.href,
+      unit: matchedProduct?.unit || matchedProduct?.units || seed.unit,
+    };
+  });
+}
+
+function buildPremiumCollectionProducts(products = []) {
+  const usedProductKeys = new Set();
+
+  return premiumCollectionSeeds.map((seed) => {
+    const matchedProduct = products.find((product) => {
+      const productKey = product?.product_id || product?.id || product?.slug || product?.title;
+
+      if (productKey && usedProductKeys.has(productKey)) return false;
+
+      const searchableText = getSearchableProductText(product);
+      return seed.keywords.some((keyword) => searchableText.includes(keyword));
+    });
+
+    if (matchedProduct) {
+      const productKey =
+        matchedProduct?.product_id || matchedProduct?.id || matchedProduct?.slug || matchedProduct?.title;
+      if (productKey) usedProductKeys.add(productKey);
+    }
+
+    return {
+      ...matchedProduct,
+      title: seed.title,
+      sell_price: seed.startingPrice,
+      list_price: matchedProduct?.list_price,
+      localImage: seed.image,
+      href: matchedProduct?.slug ? `/product-details/${matchedProduct.slug}` : seed.href,
+      unit: matchedProduct?.unit || matchedProduct?.units || "bunch",
+    };
+  });
+}
+
+function buildRareSeasonalCollectionProducts(products = []) {
+  const usedProductKeys = new Set();
+
+  return rareSeasonalCollectionSeeds.map((seed) => {
+    const matchedProduct = products.find((product) => {
+      const productKey = product?.product_id || product?.id || product?.slug || product?.title;
+
+      if (productKey && usedProductKeys.has(productKey)) return false;
+
+      const searchableText = getSearchableProductText(product);
+      return seed.keywords.some((keyword) => searchableText.includes(keyword));
+    });
+
+    if (matchedProduct) {
+      const productKey =
+        matchedProduct?.product_id || matchedProduct?.id || matchedProduct?.slug || matchedProduct?.title;
+      if (productKey) usedProductKeys.add(productKey);
+    }
+
+    return {
+      ...matchedProduct,
+      title: seed.title,
+      sell_price: seed.startingPrice,
+      list_price: matchedProduct?.list_price,
+      localImage: seed.image,
+      href: matchedProduct?.slug ? `/product-details/${matchedProduct.slug}` : seed.href,
+      unit: seed.unit,
+      tag: seed.tag,
+    };
+  });
+}
+
+function parsePriceValue(value) {
+  const numericValue = Number(String(value || "").replace(/[^\d.]/g, ""));
+  return Number.isFinite(numericValue) ? numericValue : 0;
+}
+
+function getProductId(product) {
+  return product?.product_id || product?.id || product?.data?.id || null;
+}
+
+function getWeightName(weight, fallback) {
+  return (
+    weight?.name ||
+    weight?.weight ||
+    weight?.title ||
+    weight?.label ||
+    weight?.value ||
+    fallback
+  );
+}
+
+function getWeightId(weight, product) {
+  return weight?.id || weight?.weight_id || product?.weight_id || product?.default_weight_id || null;
+}
+
+function buildFreshWeightOptions(product) {
+  const weights = Array.isArray(product?.weights) ? product.weights : [];
+
+  if (weights.length) {
+    const normalizedWeights = weights.map((weight, index) => {
+      const sellPrice = parsePriceValue(weight?.sell_price || weight?.price || product?.sell_price);
+      const listPrice = parsePriceValue(weight?.list_price || product?.list_price);
+
+      return {
+        key: String(getWeightId(weight, product) || index),
+        label: getWeightName(weight, `Option ${index + 1}`),
+        sellPrice,
+        listPrice,
+        weightId: getWeightId(weight, product),
+      };
+    });
+
+    return normalizedWeights;
+  }
+
+  const baseSellPrice = parsePriceValue(product?.sell_price || product?.list_price);
+  const baseListPrice = parsePriceValue(product?.list_price || product?.sell_price);
+  const fallbackWeightId = getWeightId(null, product);
+  const fallbackWeights = [
+    ["100 Grams", 0.1],
+    ["250 Grams", 0.25],
+    ["500 Grams", 0.5],
+    ["1 Kg", 1],
+  ];
+
+  const normalizedFallbackWeights = fallbackWeights.map(([label, multiplier]) => ({
+    key: label,
+    label,
+    sellPrice: Math.max(1, Math.round(baseSellPrice * multiplier)),
+    listPrice: Math.max(1, Math.round(baseListPrice * multiplier)),
+    weightId: fallbackWeightId,
+  }));
+
+  return normalizedFallbackWeights;
+}
+
+function FreshArrivalCard({ product, userToken }) {
+  const { guestSession } = useUser();
+  const { showToast } = useToast();
+  const { setCartCount } = useCartCount();
+  const [selectedWeightIndex, setSelectedWeightIndex] = useState(0);
+  const [quantity, setQuantity] = useState(1);
+  const [isAdding, setIsAdding] = useState(false);
+  const [resolvedProductDetails, setResolvedProductDetails] = useState(null);
+  const [isResolvingWeights, setIsResolvingWeights] = useState(false);
   const imageSrc = getProductImage(product);
   const href = getProductHref(product);
+  const cartProduct = useMemo(() => {
+    if (!resolvedProductDetails?.weights?.length) return product;
+
+    return {
+      ...product,
+      product_id: resolvedProductDetails?.data?.id || getProductId(product),
+      weights: resolvedProductDetails.weights,
+    };
+  }, [product, resolvedProductDetails]);
+  const weightOptions = useMemo(() => buildFreshWeightOptions(cartProduct), [cartProduct]);
+  const selectedWeight = weightOptions[selectedWeightIndex] || weightOptions[0];
+  const totalSellPrice = (selectedWeight?.sellPrice || 0) * quantity;
+  const totalListPrice = (selectedWeight?.listPrice || 0) * quantity;
+  const productId = getProductId(cartProduct);
+
+  useEffect(() => {
+    setSelectedWeightIndex(0);
+    setQuantity(1);
+  }, [cartProduct]);
+
+  const updateQuantity = (nextQuantity) => {
+    setQuantity(Math.min(99, Math.max(1, nextQuantity)));
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+    const hasWeights = Array.isArray(product?.weights) && product.weights.length > 0;
+
+    const isLocalOnlyProduct = product?.localImage && !getProductId(product);
+
+    if (hasWeights || isLocalOnlyProduct || !product?.slug) {
+      setResolvedProductDetails(null);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    const fetchProductWeights = async () => {
+      setIsResolvingWeights(true);
+
+      try {
+        const details = await fetchListingData(
+          "GET",
+          `product-details?product_slug=${product.slug}`,
+          userToken ? userToken : undefined
+        );
+
+        if (isMounted && details?.weights?.length) {
+          setResolvedProductDetails(details);
+        }
+      } catch (error) {
+        console.error("Unable to load fresh arrival weights:", error);
+      } finally {
+        if (isMounted) setIsResolvingWeights(false);
+      }
+    };
+
+    fetchProductWeights();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [product, userToken]);
+
+  const handleAddToCart = async (event) => {
+    event.preventDefault();
+
+    if (!guestSession) {
+      showToast("Please wait while your cart is getting ready.", "error");
+      return;
+    }
+
+    if (!productId) {
+      showToast("This product is not available for cart. Please open View All products.", "error");
+      return;
+    }
+
+    if (isResolvingWeights) {
+      showToast("Please wait while product weights are loading.", "error");
+      return;
+    }
+
+    if (!selectedWeight?.weightId) {
+      showToast("Weight data is missing for this product. Please open product details.", "error");
+      return;
+    }
+
+    setIsAdding(true);
+
+    try {
+      const cartData = await fetchListingData(
+        "POST",
+        "add-to-cart",
+        userToken ? userToken : undefined,
+        {
+          cart_session: guestSession,
+          product_id: productId,
+          quantity,
+          weight_id: selectedWeight.weightId,
+        }
+      );
+
+      if (!cartData?.success) {
+        showToast(cartData?.message || "Failed to add to cart", "error");
+        return;
+      }
+
+      showToast(cartData.message || "Added to cart successfully", "success");
+
+      const refreshedCart = await fetchCartBySession(
+        guestSession,
+        userToken ? userToken : undefined
+      );
+
+      if (refreshedCart?.success) {
+        setCartCount(getCartCount(refreshedCart));
+      }
+    } catch (error) {
+      console.error("Error during ADD cart:", error);
+      showToast("An unexpected error occurred. Please try again later.", "error");
+    } finally {
+      setIsAdding(false);
+    }
+  };
 
   return (
     <article className={styles.freshArrivalCard}>
@@ -138,16 +1013,58 @@ function FreshArrivalCard({ product }) {
         <h3>{product?.title || "Fresh Flowers"}</h3>
         <div className={styles.freshStars}>★★★★★</div>
         <div className={styles.freshPrice}>
-          {product?.list_price ? <span>Rs {product.list_price}</span> : null}
-          <strong>Rs {product?.sell_price || product?.list_price || "--"}</strong>
+          {totalListPrice && totalListPrice > totalSellPrice ? (
+            <span>{formatPrice(totalListPrice)}</span>
+          ) : null}
+          <strong>{formatPrice(totalSellPrice)}</strong>
         </div>
+        <select
+          className={styles.freshWeightSelect}
+          value={selectedWeightIndex}
+          onChange={(event) => setSelectedWeightIndex(Number(event.target.value))}
+          aria-label={`Select weight for ${product?.title || "fresh flowers"}`}
+          disabled={isResolvingWeights}
+        >
+          {weightOptions.map((weight, index) => (
+            <option key={weight.key} value={index}>
+              {weight.label}
+            </option>
+          ))}
+        </select>
         <div className={styles.freshQuantity}>
           <span>−</span>
           <strong>1</strong>
-          <span>kg</span>
+          <span>{getProductUnit(product)}</span>
           <span>+</span>
         </div>
-        <Link href={href} className={styles.freshAddButton}>ADD TO CART</Link>
+        <div className={styles.freshQuantityStepper}>
+          <button
+            type="button"
+            onClick={() => updateQuantity(quantity - 1)}
+            disabled={quantity <= 1 || isAdding || isResolvingWeights}
+            aria-label={`Decrease quantity for ${product?.title || "fresh flowers"}`}
+          >
+            −
+          </button>
+          <strong>{quantity}</strong>
+          <button
+            type="button"
+            onClick={() => updateQuantity(quantity + 1)}
+            disabled={isAdding || isResolvingWeights}
+            aria-label={`Increase quantity for ${product?.title || "fresh flowers"}`}
+          >
+            +
+          </button>
+        </div>
+        <button
+          type="button"
+          className={styles.freshAddButton}
+          onClick={handleAddToCart}
+          disabled={isAdding || isResolvingWeights}
+        >
+          <FaShoppingBasket aria-hidden="true" />
+          {isAdding ? "Adding..." : isResolvingWeights ? "Loading..." : "Add"}
+        </button>
       </div>
     </article>
   );
@@ -163,23 +1080,28 @@ function PremiumProductCard({ product }) {
         <Image
           src={imageSrc}
           alt={product?.title || "Premium flower"}
-          width={320}
-          height={220}
-          sizes="(max-width: 700px) 44vw, 170px"
+          width={520}
+          height={390}
+          sizes="(max-width: 700px) 92vw, (max-width: 1200px) 42vw, 260px"
         />
       </Link>
       <div className={styles.premiumProductInfo}>
+        <span className={styles.premiumProductTag}>Premium Blooms</span>
         <h3>{product?.title || "Premium Flowers"}</h3>
-        <p>Starting <strong>Rs {product?.sell_price || product?.list_price || "--"}</strong></p>
+        <p>
+          Starting <strong>{formatPrice(product?.sell_price || product?.list_price)}</strong>
+        </p>
+        <Link href={href} className={styles.premiumExploreLink}>
+          Explore Premium Flowers <span aria-hidden="true">&rarr;</span>
+        </Link>
       </div>
     </article>
   );
 }
 
-function RareProductCard({ product, index }) {
+function RareProductCard({ product }) {
   const imageSrc = getProductImage(product);
   const href = getProductHref(product);
-  const labels = ["LIMITED", "SEASONAL", "RARE"];
 
   return (
     <article className={styles.rareProductCard}>
@@ -187,18 +1109,21 @@ function RareProductCard({ product, index }) {
         <Image
           src={imageSrc}
           alt={product?.title || "Rare flower"}
-          width={320}
-          height={245}
-          sizes="(max-width: 700px) 62vw, 175px"
+          width={420}
+          height={420}
+          sizes="(max-width: 700px) 44vw, (max-width: 1200px) 30vw, 220px"
         />
-        <span className={`${styles.rareBadge} ${index % labels.length === 0 ? styles.rareBadgeLimited : index % labels.length === 1 ? styles.rareBadgeSeasonal : styles.rareBadgeRare}`}>{labels[index % labels.length]}</span>
       </Link>
       <div className={styles.rareProductInfo}>
+        {product?.tag ? <span className={styles.rareProductTag}>{product.tag}</span> : null}
         <h3>{product?.title || "Rare Flowers"}</h3>
-        <div className={styles.rarePrice}>
-          {product?.list_price ? <span>Rs {product.list_price}</span> : null}
-          <strong>Rs {product?.sell_price || product?.list_price || "--"}</strong>
-        </div>
+        <p>
+          Starting <strong>{formatPrice(product?.sell_price || product?.list_price)}</strong> /{" "}
+          {getProductUnit(product, "bunch")}
+        </p>
+        <Link href={href} className={styles.rareExploreLink}>
+          Explore Flowers <span aria-hidden="true">&rarr;</span>
+        </Link>
       </div>
     </article>
   );
@@ -206,14 +1131,40 @@ function RareProductCard({ product, index }) {
 
 export default function HomePage({
   userToken,
+  homeBanners = [],
   categories = [],
   initialHomeProducts = [],
   siteSettings,
 }) {
   const [homeProducts, setHomeProducts] = useState(initialHomeProducts || []);
+  const [pujaBoxSelection, setPujaBoxSelection] = useState({
+    flowers: pujaBoxOptions.flowers[0],
+    leaves: pujaBoxOptions.leaves[0],
+    quantity: pujaBoxOptions.quantity[1],
+    delivery: pujaBoxOptions.delivery[0],
+  });
 
   const whatsappHref = normalizeWhatsApp(siteSettings?.data?.SITE_WHATSAPP);
   const instagramHref = siteSettings?.data?.INSTAGRAM_LINK || "#";
+  const instagramHandle = getInstagramHandle(instagramHref);
+  const customPujaBoxWhatsAppHref = useMemo(() => {
+    const message = [
+      "Hi Manidvipa Flowers, I want to build a custom puja flower box.",
+      `Flowers: ${pujaBoxSelection.flowers}`,
+      `Leaves: ${pujaBoxSelection.leaves}`,
+      `Quantity: ${pujaBoxSelection.quantity}`,
+      `Delivery: ${pujaBoxSelection.delivery}`,
+    ].join("\n");
+
+    return appendWhatsAppMessage(whatsappHref, message);
+  }, [pujaBoxSelection, whatsappHref]);
+
+  const updatePujaBoxSelection = useCallback((type, value) => {
+    setPujaBoxSelection((currentSelection) => ({
+      ...currentSelection,
+      [type]: value,
+    }));
+  }, []);
 
   const fetchData = useCallback(async () => {
     try {
@@ -234,80 +1185,144 @@ export default function HomePage({
 
   const categoryHref = useCallback(
     (terms, fallbackIndex = 0) => {
+      const normalizedTerms = terms.map((term) => String(term || "").toLowerCase());
+      const directRoute = [
+        { terms: ["daily puja", "puja", "temple"], href: "/puja-flowers" },
+        { terms: ["premium", "birthday", "anniversary", "gift"], href: "/gifts" },
+        { terms: ["rare", "seasonal"], href: "/rare-flowers" },
+        { terms: ["garland", "mala"], href: "/garlands" },
+        { terms: ["wedding", "housewarming", "event", "decoration"], href: "/decorations" },
+      ].find((route) =>
+        route.terms.some((term) =>
+          normalizedTerms.some((normalizedTerm) => normalizedTerm.includes(term))
+        )
+      );
+
+      if (directRoute) return directRoute.href;
+
       const match = categories.find((category) => {
         const title = String(category?.title || "").toLowerCase();
-        return terms.some((term) => title.includes(term));
+        return normalizedTerms.some((term) => title.includes(term));
       });
       const fallback = categories[fallbackIndex];
       const target = match || fallback;
-      return target?.slug ? `/products/${target.slug}` : "/search/all";
+      return target?.slug ? `/products/${target.slug}` : "/flowers";
     },
     [categories]
   );
 
   const productSections = useMemo(() => {
-    const pool = homeProducts || [];
-    const fresh = pool.slice(0, 4);
-    const premium = pool.slice(4, 8).length ? pool.slice(4, 8) : pool.slice(0, 4);
-    const rare = pool.slice(8, 12).length ? pool.slice(8, 12) : pool.slice(0, 4);
+    const pool = homeProducts?.length ? homeProducts : fallbackProducts;
+    const fresh = buildFreshArrivalProducts(pool);
+    const premium = buildPremiumCollectionProducts(pool);
+    const rare = buildRareSeasonalCollectionProducts(pool);
     return { fresh, premium, rare };
   }, [homeProducts]);
+
+  const homepageCategoryCards = useMemo(
+    () => buildHomepageCategoryCards(categories),
+    [categories]
+  );
+
+  const activeHeroSlides = useMemo(
+    () => buildHeroSlides(homeBanners),
+    [homeBanners]
+  );
 
   return (
     <main className={styles.homePage}>
       <section className={styles.heroSection} id="home">
-        <div className={styles.homeContainer}>
-          <div className={styles.heroGrid}>
-            <div className={styles.heroContent}>
-              <h1>
-                Fresh Flowers.
-                <br />
-                Delivered With Devotion.
-              </h1>
-              <p className={styles.heroDescription}>
-                From Daily Puja Flowers to Premium & Rare Blooms — Freshly Sourced and
-                Delivered to Your Doorstep.
-              </p>
+        <div className={styles.heroCarousel}>
+          <Slick
+            slickCustomSettings={heroSliderSettings}
+            slides={activeHeroSlides.map((slide, index) => (
+              <div className={styles.heroSlide} key={slide.id || slide.titleLines.join(" ")}>
+                <div className={`${styles.homeContainer} ${styles.heroContainer}`}>
+                  <div className={styles.heroGrid}>
+                    <div className={styles.heroContent}>
+                      <h1>
+                        {slide.titleLines.map((line, lineIndex) => (
+                          <React.Fragment key={line}>
+                            {line}
+                            {lineIndex < slide.titleLines.length - 1 ? <br /> : null}
+                          </React.Fragment>
+                        ))}
+                      </h1>
+                      <p className={styles.heroDescription}>{slide.description}</p>
 
-              <div className={styles.heroBenefits}>
-                <div>
-                  <strong>Fresh Every Morning</strong>
-                  <span>Sourced Daily</span>
-                </div>
-                <div>
-                  <strong>Same-Day Delivery</strong>
-                  <span>Across Hyderabad</span>
-                </div>
-                <div>
-                  <strong>Puja Ready</strong>
-                  <span>Flowers & Leaves</span>
+                      <div className={styles.heroBenefits}>
+                        {slide.benefits.map(([icon, title, subtitle]) => (
+                          <div className={styles.heroBenefit} key={title}>
+                            <span className={styles.heroBenefitIcon}>
+                              <Image src={icon} alt="" width={34} height={34} />
+                            </span>
+                            <span className={styles.heroBenefitCopy}>
+                              <strong>{title}</strong>
+                              <span>{subtitle}</span>
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className={styles.heroActions}>
+                        <Link
+                          href={resolveHeroHref(slide.primary.href, whatsappHref)}
+                          target={
+                            opensInNewTab(resolveHeroHref(slide.primary.href, whatsappHref))
+                              ? "_blank"
+                              : undefined
+                          }
+                          rel={
+                            opensInNewTab(resolveHeroHref(slide.primary.href, whatsappHref))
+                              ? "noopener noreferrer"
+                              : undefined
+                          }
+                          className="primary-but"
+                        >
+                          {slide.primary.label}
+                        </Link>
+                        <Link
+                          href={resolveHeroHref(slide.secondary.href, whatsappHref)}
+                          target={
+                            opensInNewTab(resolveHeroHref(slide.secondary.href, whatsappHref))
+                              ? "_blank"
+                              : undefined
+                          }
+                          rel={
+                            opensInNewTab(resolveHeroHref(slide.secondary.href, whatsappHref))
+                              ? "noopener noreferrer"
+                              : undefined
+                          }
+                          className="green-but"
+                        >
+                          {slide.secondary.label}
+                        </Link>
+                      </div>
+                      <Link
+                        href={whatsappHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={styles.whatsappTextLink}
+                      >
+                        Order on WhatsApp →
+                      </Link>
+                    </div>
+
+                    <div className={styles.heroImageWrap}>
+                      <Image
+                        src={slide.image}
+                        alt={slide.alt}
+                        width={1000}
+                        height={600}
+                        priority={index === 0}
+                        sizes="(max-width: 900px) 100vw, 56vw"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
-
-              <div className={styles.heroActions}>
-                <Link href="/search/all" className="primary-but">
-                  SHOP FRESH FLOWERS
-                </Link>
-                <Link href="#subscriptions" className="green-but">
-                  START A SUBSCRIPTION
-                </Link>
-              </div>
-              <Link href={whatsappHref} target="_blank" className={styles.whatsappTextLink}>
-                Order on WhatsApp →
-              </Link>
-            </div>
-
-            <div className={styles.heroImageWrap}>
-              <Image
-                src="/assets/images/home-v2/hero-flowers.jpg"
-                alt="Fresh puja flowers arranged in a traditional tray"
-                width={1000}
-                height={600}
-                priority
-                sizes="(max-width: 900px) 100vw, 56vw"
-              />
-            </div>
-          </div>
+            ))}
+          />
         </div>
       </section>
 
@@ -319,10 +1334,10 @@ export default function HomePage({
             <Image src="/assets/icons/head-right.png" alt="" width={48} height={16} />
           </div>
           <div className={styles.categoryGrid}>
-            {categoryCards.map((card, index) => (
+            {homepageCategoryCards.map((card, index) => (
               <Link
                 key={card.title}
-                href={categoryHref(card.terms, index)}
+                href={card.href || categoryHref(card.terms, index)}
                 className={styles.categoryCardV2}
               >
                 <Image src={card.image} alt={card.title} width={220} height={180} />
@@ -342,16 +1357,21 @@ export default function HomePage({
                 title="Flower Subscriptions"
                 subtitle="Never run out of fresh flowers for your rituals."
                 actionText="View All Plans"
-                actionHref={whatsappHref}
+                actionHref="/subscriptions"
               />
               <div className={styles.subscriptionGrid}>
-                {subscriptions.map(([title, description], index) => (
-                  <div className={styles.subscriptionCard} key={title}>
-                    <div className={styles.subscriptionIcon}>{index + 1}</div>
-                    <h3>{title}</h3>
-                    <p>{description}</p>
-                    <Link href={whatsappHref} target="_blank" className={styles.smallPrimaryButton}>
-                      View Plans
+                {visibleSubscriptionPlans.map((plan) => (
+                  <div className={styles.subscriptionCard} key={plan.title}>
+                    <div className={styles.subscriptionIcon}>
+                      <Image src={plan.image} alt="" width={58} height={58} />
+                    </div>
+                    <h3>{plan.title}</h3>
+                    <p>{plan.description}</p>
+                    <div className={styles.subscriptionPrice}>
+                      <strong>{plan.price}</strong> <span>{plan.cadence}</span>
+                    </div>
+                    <Link href="/subscriptions" className={styles.smallPrimaryButton}>
+                      VIEW PLAN
                     </Link>
                   </div>
                 ))}
@@ -375,7 +1395,7 @@ export default function HomePage({
                   <li>✓ Select Quantity</li>
                   <li>✓ Select Delivery</li>
                 </ul>
-                <Link href={whatsappHref} target="_blank" className={styles.smallPrimaryButton}>
+                <Link href="/subscriptions" className={styles.smallPrimaryButton}>
                   BUILD NOW →
                 </Link>
               </div>
@@ -394,7 +1414,7 @@ export default function HomePage({
 
       <section className={styles.sectionWhite} id="fresh-arrivals">
         <div className={styles.homeContainer}>
-          <div className={styles.threeProductColumns}>
+          <div className={styles.productShowcaseStack}>
             <div className={styles.freshProductSection}>
               <SectionTitle
                 title="Today's Fresh Arrivals"
@@ -402,45 +1422,129 @@ export default function HomePage({
                 actionText="View All"
               />
               <div className={styles.freshArrivalGrid}>
-                {productSections.fresh.slice(0, 4).map((product, index) => (
+                {productSections.fresh.slice(0, 6).map((product, index) => (
                   <FreshArrivalCard
                     key={product?.product_id || product?.slug || `fresh-${index}`}
                     product={product}
+                    userToken={userToken}
                   />
                 ))}
               </div>
             </div>
 
-            <div className={styles.collectionPanel} id="premium">
-              <SectionTitle
-                title="Premium Collection"
-                subtitle="Handpicked blooms for unforgettable moments."
-                actionText="View All"
-              />
-              <div className={styles.premiumProductGrid}>
-                {productSections.premium.slice(0, 4).map((product, index) => (
-                  <PremiumProductCard
-                    key={product?.product_id || product?.slug || `premium-${index}`}
-                    product={product}
-                  />
-                ))}
+            <div className={styles.collectionShowcaseRow}>
+              <div className={`${styles.collectionPanel} ${styles.premiumCollectionPanel}`} id="premium">
+                <SectionTitle
+                  title="The Premium Collection"
+                  subtitle="Handpicked blooms for unforgettable moments."
+                  actionText="Explore Premium Flowers"
+                  actionHref="/premium-flowers"
+                />
+                <div className={styles.premiumProductGrid}>
+                  {productSections.premium.slice(0, 5).map((product, index) => (
+                    <PremiumProductCard
+                      key={product?.product_id || product?.slug || `premium-${index}`}
+                      product={product}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className={styles.rareCollectionPanel} id="rare-flowers">
+                <SectionTitle
+                  title="Rare & Seasonal Flowers"
+                  subtitle="Limited seasonal blooms for rituals and special occasions."
+                  actionText="Explore Rare Flowers"
+                  actionHref="/rare-flowers"
+                />
+                <div className={styles.rareProductGrid}>
+                  {productSections.rare.slice(0, 6).map((product, index) => (
+                    <RareProductCard
+                      key={product?.product_id || product?.slug || `rare-${index}`}
+                      product={product}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
 
-            <div className={styles.rareCollectionPanel} id="rare-flowers">
-              <SectionTitle
-                title="Rare & Seasonal Flowers"
-                subtitle="Limited stock. Don't miss out!"
-                actionText="View All"
-              />
-              <div className={styles.rareProductGrid}>
-                {productSections.rare.slice(0, 3).map((product, index) => (
-                  <RareProductCard
-                    key={product?.product_id || product?.slug || `rare-${index}`}
-                    product={product}
-                    index={index}
-                  />
+      <section className={`${styles.sectionSoft} ${styles.pujaBuilderSection}`} id="puja-box">
+        <div className={styles.homeContainer}>
+          <div className={styles.pujaBuilderCard}>
+            <div className={styles.pujaBuilderContent}>
+              <span className={styles.eyebrowText}>Custom ritual flowers</span>
+              <h2>Build Your Own Puja Flower Box</h2>
+              <p>
+                Choose flowers, leaves, quantity and delivery timing for daily puja,
+                temple offering, or tomorrow morning rituals.
+              </p>
+
+              <div className={styles.pujaBuilderHighlights}>
+                <span>Fresh packed</span>
+                <span>Puja ready</span>
+                <span>Morning delivery</span>
+              </div>
+
+              <div className={styles.pujaBuilderOptions}>
+                {Object.entries(pujaBoxOptions).map(([type, options]) => (
+                  <div className={styles.pujaOptionGroup} key={type}>
+                    <h3>{type}</h3>
+                    <div className={styles.pujaOptionButtons}>
+                      {options.map((option) => {
+                        const isSelected = pujaBoxSelection[type] === option;
+                        return (
+                          <button
+                            type="button"
+                            key={option}
+                            className={isSelected ? styles.pujaOptionSelected : undefined}
+                            onClick={() => updatePujaBoxSelection(type, option)}
+                          >
+                            {option}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 ))}
+              </div>
+
+              <div className={styles.pujaBuilderSummary}>
+                <div>
+                  <span>Your box</span>
+                  <strong>
+                    {pujaBoxSelection.flowers} • {pujaBoxSelection.leaves} •{" "}
+                    {pujaBoxSelection.quantity} • {pujaBoxSelection.delivery}
+                  </strong>
+                </div>
+                <Link
+                  href={customPujaBoxWhatsAppHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.smallPrimaryButton}
+                >
+                  BUILD ON WHATSAPP <span aria-hidden="true">&rarr;</span>
+                </Link>
+              </div>
+
+              <ul className={styles.pujaBuilderNotes}>
+                <li>For more than 1kg, choose Custom quantity and send your requirement.</li>
+                <li>Tomorrow morning orders can be confirmed directly on WhatsApp.</li>
+              </ul>
+            </div>
+            <div className={styles.pujaBuilderVisual}>
+              <Image
+                src="/assets/images/home-v2/custom-puja-flower-box.jpg"
+                alt="Custom puja flower box with flowers and leaves"
+                width={760}
+                height={520}
+                sizes="(max-width: 900px) 100vw, 48vw"
+              />
+              <div className={styles.pujaVisualCard}>
+                <span>Best for</span>
+                <strong>Daily puja, temple visits, vratham and special rituals</strong>
               </div>
             </div>
           </div>
@@ -451,7 +1555,11 @@ export default function HomePage({
         <div className={styles.homeContainer}>
           <div className={styles.occasionDecorationGrid}>
             <div className={styles.occasionArea}>
-              <SectionTitle title="Shop by Occasion" actionText="View All Occasions" />
+              <SectionTitle
+                title="Shop by Occasion"
+                actionText="View All Occasions"
+                actionHref="/gifts"
+              />
               <div className={styles.occasionGrid}>
                 {occasions.map(([title, image], index) => (
                   <Link
@@ -466,7 +1574,7 @@ export default function HomePage({
               </div>
             </div>
 
-            <div className={styles.decorationService} id="decorations">
+            <div className={styles.decorationService}>
               <div className={styles.decorationContent}>
                 <h2>Flower Decoration Services</h2>
                 <p>Make every moment beautiful with flowers.</p>
@@ -477,7 +1585,7 @@ export default function HomePage({
                   <li>✓ Birthday & Events</li>
                 </ul>
                 <div className={styles.inlineActions}>
-                  <Link href="/contact-us" className={styles.smallPrimaryButton}>
+                  <Link href="/decorations" className={styles.smallPrimaryButton}>
                     VIEW GALLERY
                   </Link>
                   <Link href={whatsappHref} target="_blank" className={styles.smallGreenButton}>
@@ -498,8 +1606,52 @@ export default function HomePage({
         </div>
       </section>
 
-      <section className={styles.benefitStrip}>
+      <section className={styles.sectionWhite} id="decorations">
         <div className={styles.homeContainer}>
+          <SectionTitle
+            title="Flowers for Every Celebration"
+            subtitle="Premium flower decoration support for homes, temples, weddings and events."
+            actionText="View Decoration Gallery"
+            actionHref="/contact-us"
+          />
+          <div className={styles.decorationService}>
+            <div className={styles.decorationContent}>
+              <span className={styles.eyebrowText}>Decoration services</span>
+              <h2>Flower Decoration Services</h2>
+              <p>Make every moment beautiful with fresh flowers and traditional styling.</p>
+              <ul>
+                <li>Wedding Decorations</li>
+                <li>Pooja & Temple Decorations</li>
+                <li>House Warming / Gruhapravesam</li>
+                <li>Birthday & Event Decorations</li>
+              </ul>
+              <div className={styles.inlineActions}>
+                <Link href="/contact-us" className={styles.smallPrimaryButton}>
+                  VIEW GALLERY
+                </Link>
+                <Link href={whatsappHref} target="_blank" className={styles.smallGreenButton}>
+                  GET A QUOTE
+                </Link>
+              </div>
+            </div>
+            <div className={styles.decorationTiles}>
+              {decorationGallery.map(([title, image]) => (
+                <div className={styles.decorationTile} key={title}>
+                  <Image src={image} alt={title} width={360} height={250} />
+                  <span>{title}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className={styles.benefitStrip} id="why-manidvipa">
+        <div className={styles.homeContainer}>
+          <SectionTitle
+            title="Why Manidvipa Flowers?"
+            subtitle="Fresh, puja-ready flowers with ordering support for Hyderabad customers."
+          />
           <div className={styles.benefitGrid}>
             {benefits.map(([image, title, description]) => (
               <div className={styles.benefitItem} key={title}>
@@ -527,7 +1679,7 @@ export default function HomePage({
               <div className={styles.decorationGallery}>
                 {decorationGallery.map(([title, image]) => (
                   <div key={title} className={styles.galleryCard}>
-                    <Image src={image} alt={title} width={260} height={200} />
+                    <Image src={image} alt={title} width={360} height={260} />
                     <span>{title}</span>
                   </div>
                 ))}
@@ -558,22 +1710,68 @@ export default function HomePage({
         </div>
       </section>
 
-      <section className={styles.sectionSoft} id="instagram">
+      <section className={styles.testimonialSection} id="testimonials">
         <div className={styles.homeContainer}>
           <SectionTitle
-            title="Fresh From Manidvipa"
-            subtitle="Follow us for fresh flowers, puja ideas and decorations."
-            actionText="Follow Us on Instagram"
-            actionHref={instagramHref}
+            title="What Our Customers Say"
+            subtitle="Real feedback from customers ordering fresh flowers and decorations."
           />
+          <div className={styles.testimonialGrid}>
+            <div className={styles.testimonialCard}>
+              <div className={styles.stars}>{"\u2605\u2605\u2605\u2605\u2605"}</div>
+              <p>Fresh flowers reached us early in the morning and the quality was excellent.</p>
+              <span>&mdash; Customer, Hyderabad</span>
+            </div>
+            <div className={styles.testimonialCard}>
+              <div className={styles.stars}>{"\u2605\u2605\u2605\u2605\u2605"}</div>
+              <p>Fresh flowers, neatly packed and delivered on time for our daily puja.</p>
+              <span>&mdash; Customer, Hyderabad</span>
+            </div>
+            <div className={styles.testimonialCard}>
+              <div className={styles.stars}>{"\u2605\u2605\u2605\u2605\u2605"}</div>
+              <p>The flower selection was fresh and suitable for our function.</p>
+              <span>&mdash; Customer, Hyderabad</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className={styles.instagramSection} id="instagram">
+        <div className={styles.instagramInner}>
+          <div className={styles.instagramHeader}>
+            <div className={styles.instagramTitle}>
+              <h2>Fresh From Manidvipa</h2>
+              <p>
+                Follow us on Instagram{" "}
+                <Link href={instagramHref} target="_blank" rel="noopener noreferrer">
+                  @{instagramHandle}
+                </Link>
+              </p>
+            </div>
+            <Link
+              href={instagramHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.instagramButton}
+            >
+              <FaInstagram aria-hidden="true" />
+              Follow Us on Instagram
+            </Link>
+          </div>
           <div className={styles.instagramGrid}>
             {instagramImages.map((image, index) => (
-              <Link href={instagramHref} target="_blank" key={image}>
+              <Link
+                href={instagramHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.instagramCard}
+                key={image}
+              >
                 <Image
                   src={image}
                   alt={`Manidvipa flowers gallery ${index + 1}`}
-                  width={240}
-                  height={170}
+                  fill
+                  sizes="(max-width: 900px) 45vw, (max-width: 1200px) 22vw, 11vw"
                 />
               </Link>
             ))}
@@ -581,27 +1779,35 @@ export default function HomePage({
         </div>
       </section>
 
-      <section className={styles.finalCta}>
+      <section className={styles.finalCta} aria-label="Next morning flower delivery">
         <div className={styles.homeContainer}>
           <div className={styles.finalCtaGrid}>
-            <div>
+            <div className={styles.finalCtaContent}>
               <h2>Need Flowers Tomorrow Morning?</h2>
               <p>Order today and wake up to fresh flowers.</p>
-              <div className={styles.inlineActions}>
-                <Link href="/search/all" className={styles.whiteCtaButton}>
+              <div className={styles.finalCtaActions}>
+                <Link href="/flowers" className={styles.finalShopButton}>
                   SHOP NOW
                 </Link>
-                <Link href={whatsappHref} target="_blank" className={styles.smallGreenButton}>
+                <Link
+                  href={whatsappHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.finalWhatsAppButton}
+                >
+                  <FaWhatsapp aria-hidden="true" />
                   WHATSAPP US
                 </Link>
               </div>
             </div>
-            <Image
-              src="/assets/images/home-v2/cta-flowers.jpg"
-              alt="Fresh flowers for morning delivery"
-              width={650}
-              height={220}
-            />
+            <div className={styles.finalCtaImage}>
+              <Image
+                src="/assets/images/home-v2/cta-basket-flowers.png"
+                alt="Fresh flowers for morning delivery"
+                width={520}
+                height={260}
+              />
+            </div>
           </div>
         </div>
       </section>

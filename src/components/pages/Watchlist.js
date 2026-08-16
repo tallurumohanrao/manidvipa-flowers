@@ -5,12 +5,17 @@ import dynamic from "next/dynamic";
 import styles from "@/scss/pages/watchlist.module.scss";
 import Link from "next/link";
 import Toast from "@/components/Toast";
-import { useCartCount, useToast } from "@/app/(pages)/context/page";
+import { useCartCount, useToast, useUser } from "@/context/UserContext";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { MdDelete } from "react-icons/md";
-import { fetchListingData, formatPrice } from "../../../hook/userCookie";
-import { useWatchlistCount } from "@/app/(pages)/context/page";
+import {
+  fetchCartBySession,
+  fetchListingData,
+  formatPrice,
+  getCartCount,
+} from "../../../hook/userCookie";
+import { useWatchlistCount } from "@/context/UserContext";
 
 const Banner = dynamic(() => import("@/components/banner"), { ssr: false });
 
@@ -19,43 +24,53 @@ const IMG_URL = process.env.NEXT_PUBLIC_IMG_URL;
 const Watchlist = ({ watchlist, userToken, guestSession }) => {
   const router = useRouter();
   const [watchlistItems, setWatchlistItems] = useState(watchlist);
+  const { guestSession: clientGuestSession } = useUser();
+  const effectiveGuestSession = clientGuestSession || guestSession;
 
   const { showToast } = useToast();
   const { decreaseWatchlistCount } = useWatchlistCount();
   //default quantity
   const [quantity, setQuantity] = useState(1);
-  const { addCartCount } = useCartCount();
+  const { setCartCount } = useCartCount();
 
   const handleAddcart = async (e, product_id, weight_id, action) => {
     e.preventDefault();
+
+    if (!effectiveGuestSession) {
+      showToast("Please wait while your cart is getting ready.", "error");
+      return;
+    }
+
     const body1 = {
-      cart_session: guestSession,
+      cart_session: effectiveGuestSession,
       product_id: product_id,
       quantity,
       weight_id: weight_id,
     };
     try {
-      const cartResponse = await fetch("/api", {
-        method: "POST",
+      const cartData = await fetchListingData(
+        "POST",
+        "add-to-cart",
+        userToken ? userToken : undefined,
+        body1
+      );
 
-        body: JSON.stringify({
-          req_method: "POST",
-          endpoint: "add-to-cart",
-          userToken: userToken ? userToken : undefined,
-          formData: body1,
-        }),
-      });
-
-      const cartData = cartResponse;
-      if (!cartResponse.ok) {
+      if (!cartData?.success) {
         showToast(cartData.message || "Failed to add to cart", "error");
-        addCartCount();
         return;
-      } else {
-        showToast(cartData.message || "Added to cart successfully", "success");
-        addCartCount();
       }
+
       showToast(cartData.message || "Added to cart successfully", "success");
+
+      const refreshedCart = await fetchCartBySession(
+        effectiveGuestSession,
+        userToken ? userToken : undefined
+      );
+
+      if (refreshedCart?.success) {
+        setCartCount(getCartCount(refreshedCart));
+      }
+
       if (cartData.message?.toLowerCase().includes("out of stock")) {
         return;
       }

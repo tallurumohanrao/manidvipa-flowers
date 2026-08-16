@@ -1,7 +1,7 @@
 import React from "react";
 import Footer from "@/components/Footer/page";
 import Navbar from "@/components/Navbar";
-import { UserProvider } from "./context/page";
+import { UserProvider } from "@/context/UserContext";
 import StickyIcons from "@/components/StickyIcons/page";
 import {
   fetchCartSessionData,
@@ -50,22 +50,17 @@ export default async function RootLayout({ children }) {
   // const categories = await fetchCategoryData();
   return (
     <UserProvider>
-      <html lang="en">
-        <body>
-          <Navbar
-            categories={categories}
-            siteSettings={siteSettings}
-            watchListData={watchListData?.data?.length}
-            cartSessionData={cartSessionData?.data?.length}
-            guestSession={guestSession}
-            userToken={userToken}
-          />
-          {children}
-
-          <Footer categories={categories} siteSettings={siteSettings} />
-          <StickyIcons />
-        </body>
-      </html>
+      <Navbar
+        categories={categories}
+        siteSettings={siteSettings}
+        watchListData={watchListData?.data?.length}
+        cartSessionData={cartSessionData?.data?.length}
+        guestSession={guestSession}
+        userToken={userToken}
+      />
+      {children}
+      <Footer categories={categories} siteSettings={siteSettings} />
+      <StickyIcons />
     </UserProvider>
   );
 }

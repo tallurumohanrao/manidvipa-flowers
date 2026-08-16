@@ -11,7 +11,7 @@ import {
   fetchListingData,
   formatPrice,
 } from "../../../hook/userCookie";
-import { useCartCount, useToast } from "@/app/(pages)/context/page";
+import { useCartCount, useToast } from "@/context/UserContext";
 import Toast from "@/components/Toast";
 import { useRouter } from "next/navigation";
 import CheckoutAddress from "@/components/CheckoutAddress";
@@ -19,6 +19,33 @@ import CheckoutPayment from "@/components/CheckoutPayment";
 import CheckoutCartDetails from "@/components/CheckoutCartDetails";
 import CheckoutUserForm from "@/components/CheckoutUserForm";
 import CheckoutCoupon from "@/components/CheckoutCoupon";
+
+const DELIVERY_PREFERENCE_STORAGE_KEY = "manidvipaDeliveryPreference";
+
+const deliverySlotOptions = [
+  { value: "6-9", label: "6 AM - 9 AM" },
+  { value: "9-12", label: "9 AM - 12 PM" },
+  { value: "12-3", label: "12 PM - 3 PM" },
+  { value: "3-6", label: "3 PM - 6 PM" },
+];
+
+function getTomorrowDate() {
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function parseDateInputValue(value) {
+  const [year, month, day] = String(value || "").split("-").map(Number);
+  const date = year && month && day ? new Date(year, month - 1, day) : null;
+
+  return date && !Number.isNaN(date.getTime()) ? date : null;
+}
+
+function getDeliverySlotLabel(value) {
+  return deliverySlotOptions.find((option) => option.value === value)?.label || value;
+}
 
 export default function OrderCheckout({
   CartDetailsData,
@@ -31,15 +58,12 @@ export default function OrderCheckout({
   const { showToast } = useToast();
 
   const [startDate, setStartDate] = useState(null);
-
-  // Calculate tomorrow's date
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  const [selectedDeliverySlot, setSelectedDeliverySlot] = useState("6-9");
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
   const [selectedAddress, setSelectedAddress] = useState(null);
-  const [couponData, setCouponData] = useState([]);
   const [formErrors, setFormErrors] = useState({});
   const [selectError, setSelectError] = useState({});
+  const [submitError, setSubmitError] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -54,14 +78,14 @@ export default function OrderCheckout({
     totals: [],
   });
 
-  const isDisabled = (date) => {
-    const now = new Date();
-    const today = now.toDateString() === date.toDateString();
-    const after4PM = now.getHours() >= 16; // 4 PM (16:00)
-    return today && after4PM;
-  };
-
   const dataArrayTotals = Object.values(data?.totals);
+
+  const formatDateForApi = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
 
   const fetchData = useCallback(async () => {
     try {
@@ -109,6 +133,28 @@ export default function OrderCheckout({
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const savedPreference = JSON.parse(
+        window.sessionStorage.getItem(DELIVERY_PREFERENCE_STORAGE_KEY) || "{}"
+      );
+      const savedDate = parseDateInputValue(savedPreference.delivery_date);
+      const savedSlot = savedPreference.delivery_slot;
+
+      if (savedDate) {
+        setStartDate(savedDate);
+      }
+
+      if (deliverySlotOptions.some((option) => option.value === savedSlot)) {
+        setSelectedDeliverySlot(savedSlot);
+      }
+    } catch (error) {
+      console.error("Unable to read delivery preference:", error);
+    }
+  }, []);
 
   const handleUserForm = (data) => {
     setFormData(data);
@@ -179,13 +225,17 @@ export default function OrderCheckout({
       return;
     }
 
+    setSubmitError("");
+    const apiServeDate = formatDateForApi(startDate);
     let queryString = "";
     if (userToken) {
       queryString = new URLSearchParams({
         address_id: selectedAddress,
         cart_session: formData.cart_session,
         payment_method: selectedPaymentMethod,
-        serve_date: startDate,
+        serve_date: apiServeDate,
+        serve_time_slot: selectedDeliverySlot,
+        serve_time_slot_label: getDeliverySlotLabel(selectedDeliverySlot),
       }).toString();
     } else {
       queryString = new URLSearchParams({
@@ -195,7 +245,9 @@ export default function OrderCheckout({
         address_id: selectedAddress,
         cart_session: formData.cart_session,
         payment_method: selectedPaymentMethod,
-        serve_date: startDate,
+        serve_date: apiServeDate,
+        serve_time_slot: selectedDeliverySlot,
+        serve_time_slot_label: getDeliverySlotLabel(selectedDeliverySlot),
       }).toString();
     }
 
@@ -216,6 +268,9 @@ export default function OrderCheckout({
       }
 
       if (response.success) {
+        if (typeof window !== "undefined") {
+          window.sessionStorage.removeItem(DELIVERY_PREFERENCE_STORAGE_KEY);
+        }
         resetCartCount();
         showToast(response.message || "Order Placed successfully", "success");
         router.push(`/thank-you/${response?.data?.order_encrypt_key}`);
@@ -225,6 +280,7 @@ export default function OrderCheckout({
     } catch (error) {
       console.error("Error:", error);
       setSubmitError("An error occurred while submitting the form.");
+      showToast("An error occurred while submitting the form.", "error");
     }
   };
 
@@ -268,16 +324,33 @@ export default function OrderCheckout({
                   <span style={{ color: "red", textDecoration: "underline" }}>
                     Your
                   </span>{" "}
-                  Preferred Delivery Day
+                  Preferred Delivery Date & Time
                 </h6>
-                <DatePicker
-                  selected={startDate}
-                  onChange={(date) => setStartDate(date)}
-                  filterDate={(date) => !isDisabled(date)}
-                  minDate={new Date()} // Disable past dates
-                  dateFormat="dd-MM-yyyy"
-                  className="p-2"
-                />
+                <div className={styles.deliveryPickerGrid}>
+                  <label>
+                    <span>Delivery Date</span>
+                    <DatePicker
+                      selected={startDate}
+                      onChange={(date) => setStartDate(date)}
+                      minDate={getTomorrowDate()}
+                      dateFormat="dd-MM-yyyy"
+                      className="p-2"
+                    />
+                  </label>
+                  <label>
+                    <span>Delivery Time Slot</span>
+                    <select
+                      value={selectedDeliverySlot}
+                      onChange={(event) => setSelectedDeliverySlot(event.target.value)}
+                    >
+                      {deliverySlotOptions.map((option) => (
+                        <option value={option.value} key={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
               </div>
               {selectError.date && (
                 <div className={`${styles.error} mt-2`}>
@@ -317,6 +390,9 @@ export default function OrderCheckout({
               ))}
             </div>
             <form onSubmit={handleCheckoutSubmit}>
+              {submitError && (
+                <div className={`${styles.error} mb-2`}>{submitError}</div>
+              )}
               <button
                 type="submit"
                 className={`${styles.order_button} primary-but w-100 mt-3`}

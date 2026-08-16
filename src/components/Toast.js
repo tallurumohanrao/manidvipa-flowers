@@ -1,5 +1,5 @@
 "use client";
-import { useToast } from "@/app/(pages)/context/page";
+import { useToast } from "@/context/UserContext";
 import styles from "@/scss/components/toast.module.scss";
 
 const Toast = () => {

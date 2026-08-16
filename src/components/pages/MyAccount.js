@@ -5,7 +5,7 @@ import { CgProfile } from "react-icons/cg";
 import styles from "@/scss/pages/myAccount.module.scss";
 import MyAddressesss from "@/components/MyAddressesss";
 import MyProfile from "@/components/MyProfile";
-import { useUser } from "@/app/(pages)/context/page";
+import { useUser } from "@/context/UserContext";
 import { useRouter } from "next/navigation";
 import Orders from "@/components/order";
 import ChangePassword from "@/components/ChangePassword";
@@ -104,7 +104,7 @@ export default function MyAccount({ userData, userToken, guestSession }) {
             {activeTab === 0 && (
               <MyProfile userData={userData} userToken={userToken} />
             )}
-            {activeTab === 1 && <ChangePassword />}
+            {activeTab === 1 && <ChangePassword userToken={userToken} />}
             {activeTab === 2 && (
               <MyAddressesss
                 userToken={userToken}

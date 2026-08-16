@@ -22,7 +22,7 @@ export default async function Page() {
 
   const [bannersData, categoriesData, homeProductsData, siteSettings] =
     await Promise.all([
-      fetchListingData("GET", "banners", userToken),
+      fetchListingData("GET", "banners?page=home", userToken),
       fetchListingData("GET", "categories", userToken),
       fetchListingData("GET", "home-featured-products", userToken),
       fetchSiteSettingsData(userToken),

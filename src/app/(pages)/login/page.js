@@ -4,7 +4,7 @@ import Cookies from "js-cookie";
 import { useRouter } from "next/navigation";
 import Banner from "@/components/banner";
 import styles from "@/scss/pages/login.module.scss";
-import { useUser } from "@/app/(pages)/context/page";
+import { useUser } from "@/context/UserContext";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import Link from "next/link";
 
@@ -52,6 +52,7 @@ export default function Login() {
           // httpOnly: true,
           sameSite: "Strict",
           expires: 730,
+          path: "/",
         });
         console.log("refresh");
         router.push("/");

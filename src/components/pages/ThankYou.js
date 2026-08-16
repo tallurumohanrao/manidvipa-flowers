@@ -10,6 +10,12 @@ const IMG_URL = process.env.NEXT_PUBLIC_IMG_URL;
 export default function ThankYou({ orderData }) {
   const orderSucces = orderData;
   const shippingAddress = orderData?.shipping_address;
+  const deliveryTimeLine = orderData?.orderlineitems?.find((item) =>
+    String(item?.title || "").startsWith("Delivery Time Slot:")
+  );
+  const deliveryTime = deliveryTimeLine?.title
+    ? deliveryTimeLine.title.replace("Delivery Time Slot:", "").trim()
+    : "";
 
   return (
     <div className={`container ${styles.order_success_page}`}>
@@ -54,6 +60,20 @@ export default function ThankYou({ orderData }) {
               {shippingAddress?.created_at}
             </span>
           </p>
+          {orderSucces?.order?.serve_date ? (
+            <p>
+              Preferred Delivery Date:{" "}
+              <span className={styles.text_danger}>
+                {orderSucces.order.serve_date}
+              </span>
+            </p>
+          ) : null}
+          {deliveryTime ? (
+            <p>
+              Preferred Delivery Time:{" "}
+              <span className={styles.text_danger}>{deliveryTime}</span>
+            </p>
+          ) : null}
         </div>
       </div>
 

@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import styles from "@/scss/pages/orderDetails.module.scss";
 import { fetchListingData, formatPrice } from "../../../../hook/userCookie";
-// import { useUser } from "../context/page";
+// import { useUser } from "@/context/UserContext";
 import Image from "next/image";
 import Link from "next/link";
 import Modal from "@/components/modal";

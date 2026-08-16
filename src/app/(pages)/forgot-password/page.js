@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { useToast } from "../context/page";
+import { useToast } from "@/context/UserContext";
 import Toast from "@/components/Toast";
 import styles from "@/scss/pages/forgotPassword.module.scss";
 import Banner from "@/components/banner";
@@ -31,13 +31,12 @@ export default function Page() {
     e.preventDefault();
     if (!validateForm()) return;
     try {
-      const url1 = `${url}/send-password-reset-notification?email=${formData.email}`;
-
-      const response = await fetch(url1, {
+      const response = await fetch(`${url}/send-password-reset-notification`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
+        body: JSON.stringify({ email: formData.email }),
       });
       const result = await response.json();
       if (!result.status) {

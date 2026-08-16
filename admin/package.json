@@ -1,0 +1,17 @@
+{
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build"
+    },
+    "devDependencies": {
+        "@popperjs/core": "^2.11.8",
+        "axios": "^1.19.0",
+        "bootstrap": "^5.3.8",
+        "fontaine": "^0.8.0",
+        "laravel-vite-plugin": "^3.2.0",
+        "sass": "^1.102.0",
+        "vite": "^8.2.1"
+    }
+}

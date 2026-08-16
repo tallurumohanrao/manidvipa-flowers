@@ -8,18 +8,18 @@ import React, {
 } from "react";
 import styles from "@/scss/components/navbar.module.scss";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { useUser } from "@/app/(pages)/context/page";
-import { FaRegHeart } from "react-icons/fa";
+import { usePathname, useRouter } from "next/navigation";
+import { useUser } from "@/context/UserContext";
+import { FaPhoneAlt, FaStar } from "react-icons/fa";
 import { BsCart } from "react-icons/bs";
 import { BsWhatsapp } from "react-icons/bs";
-import { useCartCount } from "@/app/(pages)/context/page";
-import { useWatchlistCount } from "@/app/(pages)/context/page";
+import { useCartCount } from "@/context/UserContext";
+import { useWatchlistCount } from "@/context/UserContext";
 import Link from "next/link";
-import { BsPersonFillGear } from "react-icons/bs";
 import { MdPerson } from "react-icons/md";
-import { LuPencilLine } from "react-icons/lu";
-import { fetchListingData } from "../../hook/userCookie";
+import { IoChevronDown, IoLocationOutline, IoSearch } from "react-icons/io5";
+import { getCartCount } from "../../hook/userCookie";
+import { storefrontNavItems } from "@/data/storefrontNavigation";
 
 const url = process.env.NEXT_PUBLIC_MANIDVIPA_URL;
 
@@ -27,7 +27,8 @@ const debouncedHandleSearch = async (searchInput, router) => {
   if (!searchInput) return;
 
   try {
-    const res = await fetch(`${url}/search?q=${searchInput}`);
+    const searchParams = new URLSearchParams({ q: searchInput });
+    const res = await fetch(`${url}/search?${searchParams.toString()}`);
     const result = await res.json();
 
     if (result?.data?.data?.length === 1) {
@@ -42,26 +43,11 @@ const debouncedHandleSearch = async (searchInput, router) => {
   }
 };
 
-// const fetchData = async (guestSession, userToken, setCartCount) => {
-//   if (!guestSession) return;
-//   const result = await fetchListingData(
-//     "GET",
-//     `get-cart?cart_session=${guestSession}`,
-//     userToken || undefined
-//   );
+const getWhatsAppHref = (value) => {
+  const phone = String(value || "").replace(/\D/g, "");
+  return phone ? `https://wa.me/${phone}` : "#";
+};
 
-//   if (result) {
-//     setCartCount(result?.data?.length);
-//   }
-// };
-
-// const fetchWatchlist = async (userToken, setWatchlistCount) => {
-//   if (!userToken) return;
-//   const res = await fetchListingData("GET", "wishlist", userToken);
-//   if (res) {
-//     setWatchlistCount(res.data?.length);
-//   }
-// };
 const fetchData = async (guestSession, userToken, setCartCount) => {
   if (!guestSession) return null;
 
@@ -72,8 +58,7 @@ const fetchData = async (guestSession, userToken, setCartCount) => {
         "Content-Type": "application/json",
         ...(userToken && { Authorization: `Bearer ${userToken}` }),
       },
-      next: { revalidate: 10 },
-      // cache: "no-store",
+      cache: "no-store",
     });
 
     if (!res.ok) {
@@ -83,7 +68,7 @@ const fetchData = async (guestSession, userToken, setCartCount) => {
     }
 
     const result = await res.json();
-    setCartCount(result?.data?.length || 0);
+    setCartCount(getCartCount(result));
   } catch (error) {
     console.error("Error fetching cart data:", error);
   }
@@ -117,37 +102,24 @@ const fetchWatchlist = async (userToken, setWatchlistCount) => {
 };
 
 const Navbar = ({
-  categories,
   siteSettings,
-  watchListData,
-  cartSessionData,
   guestSession,
   userToken,
 }) => {
-  const listingsTitles = categories;
   const contactUs = siteSettings?.data;
+  const whatsappHref = getWhatsAppHref(
+    contactUs?.SITE_WHATSAPP || contactUs?.SITE_PHONE
+  );
+  const helpPhone = contactUs?.SITE_PHONE || contactUs?.SITE_WHATSAPP || "+91 73375 25445";
 
-  // Homepage navigation labels requested for the refreshed storefront.
-  // Styling, colors, fonts, logo/search area and header structure remain unchanged.
-  const homepageNavItems = [
-    { label: "Home", href: "/" },
-    { label: "Flowers", href: "/search/all" },
-    { label: "Puja Flowers", href: "/#shop-by-category" },
-    { label: "Subscriptions", href: "/#subscriptions" },
-    { label: "Premium", href: "/#premium" },
-    { label: "Rare Flowers", href: "/#rare-flowers" },
-    { label: "Garlands", href: "/search/garland" },
-    { label: "Decorations", href: "/#decorations" },
-    { label: "Gifts", href: "/#shop-by-occasion" },
-    { label: "Offers", href: "/search/all" },
-  ];
+  const primaryNavItems = storefrontNavItems;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [openDropdownIndex, setOpenDropdownIndex] = useState(null);
-  const [openSubmenuIndex, setOpenSubmenuIndex] = useState(null);
-  const { isAuthenticated } = useUser();
+  const { isAuthenticated, guestSession: clientGuestSession } = useUser();
+  const activeGuestSession = clientGuestSession || guestSession;
   const { cartCount, setCartCount } = useCartCount();
   const { watchlistCount, setWatchlistCount } = useWatchlistCount();
   const router = useRouter();
+  const pathname = usePathname();
   const [searchInput, setSearchInput] = useState("");
   const [allsuggestions, setAllSuggestions] = useState([]);
   const [inputSuggestions, setInputSuggestions] = useState([]);
@@ -158,35 +130,8 @@ const Navbar = ({
   const debouncedFetchWatchlist = useCallback(fetchWatchlist, []);
 
   useEffect(() => {
-    debouncedFetchData(guestSession, userToken, setCartCount);
-  }, [guestSession, userToken, cartCount, setCartCount, debouncedFetchData]);
-
-  // const fetchData = useCallback(async () => {
-  //   const result = await fetchListingData(
-  //     "GET",
-  //     `get-cart?cart_session=${guestSession}`,
-  //     userToken ? userToken : undefined
-  //   );
-
-  //   if (result) {
-  //     setCartCount(result?.data?.length);
-  //   }
-  // }, [guestSession, cartCount, setCartCount, userToken]);
-
-  // useEffect(() => {
-  //   // const fetchData = async () => {
-  //   //   const result = await fetchListingData(
-  //   //     "GET",
-  //   //     `get-cart?cart_session=${guestSession}`,
-  //   //     userToken ? userToken : undefined
-  //   //   );
-
-  //   //   if (result) {
-  //   //     setCartCount(result?.data?.length);
-  //   //   }
-  //   // };
-  //   fetchData();
-  // }, [fetchData]);
+    debouncedFetchData(activeGuestSession, userToken, setCartCount);
+  }, [activeGuestSession, userToken, setCartCount, debouncedFetchData]);
 
   useEffect(() => {
     debouncedFetchWatchlist(userToken, setWatchlistCount);
@@ -222,22 +167,6 @@ const Navbar = ({
     setInputSuggestions([]);
   }, [searchInput, router]);
 
-  // const handleSearch = () => {
-  //   const fetchData = async () => {
-  //     const res = await fetch(`${url}/search?q=${searchInput}`);
-  //     const result = await res.json();
-  //     if (result.data.data.length == 1) {
-  //       router.push(`/product-details/${result.data.data[0].slug}`);
-  //     } else if (result.data.data.length > 1) {
-  //       router.push(`/search/${searchInput}`);
-  //     } else {
-  //       router.push(`/search/all`);
-  //     }
-  //   };
-  //   searchInput && fetchData();
-  //   setInputSuggestions([]);
-  // };
-
   useEffect(() => {
     const fetchData = async () => {
       const res = await fetch(`${url}/search`);
@@ -262,26 +191,35 @@ const Navbar = ({
 
   const handleCloseMenu = () => {
     setIsMenuOpen(false);
-    setOpenDropdownIndex(null);
-    setOpenSubmenuIndex(null);
   };
 
-  const handleDropdownIndex = (index) => {
-    setOpenDropdownIndex((prevIndex) => (prevIndex === index ? null : index));
-    setOpenSubmenuIndex(null);
-  };
-
-  const handleSubmenuToggle = (index) => {
-    setOpenSubmenuIndex((prevIndex) => (prevIndex === index ? null : index));
+  const isActiveNavItem = (href) => {
+    if (href === "/") return pathname === "/";
+    return pathname === href || pathname.startsWith(`${href}/`);
   };
   return (
     <>
       <section className={styles.sec_Top_nav}>
-        <div>
-          <span>{contactUs?.SITE_OFFERSTRIP}</span>
+        <div className={styles.topStripInner}>
+          <div className={styles.topStripText}>
+            <FaStar aria-hidden="true" />
+            <span>Fresh Flower Prices Updated Daily at 8AM</span>
+            <span className={styles.topStripDivider}>|</span>
+            <span>Same-Day Delivery in Hyderabad</span>
+            <span className={styles.topStripDivider}>|</span>
+            <Link href={whatsappHref} target="_blank" rel="noopener noreferrer">
+              Order on WhatsApp
+            </Link>
+            <span className={styles.topStripDivider}>|</span>
+          </div>
+          <div className={styles.topStripHelp}>
+            <span>Need Help?</span>
+            <FaPhoneAlt aria-hidden="true" />
+            <Link href={`tel:${String(helpPhone).replace(/\D/g, "")}`}>{helpPhone}</Link>
+          </div>
         </div>
       </section>
-      <header className="header">
+      <header className={`${styles.headerShell} header`}>
         <nav>
           <div className="container py-2">
             <div className={`${styles.nav_exapnd_lg} nav-exapnd-lg`}>
@@ -304,6 +242,16 @@ const Navbar = ({
                   />
                 </Link>
               </div>
+              <Link href="/contact-us" className={styles.deliveryLocation}>
+                <span className={styles.locationIcon}>
+                  <IoLocationOutline aria-hidden="true" />
+                </span>
+                <span className={styles.locationCopy}>
+                  <span>Delivering to</span>
+                  <strong>Hyderabad, TS</strong>
+                </span>
+                <IoChevronDown className={styles.locationChevron} aria-hidden="true" />
+              </Link>
               <div className={`${styles.search_input} search-input`}>
                 {/* <div className={`${styles.dropdown} dropdown`}>
                   <button className={styles.dropdown_toggle}>
@@ -322,7 +270,7 @@ const Navbar = ({
                         handleSearch();
                       }
                     }}
-                    placeholder="Search For Products..."
+                    placeholder="Search for flowers, garlands, leaves..."
                   />
                   {inputSuggestions && isSuggestionVisible && (
                     <div className={`${styles.suggestionBox}`}>
@@ -342,67 +290,54 @@ const Navbar = ({
                     </div>
                   )}
                 </div>
-                <button className={styles.search_but} onClick={handleSearch}>
-                  Search
+                <button
+                  className={styles.search_but}
+                  onClick={handleSearch}
+                  aria-label="Search"
+                >
+                  <IoSearch aria-hidden="true" />
                 </button>
               </div>
               <ul className={`${styles.nav_links} nav-links`}>
-                {isAuthenticated ? (
-                  <>
-                    <li>
-                      <Link href="/my-account">
-                        <BsPersonFillGear className={styles.watch_icon} />
-                        My Account
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="/watchlist" className={styles.watch_link}>
-                        <FaRegHeart className={styles.watch_icon} />
-                        Watchlist
-                        {watchlistCount > 0 ? (
-                          <span className={styles.watch_count}>
-                            {watchlistCount}
-                          </span>
-                        ) : null}
-                      </Link>
-                    </li>
-                  </>
-                ) : (
-                  <>
-                    <li>
-                      <Link href="/login">
-                        <MdPerson className={styles.watch_icon} />
-                        Login
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="/register">
-                        <LuPencilLine className={styles.watch_icon} />
-                        Register
-                      </Link>
-                    </li>
-                  </>
-                )}
-
                 <li>
-                  <Link href="/cart" className={styles.cart_link}>
-                    <BsCart className={styles.cart_icon} />
-                    <span>Cart</span>
-                    {cartCount > 0 ? (
-                      <span className={styles.cart_count}>{cartCount}</span>
-                    ) : null}
+                  <Link
+                    href={whatsappHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={styles.whatsappOrder}
+                  >
+                    <span className={styles.whatsappCircle}>
+                      <BsWhatsapp aria-hidden="true" />
+                    </span>
+                    <span>
+                      Order on
+                      <strong>WhatsApp</strong>
+                    </span>
                   </Link>
                 </li>
 
                 <li>
-                  <a
-                    href={`https://wa.me/${contactUs?.SITE_WHATSAPP}`}
-                    target="_blank"
-                    className={styles.whatsapp_icon}
+                  <Link
+                    href={isAuthenticated ? "/my-account" : "/login"}
+                    className={styles.accountLink}
                   >
-                    <BsWhatsapp />
-                    Chat
-                  </a>
+                    <span className={styles.accountIcon}>
+                      <MdPerson aria-hidden="true" />
+                    </span>
+                    <span>{isAuthenticated ? "My Account" : "Login / Sign up"}</span>
+                  </Link>
+                </li>
+
+                <li>
+                  <Link href="/cart" className={styles.cart_link}>
+                    <span className={styles.cartIconWrap}>
+                      <BsCart className={styles.cart_icon} aria-hidden="true" />
+                      {cartCount > 0 ? (
+                        <span className={styles.cart_count}>{cartCount}</span>
+                      ) : null}
+                    </span>
+                    <span>Cart</span>
+                  </Link>
                 </li>
               </ul>
               <button
@@ -445,10 +380,12 @@ const Navbar = ({
               </div>
 
               <ul className={`${styles.list} list`}>
-                {homepageNavItems.map((item) => (
+                {primaryNavItems.map((item) => (
                   <li
                     key={item.label}
-                    className={`${styles.nav_item} nav-item`}
+                    className={`${styles.nav_item} ${
+                      isActiveNavItem(item.href) ? styles.active_nav_item : ""
+                    } nav-item`}
                     onClick={handleCloseMenu}
                   >
                     <Link href={item.href}>{item.label}</Link>
@@ -500,8 +437,9 @@ const Navbar = ({
 
                   <li onClick={handleCloseMenu}>
                     <a
-                      href={`https://wa.me/${contactUs?.SITE_WHATSAPP}`}
+                      href={whatsappHref}
                       target="_blank"
+                      rel="noopener noreferrer"
                       className={styles.whatsapp_icon}
                     >
                       {/* <BsWhatsapp /> */}
@@ -531,7 +469,7 @@ const Navbar = ({
                   handleSearch();
                 }
               }}
-              placeholder="Search For Products..."
+              placeholder="Search for flowers, garlands, leaves..."
             />
             {inputSuggestions && isSuggestionVisible && (
               <div className={`${styles.suggestionBox}`}>
@@ -551,16 +489,25 @@ const Navbar = ({
               </div>
             )}
           </div>
-          <button className={styles.search_but} onClick={handleSearch}>
-            Search
+          <button
+            className={styles.search_but}
+            onClick={handleSearch}
+            aria-label="Search"
+          >
+            <IoSearch aria-hidden="true" />
           </button>
         </div>
         <section className={`${styles.second_nav} sticky`}>
           <div className="container">
             <div className="nav-exapnd-lg">
               <div className="nav-links">
-                {homepageNavItems.map((item) => (
-                  <li key={item.label} className={`${styles.nav_item} nav-item`}>
+                {primaryNavItems.map((item) => (
+                  <li
+                    key={item.label}
+                    className={`${styles.nav_item} ${
+                      isActiveNavItem(item.href) ? styles.active_nav_item : ""
+                    } nav-item`}
+                  >
                     <Link href={item.href}>{item.label}</Link>
                   </li>
                 ))}

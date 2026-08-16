@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useEffect } from "react";
 import styles from "@/scss/pages/userAddresses.module.scss";
 import { fetchListingData } from "../../hook/userCookie";
-import { useToast } from "@/app/(pages)/context/page";
+import { useToast } from "@/context/UserContext";
 import Toast from "./Toast";
 import Modal from "./modal";
 import BillingForm from "./billingForm";

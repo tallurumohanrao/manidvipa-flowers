@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import styles from "@/scss/pages/checkout.module.scss";
-import { useToast } from "@/app/(pages)/context/page";
+import { useToast } from "@/context/UserContext";
 import { fetchListingData, formatPrice } from "../../hook/userCookie";
 
 const url = process.env.NEXT_PUBLIC_MANIDVIPA_URL;

@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { useToast } from "../../context/page";
+import { useToast } from "@/context/UserContext";
 import Toast from "@/components/Toast";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import styles from "@/scss/pages/forgotPassword.module.scss";
@@ -18,7 +18,9 @@ export default function Page() {
   const [message, setMessage] = useState(null);
   const params = useParams();
   const searchParams = useSearchParams();
-  const slug = params.slug;
+  const slug = Array.isArray(params.slug)
+    ? params.slug.join("/")
+    : params.slug;
   const email = searchParams.get("email");
 
   const validateForm = () => {
@@ -42,15 +44,17 @@ export default function Page() {
 
     if (!validateForm()) return;
     try {
-      const password = encodeURIComponent(formData.new_password);
-      const c_password = encodeURIComponent(formData.confirmation_password);
-      const url1 = `${url}/password/update?token=${slug}&email=${email}&password=${password}&password_confirmation=${c_password}`;
-
-      const response = await fetch(url1, {
+      const response = await fetch(`${url}/password/update`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+          token: slug,
+          email,
+          password: formData.new_password,
+          password_confirmation: formData.confirmation_password,
+        }),
       });
 
       if (response.ok) {

@@ -55,6 +55,48 @@
     margin: $m-0;
   }
 }
+.deliveryPickerGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: $m-10;
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+  }
+
+  span {
+    color: #4a2520;
+    font-size: $fs-14;
+    font-weight: $fw-600;
+  }
+
+  input,
+  select {
+    width: 100%;
+    min-height: 42px;
+    border: $border-1 solid #8f8c8c;
+    border-radius: 4px;
+    background: $color-white;
+    color: #241916;
+    font-size: $fs-14;
+    padding: $p-8 $p-10;
+    outline: none;
+
+    &:focus {
+      border-color: $color-primary;
+      box-shadow: 0 0 0 3px rgba(164, 21, 61, 0.12);
+    }
+  }
+
+  :global(.react-datepicker-wrapper),
+  :global(.react-datepicker__input-container) {
+    width: 100%;
+  }
+}
 .payment_type {
   display: flex;
   align-items: flex-start;
@@ -242,4 +284,10 @@
 .iconContainer {
   display: flex;
   justify-content: flex-end;
+}
+
+@media (max-width: $sm) {
+  .deliveryPickerGrid {
+    grid-template-columns: 1fr;
+  }
 }

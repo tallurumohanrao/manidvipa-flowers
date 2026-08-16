@@ -1,7 +1,13 @@
 import CartDetails from "@/components/pages/CartDetails";
 import React from "react";
-import { fetchCartSessionData } from "../../../../hook/userCookie";
+import {
+  fetchCartSessionData,
+  fetchSiteSettingsData,
+} from "../../../../hook/userCookie";
 import { cookies } from "next/headers";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const fetchAboutData = async (guestSession, userToken) => {
   try {
@@ -22,7 +28,7 @@ export default async function Page() {
   const guestSessionCookie = cookieStore.get("guestSession");
 
   let userToken = null;
-  let guestSession = guestSessionCookie.value;
+  let guestSession = guestSessionCookie?.value || "";
   if (userSessionCookie) {
     try {
       const userSession = JSON.parse(userSessionCookie?.value);
@@ -31,13 +37,17 @@ export default async function Page() {
       console.error("Failed to parse userSession cookie:", error);
     }
   }
-  const CartDetailsData = await fetchAboutData(guestSession, userToken);
+  const [CartDetailsData, siteSettings] = await Promise.all([
+    fetchAboutData(guestSession, userToken),
+    fetchSiteSettingsData(userToken),
+  ]);
 
   return (
     <CartDetails
       CartDetailsData={CartDetailsData}
       guestSession={guestSession}
       userToken={userToken}
+      siteSettings={siteSettings}
     />
   );
 }
