@@ -1,1 +1,0 @@
-<?php /**PATH C:\Projects\manidvipa-flowers\admin\resources\views/layouts/app.blade.php ENDPATH**/ ?>
