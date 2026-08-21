@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 use App\Http\Requests\StoreSeoRequest;
 use App\Traits\RedirectTrait;
 use Symfony\Component\HttpFoundation\Response;
-use Gate,View;
+use Gate,View,Cache;
 
 class SeoController extends Controller
 {
@@ -19,6 +19,11 @@ class SeoController extends Controller
         $this->model = $model;
         $this->module = 'seo';
         View::share ( 'module', $this->module );
+    }
+
+    private function clearStorefrontCache(): void
+    {
+        Cache::flush();
     }
 
     /**
@@ -69,6 +74,7 @@ class SeoController extends Controller
         abort_if(Gate::denies($this->module.'_create'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         $formInput = $request->all();
         $model = $this->model::create($formInput);
+        $this->clearStorefrontCache();
         return $this->redirectAfterSave($request->FormButton, $model->id,$model->type);
     }
 
@@ -96,6 +102,7 @@ class SeoController extends Controller
     {
         abort_if(Gate::denies($this->module.'_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         $seo->update($request->all());
+        $this->clearStorefrontCache();
         return $this->redirectAfterSave($request->FormButton, $seo->id,$seo->type);
     }
 
@@ -106,6 +113,7 @@ class SeoController extends Controller
             $seo = $this->model::find($id);
             $value = $request->status == 1 ?:2;
             if($seo->update(['status'=> $value])){
+                $this->clearStorefrontCache();
                 $status= $value == 1 ?'enabled':'disabled';
                 return response()->json(['status'=>'success','message'=>"Status $status successfully."]);
             }
@@ -120,9 +128,11 @@ class SeoController extends Controller
     public function destroy(SeoUrl $seo)
     {
         abort_if(Gate::denies($this->module.'_delete'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
-        if($seo->delete() == 1)
-        return response()->json(['success'=>true, 'message' => 'Deleted successfully.']);
-        else
+        $result = $seo->delete();
+        if($result == 1) {
+            $this->clearStorefrontCache();
+            return response()->json(['success'=>true, 'message' => 'Deleted successfully.']);
+        }
         return response()->json(['success'=>false, 'message' => 'An unexpected error has occurred.']);
     }
 
@@ -130,13 +140,17 @@ class SeoController extends Controller
     {
         abort_if(Gate::denies($this->module.'_delete'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         $ids = explode(',',$request->ids);
+        $result = 0;
         foreach($ids as $id) :
             $seo = $this->model::find($id);
-            $result = $seo->delete();
+            if($seo) {
+                $result = $seo->delete();
+            }
         endforeach;
-        if($result == 1)
-        return response()->json(['success'=>true, 'message' => 'Deleted successfully.']);
-        else
+        if($result == 1) {
+            $this->clearStorefrontCache();
+            return response()->json(['success'=>true, 'message' => 'Deleted successfully.']);
+        }
         return response()->json(['success'=>false, 'message' => 'An unexpected error has occurred.']);
     }
 

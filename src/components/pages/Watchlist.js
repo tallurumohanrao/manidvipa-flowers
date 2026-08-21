@@ -29,8 +29,8 @@ const Watchlist = ({ watchlist, userToken, guestSession }) => {
 
   const { showToast } = useToast();
   const { decreaseWatchlistCount } = useWatchlistCount();
-  //default quantity
-  const [quantity, setQuantity] = useState(1);
+  const [addingProductId, setAddingProductId] = useState(null);
+  const [addedProductId, setAddedProductId] = useState(null);
   const { setCartCount } = useCartCount();
 
   const handleAddcart = async (e, product_id, weight_id, action) => {
@@ -41,12 +41,16 @@ const Watchlist = ({ watchlist, userToken, guestSession }) => {
       return;
     }
 
+    setAddingProductId(product_id);
+    setAddedProductId(null);
+
     const body1 = {
       cart_session: effectiveGuestSession,
       product_id: product_id,
-      quantity,
+      quantity: 1,
       weight_id: weight_id,
     };
+
     try {
       const cartData = await fetchListingData(
         "POST",
@@ -60,6 +64,7 @@ const Watchlist = ({ watchlist, userToken, guestSession }) => {
         return;
       }
 
+      setAddedProductId(product_id);
       showToast(cartData.message || "Added to cart successfully", "success");
 
       const refreshedCart = await fetchCartBySession(
@@ -82,6 +87,8 @@ const Watchlist = ({ watchlist, userToken, guestSession }) => {
         "An unexpected error occurred. Please try again later.",
         "error"
       );
+    } finally {
+      setAddingProductId(null);
     }
   };
 
@@ -172,6 +179,8 @@ const Watchlist = ({ watchlist, userToken, guestSession }) => {
                     item={item}
                     onDelete={handleDelete}
                     onCart={handleAddcart}
+                    isAdding={addingProductId === item.product_id}
+                    wasAdded={addedProductId === item.product_id}
                   />
                 ))}
             </div>
@@ -183,7 +192,7 @@ const Watchlist = ({ watchlist, userToken, guestSession }) => {
   );
 };
 
-const WatchlistCard = React.memo(({ item, onDelete, onCart }) => (
+const WatchlistCard = React.memo(({ item, onDelete, onCart, isAdding, wasAdded }) => (
   <div className={`row ${styles.card}`}>
     <div
       className={`col-sm-3 ${styles.title_price}`}
@@ -228,9 +237,13 @@ const WatchlistCard = React.memo(({ item, onDelete, onCart }) => (
         <div className="d-flex align-items-center">
           <p
             className="green-but"
-            onClick={(e) => onCart(e, item.product_id, item.weight_id, "cart")}
+            onClick={(e) => {
+              if (!isAdding) onCart(e, item.product_id, item.weight_id, "cart");
+            }}
+            role="button"
+            aria-disabled={isAdding}
           >
-            Add To Cart
+            {isAdding ? "Adding..." : wasAdded ? "Added" : "Add To Cart"}
           </p>
           <span
             className={styles.close_icon}

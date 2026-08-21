@@ -13,6 +13,222 @@ use App\Traits\GoogleDistanceTrait;
 class OrderController extends BaseController
 {
     use GoogleDistanceTrait;
+
+    public function storeWhatsAppOrder(Request $request)
+    {
+        $user_id = null;
+        $user = null;
+        if(auth('sanctum')->check()){
+            $user = auth('sanctum')->user();
+            $user_id = $user->id;
+        }
+
+        $cart_session = $request->cart_session ?? null;
+        if(empty($cart_session) && empty($user_id)){
+            return response()->json(['success'=>false,'message'=>'Cart session missing. Please refresh and try again.'], 422);
+        }
+
+        $carts = DB::table('carts')->where(function($cwq) use($cart_session,$user_id){
+            if($user_id){
+                $cwq->where('user_id',$user_id);
+            }
+            if($cart_session){
+                $cwq->orWhere('cart_session',$cart_session);
+            }
+        })->get();
+
+        if($carts == null OR $carts->count() < 1){
+            return response()->json(['success'=>false,'message'=>'Cart empty.'], 200);
+        }
+
+        $now = date('Y-m-d H:i:s');
+        $serveDate = $request->filled('serve_date')
+            ? date('Y-m-d', strtotime($request->serve_date))
+            : date('Y-m-d', strtotime('+1 day'));
+        $serveTimeSlotLabel = $request->serve_time_slot_label ?: $request->serve_time_slot;
+        $order_encrypt_key = Str::random(40);
+        $statusId = DB::table('order_statuses')->where('id', '<>', 1)->orderBy('id')->value('id')
+            ?: DB::table('order_statuses')->orderBy('id')->value('id')
+            ?: 1;
+
+        DB::beginTransaction();
+        try {
+            $create = [
+                'order_encrypt_key' => $order_encrypt_key,
+                'user_id' => $user_id,
+                'name' => $request->name ?: ($user->name ?? 'WhatsApp Customer'),
+                'email' => $request->email ?: ($user->email ?? ''),
+                'contact_number' => $request->contact_number ?: ($user->contact_number ?? ''),
+                'serve_date' => $serveDate,
+                'order_status_id' => $statusId,
+                'created_at' => $now,
+            ];
+
+            $orderId = DB::table('orders')->insertGetId($create);
+            if(!$orderId){
+                DB::rollBack();
+                return response()->json(['success'=>false,'message'=>'Server error.'], 500);
+            }
+
+            $subTotal = 0;
+            $orderProducts = [];
+            foreach($carts as $value) :
+                $product = DB::table('products')->where('id',$value->product_id)->first();
+                if(!$product){
+                    continue;
+                }
+
+                $weight = DB::table('product_weights')->where(['product_id'=>$value->product_id,'id'=>$value->weight_id])->first();
+                if(!$weight){
+                    continue;
+                }
+
+                $quantity = max(1, (int) $value->quantity);
+                if($weight->stock && ($weight->qty < $quantity)){
+                    DB::rollBack();
+                    return response()->json([
+                        'success'=>false,
+                        'message'=>$product->title.' stock not available. Available stock is ('.$weight->qty.').'
+                    ], 200);
+                }
+
+                $amount = $quantity * $weight->sell_price;
+                DB::table('order_products')->insert([
+                    'order_id'=>$orderId,
+                    'product_id'=>$product->id,
+                    'weight_id'=>$weight->id,
+                    'product_title'=>$product->title,
+                    'weight'=>$weight->name,
+                    'sku'=>$product->sku,
+                    'amount'=> $amount,
+                    'sell_price'=> $weight->sell_price,
+                    'list_price'=> $weight->list_price,
+                    'cost_price'=> $weight->cost_price,
+                    'quantity'=>$quantity,
+                    'created_at' => $now,
+                ]);
+
+                $orderProducts[] = [
+                    'title' => $product->title,
+                    'weight' => $weight->name,
+                    'quantity' => $quantity,
+                    'sell_price' => (float) $weight->sell_price,
+                    'amount' => (float) $amount,
+                ];
+                $subTotal += $amount;
+            endforeach;
+
+            if(count($orderProducts) < 1){
+                DB::rollBack();
+                return response()->json(['success'=>false,'message'=>'Cart products are not available.'], 200);
+            }
+
+            $cart_coupon = DB::table('cart_line_items')->where(['cart_session'=>$cart_session,'value_name'=>'coupon'])->first();
+            $coupon_discount = 0;
+            $couponTitle = null;
+            if(@$cart_coupon){
+                $coupon_row = DB::table('coupons')->where('id',$cart_coupon->value_id)->first();
+                if($coupon_row){
+                    $discount_price = $coupon_row->discount;
+                    if ($coupon_row->is_percentage_discount) {
+                        $coupon_discount = ($subTotal * $discount_price) / 100;
+                    }else{
+                        $coupon_discount = $discount_price;
+                    }
+                    $coupon_discount = $coupon_discount * - 1;
+                    $couponTitle = "Coupon (".$coupon_row->coupon_code.")";
+                }
+            }
+
+            $vat = config('VAT_AMOUNT');
+            $vat_amount = @$vat ? floor(($subTotal * $vat)/100) : 0;
+            $shipping_amount = 0;
+            $total = $subTotal + $shipping_amount + $coupon_discount + $vat_amount;
+
+            DB::table('orders')->where('id',$orderId)->update(['sub_total'=>$subTotal,'amount'=>$total,'updated_at'=>$now]);
+            DB::table('order_lineitems')->insert(['order_id' => $orderId, 'title' => 'Sub Total', 'amount' => $subTotal, 'weight' => 1]);
+            if($couponTitle){
+                DB::table('order_lineitems')->insert(['order_id' => $orderId, 'title' =>$couponTitle, 'amount' => $coupon_discount, 'weight' => 2]);
+            }
+            DB::table('order_lineitems')->insert(['order_id' => $orderId, 'title' => 'Delivery Charges', 'amount' => $shipping_amount, 'weight' => 3]);
+            if(@$vat){
+                DB::table('order_lineitems')->insert(['order_id' => $orderId, 'title' => 'GST', 'amount' =>$vat_amount , 'weight' => 4]);
+            }
+            if(!empty($serveTimeSlotLabel)){
+                DB::table('order_lineitems')->insert(['order_id' => $orderId, 'title' => 'Delivery Time Slot: '.trim($serveTimeSlotLabel), 'amount' => 0, 'weight' => 5]);
+            }
+            DB::table('order_lineitems')->insert(['order_id' => $orderId, 'title' => 'WhatsApp Verification', 'amount' => 0, 'weight' => 8]);
+            DB::table('order_lineitems')->insert(['order_id' => $orderId, 'title' => 'Total', 'amount' => $total, 'weight' => 9]);
+
+            DB::table('order_shippings')->insert([
+                'name' => 'Confirm on WhatsApp',
+                'shipping_type' => null,
+                'amount' => $shipping_amount,
+                'order_id' => $orderId,
+                'shipping_status_id' => 1,
+                'created_at' => $now,
+            ]);
+
+            DB::table('order_payments')->insert([
+                'transaction_id' => null,
+                'order_id' => $orderId,
+                'payment_amount' => null,
+                'payment_method' => 'WhatsApp Order',
+                'payment_status' => 'Pending',
+                'created_at' => $now,
+            ]);
+
+            $this->clear($cart_session,$user_id);
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            report($e);
+            return response()->json(['success'=>false,'message'=>'Unable to save WhatsApp order. Please try again.'], 500);
+        }
+
+        $phone = preg_replace('/\D+/', '', (string) (DB::table('settings')->where('key', 'SITE_WHATSAPP')->value('value') ?: config('settings.SITE_WHATSAPP') ?: '917337525445'));
+        if(strlen($phone) === 10){
+            $phone = '91'.$phone;
+        }
+
+        $itemLines = [];
+        foreach($orderProducts as $index => $item) :
+            $itemLines[] = ($index + 1).'. '.$item['title'].' - '.$item['weight'].' x '.$item['quantity'].' = ₹'.number_format($item['amount'], 2, '.', '');
+        endforeach;
+
+        $messageLines = [
+            'Manidvipa Flowers Order Request',
+            '',
+            'Official Order ID: MF-'.$orderId,
+            'Delivery Date: '.date('d M Y', strtotime($serveDate)),
+            'Delivery Time: '.($serveTimeSlotLabel ?: 'To be confirmed'),
+            '',
+            'Items:',
+            implode("\n", $itemLines),
+            '',
+            'Official Total: ₹'.number_format($total, 2, '.', ''),
+            '',
+            'Important: This order is already saved in Manidvipa system. Edited WhatsApp prices/totals are not valid. Please verify using Order ID MF-'.$orderId.'.',
+        ];
+        $message = implode("\n", $messageLines);
+        $whatsappUrl = 'https://wa.me/'.$phone.'?text='.urlencode($message);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Order saved. Opening WhatsApp.',
+            'data' => [
+                'order_id' => $orderId,
+                'order_reference' => 'MF-'.$orderId,
+                'order_encrypt_key' => $order_encrypt_key,
+                'sub_total' => $subTotal,
+                'total' => $total,
+                'whatsapp_message' => $message,
+                'whatsapp_url' => $whatsappUrl,
+            ],
+        ], 200);
+    }
+
     public function store(Request $request)
     {
         $user_id = null;

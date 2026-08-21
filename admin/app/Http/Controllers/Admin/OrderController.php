@@ -84,8 +84,15 @@ class OrderController extends Controller
         $billingaddress = DB::table('order_billing_addresses')->where('order_id',$order->id)->first();
         $shippingaddress = DB::table('order_shipping_addresses')->where('order_id',$order->id)->first();
         $orderlineitems = DB::table('order_lineitems')->where('order_id',$order->id)->orderBy('weight')->get();
+        $deliveryTimeSlotLabel = '';
+        foreach($orderlineitems as $orderlineitem){
+            if(stripos($orderlineitem->title, 'Delivery Time Slot:') === 0){
+                $deliveryTimeSlotLabel = trim(substr($orderlineitem->title, strlen('Delivery Time Slot:')));
+                break;
+            }
+        }
         $ordercomments = DB::table('order_comments')->where('order_id',$order->id)->orderByDesc('id')->get();
-        return view('admin.'.$this->module.'.show', compact('order','products','shippingStatuses','orderStatuses','billingaddress','shippingaddress','orderlineitems','ordercomments'));
+        return view('admin.'.$this->module.'.show', compact('order','products','shippingStatuses','orderStatuses','billingaddress','shippingaddress','orderlineitems','ordercomments','deliveryTimeSlotLabel'));
     }
 
     public function destroy($id)
@@ -139,6 +146,61 @@ class OrderController extends Controller
             return response()->json(['success'=>true, 'message' => 'Payment status successfully updated.','html' => $request->payment_status]);
         }
         return response()->json(['success'=>false, 'message' => 'No changes made in the request.']);
+    }
+
+    public function updateDeliveryPreference(Request $request,$id)
+    {
+        abort_if(Gate::denies($this->module.'_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
+
+        $request->validate([
+            'serve_date' => 'required|date',
+            'serve_time_slot' => 'required|string|max:120',
+        ]);
+
+        $order = DB::table('orders')->where('id',$id)->first();
+        if(!$order){
+            return response()->json(['success'=>false, 'message' => 'Order not found.'], 404);
+        }
+
+        $now = date('Y-m-d H:i:s');
+        $serveDate = date('Y-m-d', strtotime($request->serve_date));
+        $serveTimeSlot = trim($request->serve_time_slot);
+        $lineItemTitle = 'Delivery Time Slot: '.$serveTimeSlot;
+
+        DB::table('orders')->where('id',$id)->update([
+            'serve_date' => $serveDate,
+            'updated_at' => $now,
+        ]);
+
+        $existingLineItem = DB::table('order_lineitems')
+            ->where('order_id',$id)
+            ->where('title','like','Delivery Time Slot:%')
+            ->first();
+
+        if($existingLineItem){
+            DB::table('order_lineitems')->where('id',$existingLineItem->id)->update([
+                'title' => $lineItemTitle,
+                'amount' => 0,
+                'weight' => 5,
+                'updated_at' => $now,
+            ]);
+        }else{
+            DB::table('order_lineitems')->insert([
+                'order_id' => $id,
+                'title' => $lineItemTitle,
+                'amount' => 0,
+                'weight' => 5,
+                'created_at' => $now,
+            ]);
+        }
+
+        return response()->json([
+            'success'=>true,
+            'message' => 'Delivery date and time slot updated successfully.',
+            'date_html' => date('d/m/Y',strtotime($serveDate)),
+            'slot_html' => e($serveTimeSlot),
+            'lineitem_html' => e($lineItemTitle),
+        ]);
     }
 
     public function updateBooking(Request $request,$id)

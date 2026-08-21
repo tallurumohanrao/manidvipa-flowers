@@ -16,6 +16,18 @@ class Category extends Model
      *
      * @var array
      */
-    protected $fillable = ['name','title', 'icon', 'image', 'description', 'slug', 'priority', 'status'];
+    protected $fillable = [
+        'name',
+        'title',
+        'icon',
+        'image',
+        'short_description',
+        'description',
+        'slug',
+        'parent_id',
+        'home_category',
+        'priority',
+        'status',
+    ];
 
 }

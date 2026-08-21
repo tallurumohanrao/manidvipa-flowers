@@ -8,7 +8,7 @@ const Banner = ({ title, breadcrumbs }) => {
       <div className={`container-fluid ${styles.all_banner_sec}`}>
         <div className="container">
           {/* <Breadcrumbs breadcrumbs={breadcrumbs} /> */}
-          <h2 className={styles.banner_head}>{title}</h2>
+          <h1 className={styles.banner_head}>{title}</h1>
         </div>
       </div>
     </section>

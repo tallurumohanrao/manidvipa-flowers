@@ -6,7 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Admin\Setting;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Gate,View,Image,Str,Storage;
+use Gate,View,Image,Str,Storage,Cache;
+use Illuminate\Validation\ValidationException;
 
 class SettingController extends Controller
 {
@@ -15,6 +16,18 @@ class SettingController extends Controller
         $this->model = $model;
         $this->module = 'settings';
         View::share ( 'module', $this->module );
+    }
+
+    private function validateSettingImage($image, string $key): void
+    {
+        $extension = strtolower($image->getClientOriginalExtension());
+        $mimeType = $image->getMimeType();
+
+        if (!$image->isValid() || !Str::startsWith($mimeType, 'image/') || !in_array($extension, ['jpg', 'jpeg', 'png', 'webp'], true) || $image->getSize() > 4096 * 1024) {
+            throw ValidationException::withMessages([
+                'Files.'.$key => 'Only JPG, JPEG, PNG and WEBP images up to 4MB are allowed.',
+            ]);
+        }
     }
     /**
      * Display a listing of the resource.
@@ -50,9 +63,10 @@ class SettingController extends Controller
         if($request->hasFile('Files')){
             $directory = 'website';
             foreach($request->file('Files') as $key=>$image){
+                $this->validateSettingImage($image, $key);
                 $exp = explode('.',$image->getClientOriginalName());
-                $extension = $image->getClientOriginalExtension();
-                $old_file = $request->Files['old_'.$key];
+                $extension = strtolower($image->getClientOriginalExtension());
+                $old_file = $request->input('Files.old_'.$key);
                 if($extension == 'png'){
                     $name = preg_replace("/[^a-zA-Z0-9]+/", "-",$exp['0']).time().'.jpg';
                 }else{
@@ -65,9 +79,10 @@ class SettingController extends Controller
                 Setting::where('key' , '=', $key)->update(array('value' => $name));
             }
         }
-        foreach($request->Site as $key=>$value){
+        foreach((array) $request->input('Site', []) as $key=>$value){
             Setting::where('key' , '=', $key)->update(array('value' => $value));
         }
+        Cache::flush();
         return redirect()->route('admin.settings.index')->with('success', 'Saved successfully!');
     }
 

@@ -14,6 +14,9 @@ import Image from "next/image";
 
 const Footer = ({ categories, siteSettings }) => {
   const categoriesData = categories;
+  const footerCategories = Array.isArray(categoriesData)
+    ? categoriesData.slice(0, 5)
+    : [];
 
   const contactUs = siteSettings?.data;
 
@@ -96,11 +99,14 @@ const Footer = ({ categories, siteSettings }) => {
             <div className="col-md-2 col-sm-6 col-xs-6 mb-3">
               <h6>Categories</h6>
               <ul>
-                {categoriesData?.map((item, index) => (
+                {footerCategories.map((item, index) => (
                   <li key={index}>
                     <Link href={`/products/${item.slug}`}>{item.title}</Link>
                   </li>
                 ))}
+                <li>
+                  <Link href="/flowers">More Flowers</Link>
+                </li>
               </ul>
             </div>
             <div className="col-md-4 col-sm-6 mb-3">

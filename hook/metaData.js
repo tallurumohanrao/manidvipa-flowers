@@ -1,27 +1,23 @@
 export async function fetchStaticMetadata(url) {
   if (url) {
     try {
+      const apiUrl = String(
+        process.env.NEXT_PUBLIC_MANIDVIPA_URL ||
+          "https://admin.manidvipastore.com/api"
+      ).replace(/\/+$/, "");
       const res = await fetch(
-        `https://admin.manidvipastore.com/api/seo-meta-data?url=${url}`,
+        `${apiUrl}/seo-meta-data?url=${encodeURIComponent(url)}`,
         { next: { revalidate: 10 } }
       );
       if (!res.ok) {
         throw new Error("Failed to fetch metadata");
       }
       const metaData = await res.json();
-      return {
-        title: metaData?.data?.page_title || "Manidvipa",
-        description: metaData?.data?.meta_description || "Default Description",
-        keywords: metaData?.data?.meta_keywords || "Default Keywords",
-        robots: metaData?.data?.robots || "index, follow",
-      };
+      return metaData?.data || null;
     } catch (error) {
-      return {
-        title: "Default Title",
-        description: "Default Description",
-      };
+      return null;
     }
   } else {
-    return;
+    return null;
   }
 }

@@ -46,12 +46,18 @@ class CartController extends BaseController
             if(!$weight){
                 continue;
             }
+            $availableWeights = DB::table('product_weights')
+                ->select('id','name','sell_price','list_price','stock','qty')
+                ->where('product_id',$product->id)
+                ->orderByRaw('CAST(sell_price AS DECIMAL(10,2)) ASC')
+                ->orderBy('id')
+                ->get();
             $image = null;
             $productImage = DB::table('product_images')->where('product_id',$value->product_id)->orderBy('priority')->first(); 
             if($productImage){ 
                 $image = $productImage->name;
             }
-            $products[] = ['cart_id'=>$value->id,'user_id'=>$value->user_id,'product_id'=>$product->id,'product_slug'=>$product->slug,'weight_id'=>$weight->id,'weight'=>$weight->name,'product_title'=>$product->title,'image'=>$image,'sell_price'=>$weight->sell_price,'list_price'=> $weight->list_price,'quantity'=>$value->quantity];
+            $products[] = ['cart_id'=>$value->id,'user_id'=>$value->user_id,'product_id'=>$product->id,'product_slug'=>$product->slug,'weight_id'=>$weight->id,'weight'=>$weight->name,'product_title'=>$product->title,'image'=>$image,'sell_price'=>$weight->sell_price,'list_price'=> $weight->list_price,'quantity'=>$value->quantity,'available_weights'=>$availableWeights];
             $subTotal += ( $weight->sell_price * $value->quantity );
         endforeach;
         $coupon_row = null;
@@ -133,14 +139,11 @@ class CartController extends BaseController
             $data['quantity'] = 1;
         }
         
+        $weight = null;
         if($data['product_id']){
             $weight = DB::table('product_weights')->where(['id'=>$data['weight_id'],'product_id'=>$data['product_id']])->first();
             if(empty($weight)){
                 return response()->json(['success'=>false,'message'=>'Product not available.'],422);exit;
-            }
-            if($weight->stock && ($weight->qty < $data['quantity'])){
-                $message = 'Out of stock. Available stock ('.$weight->qty .').';
-                return response()->json(['success'=>false,'message'=>$message],200);exit;
             }
         }
         //'session'=>$cart_session
@@ -154,12 +157,25 @@ class CartController extends BaseController
                                 }
                             })->where($criteria)->first();
         if($cart_row){
+            $incomingQuantity = max(1, (int) $data['quantity']);
+            $data['quantity'] = max(0, (int) $cart_row->quantity) + $incomingQuantity;
+
+            if($weight && $weight->stock && ($weight->qty < $data['quantity'])){
+                $message = 'Out of stock. Available stock ('.$weight->qty .').';
+                return response()->json(['success'=>false,'message'=>$message],200);exit;
+            }
+
             if(DB::table('carts')->where('id',$cart_row->id)->update($data)){
                 return response()->json(['success'=>true,'message'=>"Cart updated successfully."],200); 
             }else{
                 return response()->json(['success'=>true,'message'=>"You haven't changed anything in the cart."],200); 
             }
         }else{
+            if($weight && $weight->stock && ($weight->qty < $data['quantity'])){
+                $message = 'Out of stock. Available stock ('.$weight->qty .').';
+                return response()->json(['success'=>false,'message'=>$message],200);exit;
+            }
+
             if(DB::table('carts')->insertGetId($data)){
                 return response()->json(['success'=>true,'message'=>"Product added to cart successfully."],200);
             }else{
@@ -178,32 +194,77 @@ class CartController extends BaseController
             $user_id = $user->id;
         }
         $cart_session = $request->cart_session ?? null;
-        foreach($request->products as $product) :
-            if($cart = DB::table('carts')->where('id',$product['cart_id'])->where(function($cwq) use($cart_session,$user_id){
-                                if($user_id){
-                                    $cwq->where('user_id',$user_id);
-                                }
-                                if($cart_session){
-                                    $cwq->orWhere('cart_session',$cart_session);
-                                }
-                            })->first()){
+        if(empty($cart_session) && empty($user_id)){
+            return response()->json(['success'=>false,'message'=>'Cart session missing. Please refresh and try again.'],422);
+        }
+
+        $ownerScope = function($cwq) use($cart_session,$user_id){
+            if($user_id){
+                $cwq->where('user_id',$user_id);
+            }
+            if($cart_session){
+                $cwq->orWhere('cart_session',$cart_session);
+            }
+        };
+
+        $mergedCartIdsToSkip = [];
+        foreach(($request->products ?: []) as $product) :
+            if(empty($product['cart_id'])){
+                continue;
+            }
+            if(isset($mergedCartIdsToSkip[$product['cart_id']])){
+                continue;
+            }
+
+            if($cart = DB::table('carts')->where('id',$product['cart_id'])->where($ownerScope)->first()){
                 if($cart->product_id){
-                    $weight = DB::table('product_weights')->where(['id'=>$cart->weight_id,'product_id'=>$cart->product_id])->first();
-                    if($weight->stock && ($weight->qty < $product['quantity'])){
+                    $quantity = isset($product['quantity']) ? (int) $product['quantity'] : 1;
+                    if($quantity < 1){
+                        DB::table('carts')->where('id',$cart->id)->delete();
+                        continue;
+                    }
+
+                    $targetWeightId = !empty($product['weight_id']) ? $product['weight_id'] : $cart->weight_id;
+                    $weight = DB::table('product_weights')->where(['id'=>$targetWeightId,'product_id'=>$cart->product_id])->first();
+                    if(!$weight){
+                        $product_title = $product['product_title'] ?? 'Product';
+                        $errors[$cart->id][] = $product_title.' selected weight is not available.';
+                        continue;
+                    }
+
+                    $quantity = max(1, $quantity);
+                    $duplicateCart = null;
+                    $stockCheckQuantity = $quantity;
+                    if((int) $targetWeightId !== (int) $cart->weight_id){
+                        $duplicateCart = DB::table('carts')
+                            ->where($ownerScope)
+                            ->where('product_id',$cart->product_id)
+                            ->where('weight_id',$targetWeightId)
+                            ->where('id','<>',$cart->id)
+                            ->first();
+                        if($duplicateCart){
+                            $stockCheckQuantity = max(0, (int) $duplicateCart->quantity) + $quantity;
+                        }
+                    }
+
+                    if($weight->stock && ($weight->qty < $stockCheckQuantity)){
                         $product_title = $product['product_title'] ?? 'Product';
                         $errors[$cart->id][] = $product_title.' with weight '.$weight->name.' stock not available. Available stock is ('.$weight->qty .').';
+                        continue;
+                    }
+
+                    if($duplicateCart){
+                        DB::table('carts')->where('id',$duplicateCart->id)->update(['quantity'=>$stockCheckQuantity]);
+                        DB::table('carts')->where('id',$cart->id)->delete();
+                        $mergedCartIdsToSkip[$duplicateCart->id] = true;
                     }else{
-                        if(@$product['quantity'] < 1){
-                            DB::table('carts')->where('id',$cart->id)->delete();
-                        }else{
-                            DB::table('carts')->where('id',$cart->id)->update(['quantity'=>$product['quantity']]);
-                        }
+                        DB::table('carts')->where('id',$cart->id)->update(['quantity'=>$quantity,'weight_id'=>$targetWeightId]);
                     }
                 }
             }
         endforeach;
         if($errors){
-            $message = $errors;
+            return response()->json(['success'=>false,'message'=>$errors],200);
         }else{
            $message = "Cart updated successfully.";
         }

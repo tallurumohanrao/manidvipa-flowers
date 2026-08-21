@@ -237,7 +237,9 @@ export default function ProductDetails({
   const [selectedOptionKey, setSelectedOptionKey] = useState(
     initialPriceOption?.key || null
   );
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState(0);
+  const [cartAction, setCartAction] = useState("");
+  const [wasAddedToCart, setWasAddedToCart] = useState(false);
   const [selectedAddonKeys, setSelectedAddonKeys] = useState([]);
   const [selectedDeliveryDate, setSelectedDeliveryDate] = useState(() =>
     getDateInputValue(1)
@@ -254,7 +256,8 @@ export default function ProductDetails({
   const productImages = productDetails?.images?.length
     ? productDetails.images
     : [{ name: selectedImage || "/assets/images/no-image.png" }];
-  const totalPrice = selectedPrice * quantity;
+  const displayQuantity = quantity > 0 ? quantity : 1;
+  const totalPrice = selectedPrice * displayQuantity;
   const reviewSummary = getReviewSummary(customerReview);
   const productDescription =
     productData?.description ||
@@ -271,10 +274,13 @@ export default function ProductDetails({
     setSelectedPrice(parsePriceValue(option?.sell_price));
     setSelectedWeightId(option?.id || null);
     setSelectedOptionKey(option?.key || null);
+    setWasAddedToCart(false);
   };
 
   const handleQuantityChange = (newQuantity) => {
-    setQuantity(Math.min(99, Math.max(1, newQuantity)));
+    const parsedQuantity = Number.parseInt(newQuantity, 10);
+    setQuantity(Math.min(99, Math.max(0, Number.isNaN(parsedQuantity) ? 0 : parsedQuantity)));
+    setWasAddedToCart(false);
   };
 
   const handleImageClick = (image) => {
@@ -302,12 +308,17 @@ export default function ProductDetails({
       return;
     }
 
+    const nextCartAction = action || "cart";
+    const cartQuantity = quantity > 0 ? quantity : 1;
     const body = {
       cart_session: effectiveGuestSession,
       product_id: productDetails?.data?.id,
-      quantity,
+      quantity: cartQuantity,
       weight_id: selectedWeightId,
     };
+
+    setCartAction(nextCartAction);
+    setWasAddedToCart(false);
 
     try {
       const cartData = await fetchListingData(
@@ -322,6 +333,10 @@ export default function ProductDetails({
         return;
       }
 
+      setQuantity(cartQuantity);
+      if (!action) {
+        setWasAddedToCart(true);
+      }
       showToast(cartData.message || "Added to cart successfully", "success");
 
       const refreshedCart = await fetchCartBySession(
@@ -343,6 +358,8 @@ export default function ProductDetails({
     } catch (error) {
       console.error("Error during ADD cart:", error);
       showToast("An unexpected error occurred. Please try again later.", "error");
+    } finally {
+      setCartAction("");
     }
   };
 
@@ -655,26 +672,36 @@ export default function ProductDetails({
 
               <div className={styles.actionRow}>
                 <div className={styles.quantityStepper}>
-                  <button type="button" onClick={() => handleQuantityChange(quantity - 1)} disabled={quantity <= 1}>−</button>
-                  <span>{quantity}</span>
-                  <button type="button" onClick={() => handleQuantityChange(quantity + 1)}>+</button>
+                  <button type="button" onClick={() => handleQuantityChange(quantity - 1)} disabled={quantity <= 0 || Boolean(cartAction)}>−</button>
+                  <input
+                    type="number"
+                    min="0"
+                    max="99"
+                    value={quantity}
+                    onChange={(event) => handleQuantityChange(event.target.value)}
+                    disabled={Boolean(cartAction)}
+                    aria-label={`Quantity for ${productTitle}`}
+                  />
+                  <button type="button" onClick={() => handleQuantityChange(quantity + 1)} disabled={Boolean(cartAction)}>+</button>
                 </div>
 
                 <button
                   type="button"
-                  className={styles.addToCartButton}
+                  className={`${styles.addToCartButton} ${wasAddedToCart ? styles.addedToCartButton : ""}`}
                   onClick={(event) => handleAddcart(event)}
+                  disabled={Boolean(cartAction)}
                 >
                   <FaShoppingCart />
-                  Add to Cart
+                  {cartAction === "cart" ? "Adding..." : wasAddedToCart ? "Added" : "Add to Cart"}
                 </button>
 
                 <button
                   type="button"
                   className={styles.buyNowButton}
                   onClick={(event) => handleAddcart(event, "checkout")}
+                  disabled={Boolean(cartAction)}
                 >
-                  Buy Now
+                  {cartAction === "checkout" ? "Please wait..." : "Buy Now"}
                 </button>
               </div>
 

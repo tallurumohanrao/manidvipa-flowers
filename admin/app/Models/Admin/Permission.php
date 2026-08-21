@@ -14,5 +14,5 @@ class Permission extends Model
      *
      * @var array
      */
-    protected $fillable = ['group_name', 'module', 'view', 'create', 'edit', 'delete', 'group_sort_order', 'module_sort_order', 'icon_class', 'status'];
+    protected $fillable = ['group_name', 'module', 'route_name', 'view', 'create', 'edit', 'delete', 'menu_status', 'group_sort_order', 'module_sort_order', 'icon_class', 'status'];
 }

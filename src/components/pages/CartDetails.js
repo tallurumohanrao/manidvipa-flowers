@@ -93,6 +93,20 @@ function formatCartPrice(value) {
   return `${amount < 0 ? "-" : ""}\u20B9${formattedAmount}`;
 }
 
+function getApiMessage(message, fallback) {
+  if (typeof message === "string" && message.trim()) return message;
+  if (Array.isArray(message)) {
+    const flattened = message.flat(Infinity).filter(Boolean).join(" ");
+    return flattened || fallback;
+  }
+  if (message && typeof message === "object") {
+    const flattened = Object.values(message).flat(Infinity).filter(Boolean).join(" ");
+    return flattened || fallback;
+  }
+
+  return fallback;
+}
+
 function getDateInputValue(daysFromToday = 1) {
   const date = new Date();
   date.setDate(date.getDate() + daysFromToday);
@@ -160,12 +174,35 @@ function getCartSubTotal(cartResponse, items) {
   );
 }
 
+function normalizeWeightOption(weight) {
+  return {
+    ...weight,
+    id: Number(weight?.id || weight?.weight_id),
+    name: weight?.name || weight?.weight_name || "Selected quantity",
+    sell_price: parseAmount(weight?.sell_price),
+    list_price: parseAmount(weight?.list_price || weight?.sell_price),
+  };
+}
+
 function normalizeCartItem(item) {
+  const availableWeights = Array.isArray(item?.available_weights)
+    ? item.available_weights.map(normalizeWeightOption).filter((weight) => weight.id)
+    : [];
+  const selectedWeightId = Number(item?.weight_id);
+  const selectedWeight = availableWeights.find(
+    (weight) => Number(weight.id) === selectedWeightId
+  );
+
   return {
     ...item,
+    weight_id: selectedWeightId || item?.weight_id,
+    weight: selectedWeight?.name || item?.weight,
     quantity: Math.max(1, Number(item?.quantity) || 1),
-    sell_price: parseAmount(item?.sell_price),
-    list_price: parseAmount(item?.list_price || item?.sell_price),
+    sell_price: selectedWeight ? selectedWeight.sell_price : parseAmount(item?.sell_price),
+    list_price: selectedWeight
+      ? selectedWeight.list_price
+      : parseAmount(item?.list_price || item?.sell_price),
+    available_weights: availableWeights,
   };
 }
 
@@ -339,7 +376,9 @@ export default function CartDetails({
   const [couponCode, setCouponCode] = useState("");
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [isStartingWhatsAppOrder, setIsStartingWhatsAppOrder] = useState(false);
   const [addingRecommendation, setAddingRecommendation] = useState("");
+  const [addedRecommendation, setAddedRecommendation] = useState("");
   const [selectedDeliveryDate, setSelectedDeliveryDate] = useState(() =>
     getDateInputValue(1)
   );
@@ -350,7 +389,7 @@ export default function CartDetails({
     () => getRecommendationProducts(cartItems),
     [cartItems]
   );
-  const whatsappHref = useMemo(
+  const fallbackWhatsAppHref = useMemo(
     () =>
       buildCartWhatsAppHref(
         contactUs?.SITE_WHATSAPP || contactUs?.SITE_PHONE,
@@ -417,6 +456,7 @@ export default function CartDetails({
               cart_id: item.cart_id,
               product_title: item.product_title,
               quantity: Math.max(1, Number(item.quantity) || 1),
+              weight_id: item.weight_id,
             })),
           }),
         });
@@ -424,12 +464,12 @@ export default function CartDetails({
         const result = await response.json();
 
         if (!response.ok || !result?.success) {
-          showToast(result?.message || "Failed to update cart", "error");
+          showToast(getApiMessage(result?.message, "Failed to update cart"), "error");
           return false;
         }
 
         if (showSuccess) {
-          showToast(result.message || "Cart updated successfully", "success");
+          showToast(getApiMessage(result.message, "Cart updated successfully"), "success");
         }
 
         return true;
@@ -454,6 +494,35 @@ export default function CartDetails({
     });
   };
 
+  const handleWeightChange = (newWeightId, index) => {
+    const currentItem = cartItems[index];
+    const selectedWeight = currentItem?.available_weights?.find(
+      (weight) => Number(weight.id) === Number(newWeightId)
+    );
+
+    if (!selectedWeight) {
+      showToast("Selected quantity is not available for this product.", "error");
+      return;
+    }
+
+    const updatedItems = cartItems.map((item, itemIndex) =>
+      itemIndex === index
+        ? {
+            ...item,
+            weight_id: selectedWeight.id,
+            weight: selectedWeight.name,
+            sell_price: selectedWeight.sell_price,
+            list_price: selectedWeight.list_price,
+          }
+        : item
+    );
+
+    setData((currentState) => buildStateFromItems(updatedItems, currentState));
+    syncCartItems(updatedItems, { showSuccess: true }).then(() => {
+      refreshCart();
+    });
+  };
+
   const handleProceedCheckout = async () => {
     setIsCheckingOut(true);
     const updated = await syncCartItems(cartItems);
@@ -462,6 +531,86 @@ export default function CartDetails({
     if (updated) {
       saveDeliveryPreference(selectedDeliveryDate, selectedDeliverySlot);
       router.push("/checkout");
+    }
+  };
+
+  const handleWhatsAppOrder = async () => {
+    if (!effectiveGuestSession) {
+      showToast("Please wait while your cart is getting ready.", "error");
+      return;
+    }
+
+    if (!cartItems.length) {
+      showToast("Your cart is empty.", "error");
+      return;
+    }
+
+    const deliverySlotLabel = getDeliverySlotLabel(selectedDeliverySlot).trim();
+    if (!deliverySlotLabel) {
+      showToast("Please enter your preferred delivery time slot.", "error");
+      return;
+    }
+
+    const whatsappWindow =
+      typeof window !== "undefined" ? window.open("", "_blank") : null;
+    try {
+      if (whatsappWindow) {
+        whatsappWindow.opener = null;
+      }
+    } catch {
+      // Some browsers block opener changes; the fallback navigation still works.
+    }
+
+    setIsStartingWhatsAppOrder(true);
+
+    const updated = await syncCartItems(cartItems);
+    if (!updated) {
+      whatsappWindow?.close?.();
+      setIsStartingWhatsAppOrder(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${url}/store-whatsapp-order`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(userToken && { Authorization: `Bearer ${userToken}` }),
+        },
+        body: JSON.stringify({
+          cart_session: effectiveGuestSession,
+          serve_date: selectedDeliveryDate,
+          serve_time_slot: selectedDeliverySlot,
+          serve_time_slot_label: deliverySlotLabel,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result?.success) {
+        whatsappWindow?.close?.();
+        showToast(result?.message || "Unable to save WhatsApp order.", "error");
+        return;
+      }
+
+      const whatsappUrl = result?.data?.whatsapp_url || fallbackWhatsAppHref;
+      showToast(result.message || "Order saved. Opening WhatsApp.", "success");
+
+      setData(normalizeCartState({ data: [], totals: {} }));
+      setCartCount(0);
+
+      if (whatsappWindow) {
+        whatsappWindow.location.href = whatsappUrl;
+      } else if (typeof window !== "undefined") {
+        window.open(whatsappUrl, "_blank", "noopener,noreferrer") ||
+          (window.location.href = whatsappUrl);
+      }
+    } catch (error) {
+      whatsappWindow?.close?.();
+      console.error("Error creating WhatsApp order:", error);
+      showToast("Unable to save WhatsApp order right now.", "error");
+    } finally {
+      setIsStartingWhatsAppOrder(false);
     }
   };
 
@@ -577,6 +726,7 @@ export default function CartDetails({
     }
 
     setAddingRecommendation(product.slug);
+    setAddedRecommendation("");
     try {
       const productDetailsResponse = await fetch(
         `${url}/product-details?product_slug=${encodeURIComponent(product.slug)}`,
@@ -624,6 +774,7 @@ export default function CartDetails({
         return;
       }
 
+      setAddedRecommendation(product.slug);
       showToast(cartData.message || "Product added to cart successfully.", "success");
       refreshCart();
     } catch (error) {
@@ -688,7 +839,22 @@ export default function CartDetails({
                         <Link href={`/product-details/${itemSlug}`} className={styles.productName}>
                           {item.product_title}
                         </Link>
-                        <span>{item.weight || "Selected quantity"}</span>
+                        {item.available_weights?.length > 1 ? (
+                          <select
+                            className={styles.weightSelect}
+                            value={item.weight_id || ""}
+                            onChange={(event) => handleWeightChange(event.target.value, index)}
+                            aria-label={`Selected quantity for ${item.product_title}`}
+                          >
+                            {item.available_weights.map((weight) => (
+                              <option value={weight.id} key={weight.id}>
+                                {weight.name} - {formatCartPrice(weight.sell_price)}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span>{item.weight || "Selected quantity"}</span>
+                        )}
                       </div>
                     </div>
                     <div className={styles.priceCell}>{formatCartPrice(item.sell_price)}</div>
@@ -777,16 +943,20 @@ export default function CartDetails({
                   </label>
                   <label>
                     <span>Delivery Time Slot</span>
-                    <select
-                      value={selectedDeliverySlot}
+                    <input
+                      type="text"
+                      list="cartDeliverySlotOptions"
+                      value={getDeliverySlotLabel(selectedDeliverySlot)}
                       onChange={(event) => setSelectedDeliverySlot(event.target.value)}
-                    >
+                      placeholder="Example: 6 AM - 9 AM"
+                    />
+                    <datalist id="cartDeliverySlotOptions">
                       {deliverySlotOptions.map((option) => (
-                        <option value={option.value} key={option.value}>
-                          {option.label}
-                        </option>
+                        <option value={option.label} key={option.label} />
                       ))}
-                    </select>
+                      <option value="After 6 PM" />
+                      <option value="Early morning - confirm on call" />
+                    </datalist>
                   </label>
                 </div>
                 <div className={styles.totalLine}>
@@ -801,15 +971,15 @@ export default function CartDetails({
                 >
                   {isCheckingOut ? "UPDATING CART..." : "PROCEED TO CHECKOUT"}
                 </button>
-                <a
-                  href={whatsappHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  type="button"
                   className={styles.whatsappButton}
+                  onClick={handleWhatsAppOrder}
+                  disabled={isStartingWhatsAppOrder || !cartItems.length}
                 >
                   <FaWhatsapp />
-                  ORDER ON WHATSAPP
-                </a>
+                  {isStartingWhatsAppOrder ? "SAVING ORDER..." : "ORDER ON WHATSAPP"}
+                </button>
               </aside>
             </div>
 
@@ -847,9 +1017,14 @@ export default function CartDetails({
                       <button
                         type="button"
                         onClick={() => handleRecommendationAdd(product)}
+                        className={addedRecommendation === product.slug ? styles.recommendAddedButton : ""}
                         disabled={addingRecommendation === product.slug}
                       >
-                        {addingRecommendation === product.slug ? "ADDING" : "ADD"}
+                        {addingRecommendation === product.slug
+                          ? "ADDING"
+                          : addedRecommendation === product.slug
+                            ? "ADDED"
+                            : "ADD"}
                       </button>
                     </article>
                   ))}

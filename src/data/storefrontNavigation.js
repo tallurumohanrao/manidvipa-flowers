@@ -1,3 +1,5 @@
+import { SITE_URL } from "@/lib/seo";
+
 export const storefrontNavItems = [
   { key: "home", label: "Home", href: "/" },
   { key: "flowers", label: "Flowers", href: "/flowers" },
@@ -10,6 +12,17 @@ export const storefrontNavItems = [
   { key: "gifts", label: "Gifts", href: "/gifts" },
   { key: "offers", label: "Offers", href: "/offers" },
 ];
+
+const metadataSiteUrl = SITE_URL;
+const metadataSiteName = "Manidvipa Flowers";
+const metadataDefaultImage = "/assets/images/home-v2/hero-flowers.jpg";
+
+function metadataAbsoluteUrl(value) {
+  if (!value) return metadataSiteUrl;
+  const src = String(value);
+  if (/^https?:\/\//i.test(src)) return src;
+  return new URL(src, `${metadataSiteUrl}/`).toString();
+}
 
 export const productCategoryPageConfigs = {
   flowers: {
@@ -28,7 +41,7 @@ export const productCategoryPageConfigs = {
     key: "pujaFlowers",
     label: "Puja Flowers",
     href: "/puja-flowers",
-    categorySlug: "daily-puja-flowers",
+    categorySlug: "puja-flowers",
     title: "Puja Flowers",
     description:
       "Fresh flowers and leaves selected for daily puja, temple offerings, vrathams and morning rituals.",
@@ -76,7 +89,7 @@ export const productCategoryPageConfigs = {
     key: "gifts",
     label: "Gifts",
     href: "/gifts",
-    categorySlug: "bouquets-gifting",
+    categorySlug: "gifts",
     title: "Flower Gifts",
     description:
       "Fresh bouquets, premium flower baskets and gifting-ready flowers for birthdays, visits and celebrations.",
@@ -213,11 +226,39 @@ export const menuLandingPageConfigs = {
 };
 
 export function buildPageMetadata(config) {
+  const title = config.metaTitle || `${config.title} | ${metadataSiteName}`;
+  const description = config.metaDescription || config.description;
+  const canonical = config.href || "/";
+  const image = metadataAbsoluteUrl(config.heroImage || metadataDefaultImage);
+
   return {
-    title: config.metaTitle || `${config.title} | Manidvipa Flowers`,
-    description: config.metaDescription || config.description,
+    metadataBase: new URL(metadataSiteUrl),
+    title,
+    description,
     alternates: {
-      canonical: config.href,
+      canonical,
+    },
+    openGraph: {
+      title,
+      description,
+      url: metadataAbsoluteUrl(canonical),
+      siteName: metadataSiteName,
+      locale: "en_IN",
+      type: "website",
+      images: [
+        {
+          url: image,
+          width: 1200,
+          height: 630,
+          alt: title,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [image],
     },
   };
 }

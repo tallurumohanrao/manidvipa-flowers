@@ -4,22 +4,45 @@
   background-color: $bg-primary;
   text-align: center;
   position: fixed;
-  height: 30px;
+  height: 46px;
   bottom: 0;
   width: 100%;
   border-top: $border-1 solid $color-white;
+
+  :global(.container-fluid),
+  :global(.row) {
+    height: 100%;
+  }
+
+  :global(.row) {
+    align-items: center;
+  }
+
+  :global(.col-6) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
   .faSearch {
     border-right: $border-1 solid $color-white;
   }
+
   svg,
   a {
     color: $color-white;
-    // font-size: 20px;
+  }
+
+  svg {
+    width: 24px;
+    height: 24px;
   }
 }
 .scroll_top_btn {
   position: fixed;
-  bottom: 45px;
+  bottom: 58px;
   right: 5px;
   display: flex;
   align-items: center;

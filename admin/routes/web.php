@@ -25,20 +25,6 @@ use App\Http\Controllers\Admin\Auth\ResetPasswordController as AdminResetPasswor
 */
 //use App\Models\SeoUrl;
 
-Route::get('/clear', function () {
-    Artisan::call('route:clear');
-    Artisan::call('cache:clear');
-    Artisan::call('view:clear');
-    Artisan::call('config:clear');
-    Artisan::call('config:cache');
-    return 'Cache Clear All';
-});
-
-Route::get('/storage', function () {
-    Artisan::call('storage:link');
-    return 'Storage linked';
-});
-
 Auth::routes();
 
 Route::prefix('admin')->name('admin.')->group(function () {

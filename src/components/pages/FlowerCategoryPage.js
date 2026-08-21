@@ -5,6 +5,12 @@ import {
   fetchListingData,
   fetchSiteSettingsData,
 } from "../../../hook/userCookie";
+import {
+  buildBreadcrumbSchema,
+  buildItemListSchema,
+  jsonLdScriptContent,
+  unpackPaginatedProducts,
+} from "@/lib/seo";
 
 async function getUserTokenFromCookies() {
   const cookieStore = await cookies();
@@ -34,17 +40,33 @@ export default async function FlowerCategoryPage({ config }) {
     fetchListingData("GET", "categories", userToken),
     fetchSiteSettingsData(userToken),
   ]);
+  const products = unpackPaginatedProducts(productByCategoryData);
+  const breadcrumbSchema = buildBreadcrumbSchema([
+    { name: "Home", path: "/" },
+    { name: config.label || config.title, path: config.href },
+  ]);
+  const itemListSchema = buildItemListSchema(products, config.href);
 
   return (
-    <CategoryProducts
-      category_slug={categorySlug}
-      produtsCategory={productByCategoryData?.data}
-      categories={categoriesData?.data || []}
-      siteSettings={siteSettings}
-      userToken={userToken}
-      pageHeading={config.title}
-      pageDescription={config.description}
-      breadcrumbLabel={config.label}
-    />
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLdScriptContent(breadcrumbSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLdScriptContent(itemListSchema) }}
+      />
+      <CategoryProducts
+        category_slug={categorySlug}
+        produtsCategory={productByCategoryData?.data}
+        categories={categoriesData?.data || []}
+        siteSettings={siteSettings}
+        userToken={userToken}
+        pageHeading={config.title}
+        pageDescription={config.description}
+        breadcrumbLabel={config.label}
+      />
+    </>
   );
 }

@@ -2,6 +2,14 @@ import React from "react";
 import styles from "@/scss/pages/about.module.scss";
 import Banner from "@/components/banner";
 import { fetchListingData } from "../../../../hook/userCookie";
+import { buildMetadata } from "@/lib/seo";
+
+export const metadata = buildMetadata({
+  title: "About Manidvipa Flowers | Fresh Flowers in Hyderabad",
+  description:
+    "Learn about Manidvipa Flowers, Hyderabad's fresh flower store for puja flowers, garlands, decorations, gifting and flower subscriptions.",
+  path: "/about",
+});
 
 const fetchAboutData = async () => {
   try {

@@ -10,6 +10,7 @@ use App\Http\Controllers\API\AccountController;
 use App\Http\Controllers\API\CartController;
 use App\Http\Controllers\API\OrderController;
 use App\Http\Controllers\API\HomeController;
+use App\Http\Controllers\API\SubscriptionController;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -48,6 +49,9 @@ Route::get('brands', [HomeController::class, 'brands']);
 Route::get('clients', [HomeController::class, 'clients']);
 Route::get('home-categories', [HomeController::class, 'categories']);
 Route::get('home-featured-products', [HomeController::class, 'featuredProducts']);
+Route::get('subscription-plans', [SubscriptionController::class, 'plans']);
+Route::get('subscription-plan', [SubscriptionController::class, 'plan']);
+Route::post('subscription-enquiry', [SubscriptionController::class, 'enquiry']);
 /* Home */
 
 /* Product */
@@ -81,6 +85,7 @@ Route::delete('delete-address-by-id', [AccountController::class, 'deleteAddressB
 /* order */
 Route::get('payment-methods', [CartController::class, 'paymentmethods']);
 Route::post('store-order',[ OrderController::class, 'store']);
+Route::post('store-whatsapp-order',[ OrderController::class, 'storeWhatsAppOrder']);
 Route::post('cancel-order',[ OrderController::class, 'cancelorder']);
 Route::post('update-payment-details',[ OrderController::class, 'updatePayment']);
 Route::get('order-summary/{order_encrypt_key}', [OrderController::class, 'orderSummary']);

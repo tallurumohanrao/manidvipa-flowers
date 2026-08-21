@@ -37,8 +37,18 @@ Route::delete('shippingprices-delete-all', [App\Http\Controllers\Admin\ShippingP
 Route::resource('featuredproducts', FeaturedProductController::class);
 Route::delete('featuredproducts-delete-all', [App\Http\Controllers\Admin\FeaturedProductController::class, 'massDestroy'])->name('featuredproducts.massdestroy');
 
+/* ----------------- Subscriptions ------------------*/
+Route::resource('subscriptionplans', App\Http\Controllers\Admin\SubscriptionPlanController::class);
+Route::patch('/subscriptionplans/update-status/{id}', [App\Http\Controllers\Admin\SubscriptionPlanController::class, 'updateStatus'])->name('subscriptionplans.update.status');
+Route::delete('subscriptionplans-delete-all', [App\Http\Controllers\Admin\SubscriptionPlanController::class, 'massDestroy'])->name('subscriptionplans.massdestroy');
+
+Route::resource('subscriptionenquiries', App\Http\Controllers\Admin\SubscriptionEnquiryController::class)->only(['index', 'show', 'edit', 'update', 'destroy']);
+Route::delete('subscriptionenquiries-delete-all', [App\Http\Controllers\Admin\SubscriptionEnquiryController::class, 'massDestroy'])->name('subscriptionenquiries.massdestroy');
+/* ----------------- Subscriptions ------------------*/
+
 Route::patch('/shipping/update/{id}', [App\Http\Controllers\Admin\OrderController::class, 'updateShipping'])->name('orders.updateShipping');
 Route::patch('/payment/update/{id}', [App\Http\Controllers\Admin\OrderController::class, 'updatePayment'])->name('orders.updatePayment');
+Route::patch('/order/delivery/update/{id}', [App\Http\Controllers\Admin\OrderController::class, 'updateDeliveryPreference'])->name('orders.updateDeliveryPreference');
 Route::patch('/order/update/{id}', [App\Http\Controllers\Admin\OrderController::class, 'updateBooking'])->name('orders.updateBooking');
 Route::delete('orders-delete-all', [App\Http\Controllers\Admin\OrderController::class, 'massDestroy'])->name('orders.massdestroy');
 /* Order */
@@ -65,6 +75,12 @@ Route::delete('categories-delete-all', [App\Http\Controllers\Admin\CategoryContr
 
 /* ----------------- products ------------------*/
 Route::resource('products', ProductController::class);
+Route::get('/daily-prices', [App\Http\Controllers\Admin\DailyPriceController::class, 'index'])->name('dailyprices.index');
+Route::post('/daily-prices', [App\Http\Controllers\Admin\DailyPriceController::class, 'update'])->name('dailyprices.update');
+Route::get('/daily-prices/export', [App\Http\Controllers\Admin\DailyPriceController::class, 'export'])->name('dailyprices.export');
+Route::post('/daily-prices/import', [App\Http\Controllers\Admin\DailyPriceController::class, 'import'])->name('dailyprices.import');
+Route::post('/daily-prices/weights/{id}', [App\Http\Controllers\Admin\DailyPriceController::class, 'updateWeight'])->name('dailyprices.weights.update');
+Route::post('/daily-prices/logs/{id}/rollback', [App\Http\Controllers\Admin\DailyPriceController::class, 'rollback'])->name('dailyprices.rollback');
 Route::get('/products/images/{id}', [App\Http\Controllers\Admin\ProductController::class, 'images'])->name('products.images');
 Route::post('/productImages/{id}', [App\Http\Controllers\Admin\ProductController::class, 'storeImage'])->name('products.imagesstore');
 Route::patch('/product-images-update-sort', [App\Http\Controllers\Admin\ProductController::class, 'productImageUpdateSort'])->name('product.images.update.sort');

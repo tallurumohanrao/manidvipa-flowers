@@ -17,50 +17,72 @@ const IMG_URL = process.env.NEXT_PUBLIC_IMG_URL;
 
 const categoryCards = [
   {
-    title: "Daily Puja Flowers",
+    title: "Puja Flowers",
     description: "Chamanthi, Banthi, Kanakambaram & more",
-    image: "/assets/images/home-v2/category-daily-puja.jpg",
+    image: "/assets/images/home-v2/fresh-arrivals/fresh-chamanthi.jpg",
+    href: "/puja-flowers",
     terms: ["chamanthi", "banthi", "kanakambaram"],
   },
   {
     title: "Premium Flowers",
     description: "Roses, lilies, orchids & more",
-    image: "/assets/images/home-v2/category-premium.jpg",
+    image: "/assets/images/home-v2/premium-collection/premium-lilies.jpg",
+    href: "/premium-flowers",
     terms: ["rose", "premium"],
   },
   {
     title: "Rare Flowers",
     description: "Seasonal & exotic varieties",
-    image: "/assets/images/home-v2/category-rare.jpg",
+    image: "/assets/images/home-v2/rare-seasonal/rare-lotus.jpg",
+    href: "/rare-flowers",
     terms: ["other", "rare"],
   },
   {
     title: "Patri & Leaves",
     description: "Tulasi, Bilva, Mango leaves & more",
-    image: "/assets/images/home-v2/category-patri.jpg",
+    image: "/assets/images/home-v2/custom-puja-flower-box.jpg",
+    href: "/products/patri-leaves",
     terms: ["patri", "leaves", "leaf"],
   },
   {
     title: "Bouquets & Gifting",
     description: "Perfect for every occasion",
-    image: "/assets/images/home-v2/category-gifting.jpg",
+    image: "/assets/images/home-v2/cta-basket-flowers.png",
+    href: "/gifts",
     terms: ["rose", "flower"],
   },
   {
     title: "Temple & Pooja",
     description: "Garlands, pooja kits & more",
-    image: "/assets/images/home-v2/category-temple.jpg",
+    image: "/assets/images/home-v2/recent-decorations/recent-decoration-temple.jpg",
+    href: "/garlands",
     terms: ["pooja", "puja", "garland"],
   },
 ];
 
-const subscriptions = [
-  ["Daily Puja Subscription", "Fresh puja flowers delivered daily."],
-  ["Weekly Subscription", "Three convenient deliveries every week."],
-  ["Temple Subscription", "Bulk flowers, garlands and leaves."],
-  ["Home Subscription", "Fresh flowers for puja and home décor."],
-  ["Office / Business", "Office, temple and reception flowers."],
-];
+const legacyCategoryBadgeImages = new Set([
+  "category-daily-puja.jpg",
+  "category-gifting.jpg",
+  "category-patri.jpg",
+  "category-premium.jpg",
+  "category-rare.jpg",
+  "category-temple.jpg",
+]);
+
+const homeCategoryImageBySlug = {
+  "puja-flowers": "/assets/images/home-v2/fresh-arrivals/fresh-chamanthi.jpg",
+  "daily-puja-flowers": "/assets/images/home-v2/fresh-arrivals/fresh-chamanthi.jpg",
+  "premium-flowers": "/assets/images/home-v2/premium-collection/premium-lilies.jpg",
+  "primimum-flowers": "/assets/images/home-v2/premium-collection/premium-lilies.jpg",
+  "rare-flowers": "/assets/images/home-v2/rare-seasonal/rare-lotus.jpg",
+  "patri-leaves": "/assets/images/home-v2/custom-puja-flower-box.jpg",
+  "patri-and-leaves": "/assets/images/home-v2/custom-puja-flower-box.jpg",
+  "bouquets-gifting": "/assets/images/home-v2/cta-basket-flowers.png",
+  gifts: "/assets/images/home-v2/cta-basket-flowers.png",
+  garlands: "/assets/images/home-v2/recent-decorations/recent-decoration-temple.jpg",
+  "temple-pooja": "/assets/images/home-v2/recent-decorations/recent-decoration-temple.jpg",
+  "temple-pooja-flowers": "/assets/images/home-v2/recent-decorations/recent-decoration-temple.jpg",
+};
 
 const benefits = [
   ["/assets/images/free-shipping.png", "Fresh Every Morning", "Sourced and prepared daily"],
@@ -71,53 +93,103 @@ const benefits = [
   ["/assets/images/security.png", "Secure Payments", "Safe and secure payments"],
 ];
 
-const subscriptionPlans = [
+const fallbackSubscriptionPlans = [
   {
-    title: "Daily Puja Subscription",
-    description: "Fresh puja flowers delivered daily.",
-    price: "₹299",
-    cadence: "/ week",
-    image: "/assets/images/kumbham-img-1.png",
-  },
-  {
-    title: "Weekly Subscription",
-    description: "3 deliveries every week.",
-    price: "₹799",
+    title: "Corporate Premium Arrangement",
+    description: "1 reception + 2 desk/lounge arrangements.",
+    price: "\u20B914,999",
     cadence: "/ month",
-    image: "/assets/images/home-v2/category-patri.jpg",
+    image: "/assets/images/home-v2/premium-collection/premium-lilies.jpg",
   },
   {
-    title: "Temple Subscription",
-    description: "Bulk flowers, garlands & leaves.",
-    price: "₹1,199",
+    title: "Elite Imported Arrangement",
+    description: "Lobby, boardroom and cabin arrangements.",
+    price: "\u20B925,000",
+    cadence: "/ month",
+    image: "/assets/images/home-v2/premium-collection/premium-orchids.jpg",
+  },
+  {
+    title: "Hospital Floral Service",
+    description: "Reception arrangement + optional puja flowers.",
+    price: "\u20B99,999",
+    cadence: "/ month",
+    image: "/assets/images/home-v2/premium-collection/premium-roses.jpg",
+  },
+  {
+    title: "Temple Loose Flower Plan",
+    description: "Starts with 500g loose flowers per delivery.",
+    price: "\u20B91,199",
     cadence: "/ month",
     image: "/assets/images/home-v2/category-temple.jpg",
   },
   {
-    title: "Home Subscription",
-    description: "Fresh flowers for puja & decor.",
-    price: "₹1,099",
-    cadence: "/ month",
-    image: "/assets/images/home-v2/category-daily-puja.jpg",
-  },
-  {
-    title: "Office / Business Subscription",
-    description: "Office, temple & reception flowers.",
-    price: "₹1,499",
-    cadence: "/ month",
-    image: "/assets/images/home-v2/category-gifting.jpg",
+    title: "Custom Enterprise Plan",
+    description: "Premium arrangements, loose flowers or bulk supply.",
+    price: "Custom Quote",
+    cadence: "",
+    image: "/assets/images/home-v2/puja-box.jpg",
   },
 ];
 
-const visibleSubscriptionPlans = subscriptionPlans.length
-  ? subscriptionPlans
-  : subscriptions.map(([title, description]) => ({
-      title,
-      description,
-      price: "₹299",
-      cadence: "/ week",
-      image: "/assets/images/kumbham-img-1.png",
-    }));
+const subscriptionPlanFallbackImages = {
+  "corporate-office-flower-subscription": "/assets/images/home-v2/premium-collection/premium-roses.jpg",
+  "corporate-premium-flower-arrangement-plan": "/assets/images/home-v2/premium-collection/premium-lilies.jpg",
+  "elite-imported-flower-arrangement-plan": "/assets/images/home-v2/premium-collection/premium-exotic.jpg",
+  "hospital-fresh-flowers-supply": "/assets/images/home-v2/premium-collection/premium-orchids.jpg",
+  "hotel-lobby-flower-plan": "/assets/images/home-v2/premium-collection/premium-exotic.jpg",
+  "temple-daily-flower-subscription": "/assets/images/home-v2/custom-puja-flower-box.jpg",
+  "business-bulk-flower-plan": "/assets/images/home-v2/premium-collection/premium-tulips.jpg",
+};
+
+function getSubscriptionPlanFallbackImage(plan, index) {
+  const slug = String(plan?.slug || "").toLowerCase();
+  const businessType = String(plan?.business_type || "").toLowerCase();
+  const subscriptionType = String(plan?.subscription_type || "").toLowerCase();
+  const flowerGrade = String(plan?.flower_grade || "").toLowerCase();
+
+  if (subscriptionPlanFallbackImages[slug]) {
+    return subscriptionPlanFallbackImages[slug];
+  }
+
+  if (subscriptionType.includes("loose") || businessType.includes("temple")) {
+    return "/assets/images/home-v2/custom-puja-flower-box.jpg";
+  }
+
+  if (businessType.includes("hotel") || flowerGrade.includes("exotic") || flowerGrade.includes("imported")) {
+    return "/assets/images/home-v2/premium-collection/premium-exotic.jpg";
+  }
+
+  if (businessType.includes("hospital")) {
+    return "/assets/images/home-v2/premium-collection/premium-orchids.jpg";
+  }
+
+  if (subscriptionType.includes("premium")) {
+    return "/assets/images/home-v2/premium-collection/premium-lilies.jpg";
+  }
+
+  return fallbackSubscriptionPlans[index % fallbackSubscriptionPlans.length].image;
+}
+
+function normalizeHomeSubscriptionPlans(plans = []) {
+  const source = Array.isArray(plans) && plans.length ? plans : fallbackSubscriptionPlans;
+
+  return source.slice(0, 5).map((plan, index) => ({
+    title: plan?.title || "Flower Subscription",
+    description:
+      plan?.included_arrangement_count ||
+      plan?.included_quantity_text ||
+      plan?.short_description ||
+      plan?.description ||
+      plan?.description_text ||
+      "Fresh flowers delivered on a regular schedule.",
+    price: plan?.price_label || plan?.price || "Custom Quote",
+    cadence: plan?.price_suffix || plan?.cadence || "",
+    image:
+      plan?.image_url ||
+      plan?.image ||
+      getSubscriptionPlanFallbackImage(plan, index),
+  }));
+}
 
 const defaultHeroSlides = [
   {
@@ -274,12 +346,12 @@ function opensInNewTab(href) {
 }
 
 const occasions = [
-  ["Daily Puja", "/assets/images/home-v2/category-daily-puja.jpg"],
-  ["Temple Offering", "/assets/images/home-v2/category-temple.jpg"],
-  ["Wedding", "/assets/images/home-v2/category-gifting.jpg"],
-  ["Housewarming", "/assets/images/home-v2/category-patri.jpg"],
-  ["Birthday", "/assets/images/home-v2/category-premium.jpg"],
-  ["Anniversary", "/assets/images/home-v2/category-rare.jpg"],
+  ["Daily Puja", "/assets/images/home-v2/fresh-arrivals/fresh-chamanthi.jpg"],
+  ["Temple Offering", "/assets/images/home-v2/recent-decorations/recent-decoration-temple.jpg"],
+  ["Wedding", "/assets/images/home-v2/recent-decorations/recent-decoration-wedding.jpg"],
+  ["Housewarming", "/assets/images/home-v2/custom-puja-flower-box.jpg"],
+  ["Birthday", "/assets/images/home-v2/cta-basket-flowers.png"],
+  ["Anniversary", "/assets/images/home-v2/premium-collection/premium-roses.jpg"],
 ];
 
 const decorationGallery = [
@@ -435,6 +507,7 @@ const freshArrivalSeeds = [
   {
     title: "Red Roses",
     keywords: ["red rose", "rose", "roses"],
+    slug: "button-roses",
     startingPrice: "250",
     listPrice: "300",
     image: "/assets/images/home-v2/fresh-arrivals/fresh-red-roses.jpg",
@@ -444,6 +517,7 @@ const freshArrivalSeeds = [
   {
     title: "Chamanthi Flowers",
     keywords: ["chamanthi", "chrysanthemum"],
+    slug: "yellow-chamanthi",
     startingPrice: "120",
     listPrice: "150",
     image: "/assets/images/home-v2/fresh-arrivals/fresh-chamanthi.jpg",
@@ -453,6 +527,7 @@ const freshArrivalSeeds = [
   {
     title: "Kanakambaram",
     keywords: ["kanakambaram", "crossandra"],
+    slug: "kanakambaram-flowers",
     startingPrice: "250",
     listPrice: "300",
     image: "/assets/images/home-v2/fresh-arrivals/fresh-kanakambaram.jpg",
@@ -462,6 +537,7 @@ const freshArrivalSeeds = [
   {
     title: "Lotus Flowers",
     keywords: ["lotus"],
+    slug: "pink-lotas",
     startingPrice: "60",
     listPrice: "80",
     image: "/assets/images/home-v2/fresh-arrivals/fresh-lotus.jpg",
@@ -471,6 +547,7 @@ const freshArrivalSeeds = [
   {
     title: "Banthi Flowers",
     keywords: ["banthi", "marigold"],
+    slug: "yellow-banthi",
     startingPrice: "120",
     listPrice: "150",
     image: "/assets/images/home-v2/fresh-arrivals/fresh-banthi.jpg",
@@ -480,6 +557,7 @@ const freshArrivalSeeds = [
   {
     title: "Yellow Sevanthi",
     keywords: ["yellow sevanthi", "sevanthi"],
+    slug: "pink-chamanthi",
     startingPrice: "60",
     listPrice: "80",
     image: "/assets/images/home-v2/fresh-arrivals/fresh-yellow-sevanthi.jpg",
@@ -631,10 +709,47 @@ function cleanPlainText(value) {
     .trim();
 }
 
+function getImageFileName(value) {
+  return String(value || "")
+    .split("?")[0]
+    .split("/")
+    .filter(Boolean)
+    .pop();
+}
+
 function getHomepageCategoryImage(category, index) {
-  if (category?.image_url) return category.image_url;
-  if (category?.image && String(category.image).startsWith("http")) return category.image;
+  const slug = String(category?.route_slug || category?.slug || "")
+    .trim()
+    .toLowerCase();
+  const mappedImage = homeCategoryImageBySlug[slug];
+  const uploadedImage =
+    category?.image_url ||
+    (category?.image && String(category.image).startsWith("http") ? category.image : null);
+  const uploadedFileName = getImageFileName(uploadedImage);
+
+  if (uploadedImage && !legacyCategoryBadgeImages.has(uploadedFileName)) {
+    return uploadedImage;
+  }
+
+  if (mappedImage) return mappedImage;
+
   return categoryCards[index % categoryCards.length]?.image || "/assets/images/no-image.png";
+}
+
+function getHomepageCategoryHref(category) {
+  const slug = String(category?.route_slug || category?.slug || "").trim();
+  const routeBySlug = {
+    "puja-flowers": "/puja-flowers",
+    "daily-puja-flowers": "/puja-flowers",
+    "premium-flowers": "/premium-flowers",
+    "primimum-flowers": "/premium-flowers",
+    "rare-flowers": "/rare-flowers",
+    garlands: "/garlands",
+    gifts: "/gifts",
+    "bouquets-gifting": "/gifts",
+  };
+
+  return routeBySlug[slug] || (slug ? `/products/${slug}` : "/flowers");
 }
 
 function buildHomepageCategoryCards(categories = []) {
@@ -650,8 +765,8 @@ function buildHomepageCategoryCards(categories = []) {
       cleanPlainText(category?.short_description) ||
       "Fresh flowers selected and packed for your needs.",
     image: getHomepageCategoryImage(category, index),
-    href: category?.slug ? `/products/${category.slug}` : "/flowers",
-    terms: [category?.title, category?.slug].filter(Boolean),
+    href: getHomepageCategoryHref(category),
+    terms: [category?.title, category?.slug, category?.route_slug].filter(Boolean),
   }));
 }
 
@@ -672,11 +787,18 @@ function SectionTitle({ title, subtitle, actionText, actionHref = "/flowers" }) 
 }
 
 function getProductImage(product) {
-  return product?.localImage
-    ? product.localImage
-    : product?.image_name
-    ? `${IMG_URL}/${product.image_name}`
-    : "/assets/images/no-image.png";
+  if (product?.localImage) return product.localImage;
+  if (product?.image_url) return product.image_url;
+
+  if (product?.image && /^(https?:)?\/\//i.test(String(product.image))) {
+    return product.image;
+  }
+
+  if (product?.image_name) return `${IMG_URL}/${product.image_name}`;
+  if (product?.image && !String(product.image).startsWith("/")) return `${IMG_URL}/${product.image}`;
+  if (product?.image) return product.image;
+
+  return "/assets/images/no-image.png";
 }
 
 function getProductHref(product) {
@@ -692,27 +814,113 @@ function formatPrice(value) {
 }
 
 function getProductUnit(product, fallback = "kg") {
-  return product?.unit || product?.units || product?.measurement || fallback;
+  return product?.unit || product?.units || product?.measurement || product?.weight_name || fallback;
 }
 
 function getSearchableProductText(product) {
-  return [product?.title, product?.slug, product?.category_name, product?.category]
+  const categoryTitles = Array.isArray(product?.categories)
+    ? product.categories.flatMap((category) => [category?.title, category?.slug])
+    : [];
+
+  return [
+    product?.title,
+    product?.slug,
+    product?.sku,
+    product?.category_name,
+    product?.category,
+    product?.category_title,
+    product?.category_slug,
+    ...categoryTitles,
+  ]
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
 }
 
-function buildFreshArrivalProducts(products = []) {
+function normalizeProductCollection(products = []) {
+  if (Array.isArray(products?.data?.data)) return products.data.data;
+  if (Array.isArray(products?.data)) return products.data;
+  return Array.isArray(products) ? products : [];
+}
+
+function normalizeHomeProduct(product, fallback = {}, fallbackUnit = "kg") {
+  const productSlug = product?.slug || fallback.slug;
+
+  return {
+    ...fallback,
+    ...product,
+    title: product?.title || fallback.title || "Fresh Flowers",
+    slug: productSlug,
+    sell_price:
+      product?.sell_price ||
+      product?.starting_price ||
+      product?.price ||
+      fallback.startingPrice ||
+      fallback.sell_price,
+    list_price: product?.list_price || fallback.listPrice || fallback.list_price,
+    localImage: product?.localImage || fallback.localImage,
+    image_url: product?.image_url || fallback.image_url,
+    image_name: product?.image_name || fallback.image_name,
+    image: product?.image || fallback.image,
+    href: productSlug ? `/product-details/${productSlug}` : fallback.href || "/flowers",
+    unit: getProductUnit(product, fallback.unit || fallbackUnit),
+    tag: product?.tag || fallback.tag,
+  };
+}
+
+function buildSeedProducts(seeds = [], fallbackUnit = "kg") {
+  return seeds.map((seed) =>
+    normalizeHomeProduct(
+      {
+        title: seed.title,
+        slug: seed.slug,
+        sell_price: seed.startingPrice,
+        list_price: seed.listPrice,
+        localImage: seed.image,
+        href: seed.href,
+        unit: seed.unit || fallbackUnit,
+        tag: seed.tag,
+      },
+      seed,
+      fallbackUnit
+    )
+  );
+}
+
+function getProductIdentity(product) {
+  return String(product?.slug || product?.title || product?.href || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function fillProductSlots(products = [], seeds = [], limit = 6, fallbackUnit = "kg") {
+  const normalizedProducts = products
+    .slice(0, limit)
+    .map((product, index) => normalizeHomeProduct(product, seeds[index], fallbackUnit));
+
+  if (normalizedProducts.length >= limit) return normalizedProducts;
+
+  const usedProductKeys = new Set(normalizedProducts.map(getProductIdentity).filter(Boolean));
+  const fallbackSeedProducts = buildSeedProducts(seeds, fallbackUnit).filter((seedProduct) => {
+    const seedKey = getProductIdentity(seedProduct);
+    return seedKey ? !usedProductKeys.has(seedKey) : true;
+  });
+
+  return [...normalizedProducts, ...fallbackSeedProducts].slice(0, limit);
+}
+
+function buildSeedMatchedProducts(products = [], seeds = [], fallbackUnit = "kg") {
   const usedProductKeys = new Set();
 
-  return freshArrivalSeeds.map((seed) => {
+  return seeds.map((seed) => {
     const matchedProduct = products.find((product) => {
       const productKey = product?.product_id || product?.id || product?.slug || product?.title;
 
       if (productKey && usedProductKeys.has(productKey)) return false;
 
       const searchableText = getSearchableProductText(product);
-      return seed.keywords.some((keyword) => searchableText.includes(keyword));
+      return seed.keywords?.some((keyword) => searchableText.includes(keyword));
     });
 
     if (matchedProduct) {
@@ -721,79 +929,53 @@ function buildFreshArrivalProducts(products = []) {
       if (productKey) usedProductKeys.add(productKey);
     }
 
-    return {
-      ...matchedProduct,
-      title: seed.title,
-      sell_price: matchedProduct?.sell_price || seed.startingPrice,
-      list_price: matchedProduct?.list_price || seed.listPrice,
-      localImage: seed.image,
-      href: matchedProduct?.slug ? `/product-details/${matchedProduct.slug}` : seed.href,
-      unit: matchedProduct?.unit || matchedProduct?.units || seed.unit,
-    };
+    return matchedProduct
+      ? normalizeHomeProduct(matchedProduct, seed, seed.unit || fallbackUnit)
+      : normalizeHomeProduct(
+          {
+            title: seed.title,
+            slug: seed.slug,
+            sell_price: seed.startingPrice,
+            list_price: seed.listPrice,
+            localImage: seed.image,
+            href: seed.href,
+            unit: seed.unit || fallbackUnit,
+            tag: seed.tag,
+          },
+          seed,
+          fallbackUnit
+        );
   });
+}
+
+function buildFreshArrivalProducts(products = []) {
+  const dynamicProducts = normalizeProductCollection(products);
+
+  if (dynamicProducts.length) {
+    return fillProductSlots(dynamicProducts, freshArrivalSeeds, 6, "kg");
+  }
+
+  return buildSeedProducts(freshArrivalSeeds, "kg");
 }
 
 function buildPremiumCollectionProducts(products = []) {
-  const usedProductKeys = new Set();
+  const dynamicProducts = normalizeProductCollection(products);
 
-  return premiumCollectionSeeds.map((seed) => {
-    const matchedProduct = products.find((product) => {
-      const productKey = product?.product_id || product?.id || product?.slug || product?.title;
+  if (dynamicProducts.length) {
+    return fillProductSlots(dynamicProducts, premiumCollectionSeeds, 5, "bunch");
+  }
 
-      if (productKey && usedProductKeys.has(productKey)) return false;
-
-      const searchableText = getSearchableProductText(product);
-      return seed.keywords.some((keyword) => searchableText.includes(keyword));
-    });
-
-    if (matchedProduct) {
-      const productKey =
-        matchedProduct?.product_id || matchedProduct?.id || matchedProduct?.slug || matchedProduct?.title;
-      if (productKey) usedProductKeys.add(productKey);
-    }
-
-    return {
-      ...matchedProduct,
-      title: seed.title,
-      sell_price: seed.startingPrice,
-      list_price: matchedProduct?.list_price,
-      localImage: seed.image,
-      href: matchedProduct?.slug ? `/product-details/${matchedProduct.slug}` : seed.href,
-      unit: matchedProduct?.unit || matchedProduct?.units || "bunch",
-    };
-  });
+  return buildSeedMatchedProducts(fallbackProducts, premiumCollectionSeeds, "bunch");
 }
 
 function buildRareSeasonalCollectionProducts(products = []) {
-  const usedProductKeys = new Set();
+  const dynamicProducts = normalizeProductCollection(products);
 
-  return rareSeasonalCollectionSeeds.map((seed) => {
-    const matchedProduct = products.find((product) => {
-      const productKey = product?.product_id || product?.id || product?.slug || product?.title;
+  if (dynamicProducts.length) {
+    return fillProductSlots(dynamicProducts, rareSeasonalCollectionSeeds, 6, "bunch");
+  }
 
-      if (productKey && usedProductKeys.has(productKey)) return false;
-
-      const searchableText = getSearchableProductText(product);
-      return seed.keywords.some((keyword) => searchableText.includes(keyword));
-    });
-
-    if (matchedProduct) {
-      const productKey =
-        matchedProduct?.product_id || matchedProduct?.id || matchedProduct?.slug || matchedProduct?.title;
-      if (productKey) usedProductKeys.add(productKey);
-    }
-
-    return {
-      ...matchedProduct,
-      title: seed.title,
-      sell_price: seed.startingPrice,
-      list_price: matchedProduct?.list_price,
-      localImage: seed.image,
-      href: matchedProduct?.slug ? `/product-details/${matchedProduct.slug}` : seed.href,
-      unit: seed.unit,
-      tag: seed.tag,
-    };
-  });
+  return buildSeedMatchedProducts(fallbackProducts, rareSeasonalCollectionSeeds, "bunch");
 }
 
 function parsePriceValue(value) {
@@ -866,8 +1048,9 @@ function FreshArrivalCard({ product, userToken }) {
   const { showToast } = useToast();
   const { setCartCount } = useCartCount();
   const [selectedWeightIndex, setSelectedWeightIndex] = useState(0);
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState(0);
   const [isAdding, setIsAdding] = useState(false);
+  const [wasAdded, setWasAdded] = useState(false);
   const [resolvedProductDetails, setResolvedProductDetails] = useState(null);
   const [isResolvingWeights, setIsResolvingWeights] = useState(false);
   const imageSrc = getProductImage(product);
@@ -878,22 +1061,35 @@ function FreshArrivalCard({ product, userToken }) {
     return {
       ...product,
       product_id: resolvedProductDetails?.data?.id || getProductId(product),
+      weight_id: resolvedProductDetails?.data?.weight_id || product?.weight_id,
+      default_weight_id: resolvedProductDetails?.data?.default_weight_id || product?.default_weight_id,
       weights: resolvedProductDetails.weights,
     };
   }, [product, resolvedProductDetails]);
   const weightOptions = useMemo(() => buildFreshWeightOptions(cartProduct), [cartProduct]);
   const selectedWeight = weightOptions[selectedWeightIndex] || weightOptions[0];
-  const totalSellPrice = (selectedWeight?.sellPrice || 0) * quantity;
-  const totalListPrice = (selectedWeight?.listPrice || 0) * quantity;
+  const displayQuantity = quantity > 0 ? quantity : 1;
+  const totalSellPrice = (selectedWeight?.sellPrice || 0) * displayQuantity;
+  const totalListPrice = (selectedWeight?.listPrice || 0) * displayQuantity;
   const productId = getProductId(cartProduct);
 
   useEffect(() => {
     setSelectedWeightIndex(0);
-    setQuantity(1);
-  }, [cartProduct]);
+    setQuantity(0);
+    setWasAdded(false);
+    setResolvedProductDetails(null);
+    setIsResolvingWeights(false);
+  }, [product?.id, product?.product_id, product?.slug]);
 
   const updateQuantity = (nextQuantity) => {
-    setQuantity(Math.min(99, Math.max(1, nextQuantity)));
+    const parsedQuantity = Number.parseInt(nextQuantity, 10);
+    setQuantity(Math.min(99, Math.max(0, Number.isNaN(parsedQuantity) ? 0 : parsedQuantity)));
+    setWasAdded(false);
+  };
+
+  const handleWeightChange = (event) => {
+    setSelectedWeightIndex(Number(event.target.value));
+    setWasAdded(false);
   };
 
   useEffect(() => {
@@ -919,8 +1115,18 @@ function FreshArrivalCard({ product, userToken }) {
           userToken ? userToken : undefined
         );
 
-        if (isMounted && details?.weights?.length) {
-          setResolvedProductDetails(details);
+        const resolvedWeights =
+          details?.weights ||
+          details?.data?.weights ||
+          details?.data?.product_weights ||
+          details?.product_weights ||
+          [];
+
+        if (isMounted && resolvedWeights.length) {
+          setResolvedProductDetails({
+            ...details,
+            weights: resolvedWeights,
+          });
         }
       } catch (error) {
         console.error("Unable to load fresh arrival weights:", error);
@@ -936,6 +1142,57 @@ function FreshArrivalCard({ product, userToken }) {
     };
   }, [product, userToken]);
 
+  const resolveCartSelection = async () => {
+    const existingWeight = selectedWeight || buildFreshWeightOptions(cartProduct)[0];
+
+    if (productId && existingWeight?.weightId) {
+      return { productId, weightId: existingWeight.weightId };
+    }
+
+    if (!product?.slug) return null;
+
+    setIsResolvingWeights(true);
+
+    let details = null;
+    try {
+      details = await fetchListingData(
+        "GET",
+        `product-details?product_slug=${encodeURIComponent(product.slug)}`,
+        userToken ? userToken : undefined
+      );
+    } finally {
+      setIsResolvingWeights(false);
+    }
+
+    const resolvedWeights =
+      details?.weights ||
+      details?.data?.weights ||
+      details?.data?.product_weights ||
+      details?.product_weights ||
+      [];
+
+    const hydratedProduct = {
+      ...product,
+      product_id: details?.data?.id || productId,
+      weight_id: details?.data?.weight_id || product?.weight_id,
+      default_weight_id: details?.data?.default_weight_id || product?.default_weight_id,
+      weights: resolvedWeights,
+    };
+    const hydratedWeights = buildFreshWeightOptions(hydratedProduct);
+    const hydratedWeight = hydratedWeights[selectedWeightIndex] || hydratedWeights[0];
+    const hydratedProductId = getProductId(hydratedProduct);
+
+    if (resolvedWeights.length) {
+      setResolvedProductDetails({
+        ...details,
+        weights: resolvedWeights,
+      });
+    }
+
+    if (!hydratedProductId || !hydratedWeight?.weightId) return null;
+    return { productId: hydratedProductId, weightId: hydratedWeight.weightId };
+  };
+
   const handleAddToCart = async (event) => {
     event.preventDefault();
 
@@ -944,33 +1201,31 @@ function FreshArrivalCard({ product, userToken }) {
       return;
     }
 
-    if (!productId) {
-      showToast("This product is not available for cart. Please open View All products.", "error");
-      return;
-    }
-
     if (isResolvingWeights) {
       showToast("Please wait while product weights are loading.", "error");
-      return;
-    }
-
-    if (!selectedWeight?.weightId) {
-      showToast("Weight data is missing for this product. Please open product details.", "error");
       return;
     }
 
     setIsAdding(true);
 
     try {
+      const cartQuantity = quantity > 0 ? quantity : 1;
+      const cartSelection = await resolveCartSelection();
+
+      if (!cartSelection?.productId || !cartSelection?.weightId) {
+        showToast("Please choose product options on the details page.", "error");
+        return;
+      }
+
       const cartData = await fetchListingData(
         "POST",
         "add-to-cart",
         userToken ? userToken : undefined,
         {
           cart_session: guestSession,
-          product_id: productId,
-          quantity,
-          weight_id: selectedWeight.weightId,
+          product_id: cartSelection.productId,
+          quantity: cartQuantity,
+          weight_id: cartSelection.weightId,
         }
       );
 
@@ -979,6 +1234,8 @@ function FreshArrivalCard({ product, userToken }) {
         return;
       }
 
+      setQuantity(cartQuantity);
+      setWasAdded(true);
       showToast(cartData.message || "Added to cart successfully", "success");
 
       const refreshedCart = await fetchCartBySession(
@@ -1021,7 +1278,7 @@ function FreshArrivalCard({ product, userToken }) {
         <select
           className={styles.freshWeightSelect}
           value={selectedWeightIndex}
-          onChange={(event) => setSelectedWeightIndex(Number(event.target.value))}
+          onChange={handleWeightChange}
           aria-label={`Select weight for ${product?.title || "fresh flowers"}`}
           disabled={isResolvingWeights}
         >
@@ -1033,7 +1290,7 @@ function FreshArrivalCard({ product, userToken }) {
         </select>
         <div className={styles.freshQuantity}>
           <span>−</span>
-          <strong>1</strong>
+          <strong>{quantity}</strong>
           <span>{getProductUnit(product)}</span>
           <span>+</span>
         </div>
@@ -1041,12 +1298,20 @@ function FreshArrivalCard({ product, userToken }) {
           <button
             type="button"
             onClick={() => updateQuantity(quantity - 1)}
-            disabled={quantity <= 1 || isAdding || isResolvingWeights}
+            disabled={quantity <= 0 || isAdding || isResolvingWeights}
             aria-label={`Decrease quantity for ${product?.title || "fresh flowers"}`}
           >
             −
           </button>
-          <strong>{quantity}</strong>
+          <input
+            type="number"
+            min="0"
+            max="99"
+            value={quantity}
+            onChange={(event) => updateQuantity(event.target.value)}
+            disabled={isAdding || isResolvingWeights}
+            aria-label={`Quantity for ${product?.title || "fresh flowers"}`}
+          />
           <button
             type="button"
             onClick={() => updateQuantity(quantity + 1)}
@@ -1058,12 +1323,12 @@ function FreshArrivalCard({ product, userToken }) {
         </div>
         <button
           type="button"
-          className={styles.freshAddButton}
+          className={`${styles.freshAddButton} ${wasAdded ? styles.freshAddedButton : ""}`}
           onClick={handleAddToCart}
           disabled={isAdding || isResolvingWeights}
         >
           <FaShoppingBasket aria-hidden="true" />
-          {isAdding ? "Adding..." : isResolvingWeights ? "Loading..." : "Add"}
+          {isAdding ? "Adding..." : isResolvingWeights ? "Loading..." : wasAdded ? "Added" : "Add"}
         </button>
       </div>
     </article>
@@ -1134,9 +1399,16 @@ export default function HomePage({
   homeBanners = [],
   categories = [],
   initialHomeProducts = [],
+  initialPremiumProducts = [],
+  initialRareProducts = [],
+  initialSubscriptionPlans = [],
   siteSettings,
 }) {
   const [homeProducts, setHomeProducts] = useState(initialHomeProducts || []);
+  const visibleSubscriptionPlans = useMemo(
+    () => normalizeHomeSubscriptionPlans(initialSubscriptionPlans),
+    [initialSubscriptionPlans]
+  );
   const [pujaBoxSelection, setPujaBoxSelection] = useState({
     flowers: pujaBoxOptions.flowers[0],
     leaves: pujaBoxOptions.leaves[0],
@@ -1188,7 +1460,8 @@ export default function HomePage({
       const normalizedTerms = terms.map((term) => String(term || "").toLowerCase());
       const directRoute = [
         { terms: ["daily puja", "puja", "temple"], href: "/puja-flowers" },
-        { terms: ["premium", "birthday", "anniversary", "gift"], href: "/gifts" },
+        { terms: ["premium", "primimum", "imported", "exotic"], href: "/premium-flowers" },
+        { terms: ["birthday", "anniversary", "gift", "bouquet"], href: "/gifts" },
         { terms: ["rare", "seasonal"], href: "/rare-flowers" },
         { terms: ["garland", "mala"], href: "/garlands" },
         { terms: ["wedding", "housewarming", "event", "decoration"], href: "/decorations" },
@@ -1206,18 +1479,21 @@ export default function HomePage({
       });
       const fallback = categories[fallbackIndex];
       const target = match || fallback;
-      return target?.slug ? `/products/${target.slug}` : "/flowers";
+      const targetSlug = target?.route_slug || target?.slug;
+      return targetSlug ? `/products/${targetSlug}` : "/flowers";
     },
     [categories]
   );
 
   const productSections = useMemo(() => {
-    const pool = homeProducts?.length ? homeProducts : fallbackProducts;
-    const fresh = buildFreshArrivalProducts(pool);
-    const premium = buildPremiumCollectionProducts(pool);
-    const rare = buildRareSeasonalCollectionProducts(pool);
+    const featuredProducts = normalizeProductCollection(homeProducts);
+    const premiumProducts = normalizeProductCollection(initialPremiumProducts);
+    const rareProducts = normalizeProductCollection(initialRareProducts);
+    const fresh = buildFreshArrivalProducts(featuredProducts);
+    const premium = buildPremiumCollectionProducts(premiumProducts);
+    const rare = buildRareSeasonalCollectionProducts(rareProducts);
     return { fresh, premium, rare };
-  }, [homeProducts]);
+  }, [homeProducts, initialPremiumProducts, initialRareProducts]);
 
   const homepageCategoryCards = useMemo(
     () => buildHomepageCategoryCards(categories),
@@ -1354,8 +1630,8 @@ export default function HomePage({
           <div className={styles.subscriptionLayout}>
             <div className={styles.subscriptionArea}>
               <SectionTitle
-                title="Flower Subscriptions"
-                subtitle="Never run out of fresh flowers for your rituals."
+                title="Business Flower Subscriptions"
+                subtitle="Premium arrangements for offices, hospitals and hotels; loose flowers for temples and puja."
                 actionText="View All Plans"
                 actionHref="/subscriptions"
               />
@@ -1363,7 +1639,14 @@ export default function HomePage({
                 {visibleSubscriptionPlans.map((plan) => (
                   <div className={styles.subscriptionCard} key={plan.title}>
                     <div className={styles.subscriptionIcon}>
-                      <Image src={plan.image} alt="" width={58} height={58} />
+                      <Image
+                        src={plan.image}
+                        alt={plan.title}
+                        width={420}
+                        height={280}
+                        sizes="(max-width: 700px) 44vw, (max-width: 1100px) 30vw, 210px"
+                        quality={90}
+                      />
                     </div>
                     <h3>{plan.title}</h3>
                     <p>{plan.description}</p>

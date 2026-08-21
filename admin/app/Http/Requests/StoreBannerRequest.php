@@ -24,7 +24,7 @@ class StoreBannerRequest extends FormRequest
     public function rules()
     {   
         return [
-            'image' => 'required_without:old_image',
+            'image' => 'required_without:old_image|nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
             'page' => 'required',
             'status' => 'required',
         ];

@@ -8,7 +8,7 @@ use App\Http\Requests\StoreProductRequest;
 use App\Traits\RedirectTrait;
 use App\Traits\StoreImageTrait;
 use Symfony\Component\HttpFoundation\Response;
-use Gate,View,Str,DB,Storage;
+use Gate,View,Str,DB,Storage,Cache;
 
 class ProductController extends Controller
 {
@@ -17,6 +17,11 @@ class ProductController extends Controller
     {
         $this->module = 'products';
         View::share ( 'module', $this->module );
+    }
+
+    private function clearStorefrontCache(): void
+    {
+        Cache::flush();
     }
     /**
      * Display a listing of the resource.
@@ -85,6 +90,8 @@ class ProductController extends Controller
 
         DB::table('seo_urls')->insert(['url'=>'/'.$url,'page_title'=>$seoInput['page_title'],'meta_description'=>$seoInput['meta_description'],'robots'=>$seoInput['robots'],'created_at'=>$date]);
 
+        $this->clearStorefrontCache();
+
         return $this->redirectAfterSave($request->FormButton, $id);
     }
 
@@ -144,6 +151,8 @@ class ProductController extends Controller
             DB::table('seo_urls')->where('url',$seoInput['old_url'])->update(['url'=>'/'.$url,'page_title'=>$seoInput['page_title'],'meta_description'=>$seoInput['meta_description'],'robots'=>$seoInput['robots'],'updated_at'=>$date]);
         }
 
+        $this->clearStorefrontCache();
+
         return $this->redirectAfterSave($request->FormButton, $id);
     }
 
@@ -173,6 +182,7 @@ class ProductController extends Controller
             $insert['created_at'] = date('Y-m-d H:i:s');
             $insert['updated_at'] = date('Y-m-d H:i:s');
             DB::table('product_images')->insert($insert);
+            $this->clearStorefrontCache();
             return response()->json(['success'=>'File Uploaded Successfully']);
         }
         return view('admin.'.$this->module.'.show',compact('product'));
@@ -211,6 +221,7 @@ class ProductController extends Controller
                     DB::table('product_sizes')->insert($insert);
                 }
             }
+            $this->clearStorefrontCache();
             return back()->with('success','Sizes saved successfully.');
         }
         return view('admin.'.$this->module.'.show',compact('product'));
@@ -219,7 +230,8 @@ class ProductController extends Controller
     public function productsSizeDestroy($id)
     {
         abort_if(Gate::denies($this->module.'_delete'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
-        if(DB::table('product_sizes')->where('id',$id)->delete() == 1){
+            if(DB::table('product_sizes')->where('id',$id)->delete() == 1){
+            $this->clearStorefrontCache();
             return response()->json(['success'=>true, 'message' => 'Deleted successfully.']);
         }else{
             return response()->json(['success'=>false, 'message' => 'An unexpected error has occurred.']);
@@ -229,7 +241,8 @@ class ProductController extends Controller
     public function productsWeightDestroy($id)
     {
         abort_if(Gate::denies($this->module.'_delete'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
-        if(DB::table('product_weights')->where('id',$id)->delete() == 1){
+            if(DB::table('product_weights')->where('id',$id)->delete() == 1){
+            $this->clearStorefrontCache();
             return response()->json(['success'=>true, 'message' => 'Deleted successfully.']);
         }else{
             return response()->json(['success'=>false, 'message' => 'An unexpected error has occurred.']);
@@ -271,6 +284,7 @@ class ProductController extends Controller
                     DB::table('product_weights')->insert($insert);
                 }
             }
+            $this->clearStorefrontCache();
             return back()->with('success','Weights saved successfully.');
         }
         return back()->with('fail','No modifications applied..');
@@ -286,7 +300,9 @@ class ProductController extends Controller
         }
         Storage::delete('public/products/'.$image->name);
         Storage::delete('public/products/100X100/'.$image->name);
+        Storage::delete('public/products/280X280/'.$image->name);
         if($query->delete() == 1){
+            $this->clearStorefrontCache();
             return response()->json(['success'=>true, 'message' => 'Deleted successfully.']);
         }else{
             return response()->json(['success'=>false, 'message' => 'An unexpected error has occurred.']);
@@ -300,6 +316,7 @@ class ProductController extends Controller
             $value = $request->status == 1 ?:0;
             $result = DB::table('product_images')->where('id',$id)->update(['status'=>$value]);
             if($result){
+                $this->clearStorefrontCache();
                 $status= $value == 1 ?'enabled':'disabled';
                 return response()->json(['status'=>'success','message'=>"Status $status successfully."]);
             }
@@ -309,17 +326,16 @@ class ProductController extends Controller
     public function productImageUpdateSort(Request $request)
     {   
         $i = 1;
-        foreach ($request->position as $order) {  
-            $result = DB::table('product_images')->where('id',$order)->update(['priority' => $i]);
+        $positions = (array) $request->input('position', []);
+        if(empty($positions)) {
+            return response()->json(['success'=>false, 'message' => 'No image order received.']);
+        }
+        foreach ($positions as $order) {  
+            DB::table('product_images')->where('id',$order)->update(['priority' => $i]);
             $i++;
         }
-        // foreach ($request->order as $order) {  
-        //     $result = ProductImage::find($order['id'])->update(['priority' => $order['position']]);
-        // }
-		if($result)
+        $this->clearStorefrontCache();
         return response()->json(['success'=>true, 'message' => 'Update successfully.']);
-        else
-        return response()->json(['success'=>false, 'message' => 'An unexpected error has occurred.']);
     }
 
     public function productsReviewUpdateStatus(Request $request, $id)
@@ -329,6 +345,7 @@ class ProductController extends Controller
             $value = $request->status == 1 ?:0;
             $result = DB::table('review_ratings')->where('id',$id)->update(['status'=>$value,'updated_at'=>date('Y-m-d H:i:s')]);
             if($result){
+                $this->clearStorefrontCache();
                 $status= $value == 1 ?'enabled':'disabled';
                 return response()->json(['status'=>'success','message'=>"Status $status successfully."]);
             }
@@ -340,6 +357,7 @@ class ProductController extends Controller
         abort_if(Gate::denies($this->module.'_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         if($request->ajax() && $request->isMethod('PATCH')){
             if(DB::table('products')->where('id',$id)->update(['status'=>$request->status,'updated_at'=>date('Y-m-d H:i:s')])){
+                $this->clearStorefrontCache();
                 $status=$request->status==1?'enabled':'disabled';
                 return response()->json(['status'=>'success','message'=>"Status $status successfully."]);
             }
@@ -355,9 +373,10 @@ class ProductController extends Controller
     {
         abort_if(Gate::denies($this->module.'_delete'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         $result = DB::table('products')->where('id',$id)->delete();
-        if($result == 1)
-        return response()->json(['success'=>true, 'message' => 'Deleted successfully.']);
-        else
+        if($result == 1) {
+            $this->clearStorefrontCache();
+            return response()->json(['success'=>true, 'message' => 'Deleted successfully.']);
+        }
         return response()->json(['success'=>false, 'message' => 'An unexpected error has occurred.']);
     }
     public function productsreviewsDestroy ($id)
@@ -374,13 +393,15 @@ class ProductController extends Controller
     {
         abort_if(Gate::denies($this->module.'_delete'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         $ids = explode(',',$request->ids);
+        $result = 0;
         foreach($ids as $id) :
             $result = DB::table('products')->where('id',$id)->delete();
         endforeach;
 
-        if($result == 1)
-        return response()->json(['success'=>true, 'message' => 'Deleted successfully.']);
-        else
+        if($result == 1) {
+            $this->clearStorefrontCache();
+            return response()->json(['success'=>true, 'message' => 'Deleted successfully.']);
+        }
         return response()->json(['success'=>false, 'message' => 'An unexpected error has occurred.']);
     }
 

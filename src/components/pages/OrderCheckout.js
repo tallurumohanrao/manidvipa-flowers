@@ -142,13 +142,14 @@ export default function OrderCheckout({
         window.sessionStorage.getItem(DELIVERY_PREFERENCE_STORAGE_KEY) || "{}"
       );
       const savedDate = parseDateInputValue(savedPreference.delivery_date);
-      const savedSlot = savedPreference.delivery_slot;
+      const savedSlot =
+        savedPreference.delivery_slot || savedPreference.delivery_slot_label;
 
       if (savedDate) {
         setStartDate(savedDate);
       }
 
-      if (deliverySlotOptions.some((option) => option.value === savedSlot)) {
+      if (savedSlot) {
         setSelectedDeliverySlot(savedSlot);
       }
     } catch (error) {
@@ -215,6 +216,15 @@ export default function OrderCheckout({
       validationErrors = {
         ...validationErrors,
         date: "Please select Your Preferred Delivery Day that is not today.",
+      };
+      setSelectError(validationErrors);
+      isFormValid = false;
+    }
+
+    if (!String(selectedDeliverySlot || "").trim()) {
+      validationErrors = {
+        ...validationErrors,
+        date: "Please enter your preferred delivery time slot.",
       };
       setSelectError(validationErrors);
       isFormValid = false;
@@ -339,16 +349,20 @@ export default function OrderCheckout({
                   </label>
                   <label>
                     <span>Delivery Time Slot</span>
-                    <select
-                      value={selectedDeliverySlot}
+                    <input
+                      type="text"
+                      list="checkoutDeliverySlotOptions"
+                      value={getDeliverySlotLabel(selectedDeliverySlot)}
                       onChange={(event) => setSelectedDeliverySlot(event.target.value)}
-                    >
+                      placeholder="Example: 6 AM - 9 AM"
+                    />
+                    <datalist id="checkoutDeliverySlotOptions">
                       {deliverySlotOptions.map((option) => (
-                        <option value={option.value} key={option.value}>
-                          {option.label}
-                        </option>
+                        <option value={option.label} key={option.label} />
                       ))}
-                    </select>
+                      <option value="After 6 PM" />
+                      <option value="Early morning - confirm on call" />
+                    </datalist>
                   </label>
                 </div>
               </div>

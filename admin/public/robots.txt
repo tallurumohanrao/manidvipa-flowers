@@ -1,19 +1,15 @@
 User-Agent: *
 Allow: /
 
-#Google Ads
-
 User-Agent: Googlebot
-allow: /
+Allow: /
 
 User-agent: bingbot
 crawl-delay: 20
 
 Disallow: /admin
-
-Disallow: /storage
-Disallow: /storage/*
-Disallow: /assets/*
+Disallow: /login
+Disallow: /password
 Disallow: /index.php
 Disallow: /index.php/*
 Disallow: /public/index.php/
@@ -21,4 +17,4 @@ Disallow: /public
 Disallow: /public/*
 Disallow: *.pdf
 
-Sitemap: https://www.srisriparinaya.com/sitemap.xml
+Sitemap: https://manidvipaflowers.com/sitemap.xml

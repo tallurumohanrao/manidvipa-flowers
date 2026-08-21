@@ -6,6 +6,14 @@ import {
   fetchSiteSettingsData,
 } from "../../../../hook/userCookie";
 import { cookies } from "next/headers";
+import { buildMetadata } from "@/lib/seo";
+
+export const metadata = buildMetadata({
+  title: "Contact Manidvipa Flowers | Flower Delivery Hyderabad",
+  description:
+    "Contact Manidvipa Flowers for fresh flowers, puja flowers, garlands, decorations, subscriptions and flower delivery support in Hyderabad.",
+  path: "/contact-us",
+});
 
 const fetchAboutData = async (query) => {
   try {

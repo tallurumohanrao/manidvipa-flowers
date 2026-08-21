@@ -2,12 +2,20 @@ import React from "react";
 import styles from "@/scss/pages/testimonials.module.scss";
 import Banner from "@/components/banner";
 import Image from "next/image";
+import { buildMetadata } from "@/lib/seo";
+
+export const metadata = buildMetadata({
+  title: "Customer Testimonials | Manidvipa Flowers Hyderabad",
+  description:
+    "Read customer testimonials for Manidvipa Flowers fresh flowers, puja flowers, garlands and Hyderabad flower delivery service.",
+  path: "/testimonials",
+});
 
 export default function Page() {
   return (
-    <>
+      <>
       {/* BANNER SECTION START  */}
-      <Banner title="Testimoials" />
+      <Banner title="Testimonials" />
       {/* BANNER SECTION END  */}
       <div className="container py-5">
         <div className="row">

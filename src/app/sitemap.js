@@ -1,37 +1,142 @@
-export default async function sitemap() {
-  const API_URL = "https://admin.manidvipastore.com/api/sitemap";
+import {
+  canonicalUrl,
+  isNoIndexPath,
+  normalizePath,
+  PUBLIC_SITEMAP_ROUTES,
+  unpackPaginatedProducts,
+} from "@/lib/seo";
 
+export const revalidate = 3600;
+
+const VALID_CHANGE_FREQUENCIES = new Set([
+  "always",
+  "hourly",
+  "daily",
+  "weekly",
+  "monthly",
+  "yearly",
+  "never",
+]);
+
+function getApiBaseUrl() {
+  return String(
+    process.env.NEXT_PUBLIC_MANIDVIPA_URL || "https://admin.manidvipastore.com/api"
+  ).replace(/\/+$/, "");
+}
+
+async function fetchApi(endpoint) {
   try {
-    const response = await fetch(API_URL, {
+    const response = await fetch(`${getApiBaseUrl()}/${endpoint.replace(/^\/+/, "")}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
       },
+      next: { revalidate },
     });
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch sitemap data: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    const sitemapEntries = data?.data?.map((item) => ({
-      url: item.loc,
-      lastModified: item.lastmod,
-      changefreq: item.changefreq,
-      priority: item.priority || "2.0",
-    }));
-    return sitemapEntries;
+    if (!response.ok) return null;
+    return response.json();
   } catch (error) {
-    console.error("Error generating sitemap:", error);
-
-    return [
-      {
-        url: "https://manidvipaflowers.com",
-        lastModified: new Date(),
-        changefreq: "daily",
-        priority: 1,
-      },
-    ];
+    console.error(`Error fetching sitemap data from ${endpoint}:`, error);
+    return null;
   }
+}
+
+function normalizeChangeFrequency(value, fallback = "weekly") {
+  const frequency = String(value || fallback).toLowerCase();
+  return VALID_CHANGE_FREQUENCIES.has(frequency) ? frequency : fallback;
+}
+
+function normalizePriority(value, fallback = 0.5) {
+  const priority = Number(value);
+  if (!Number.isFinite(priority)) return fallback;
+  return Math.min(1, Math.max(0, priority));
+}
+
+function normalizeLastModified(value) {
+  const date = value ? new Date(value) : new Date();
+  return Number.isNaN(date.getTime()) ? new Date() : date;
+}
+
+function normalizeSitemapPath(value) {
+  if (!value) return "/";
+
+  let path = String(value);
+  if (/^https?:\/\//i.test(path)) {
+    try {
+      path = new URL(path).pathname;
+    } catch {
+      path = "/";
+    }
+  }
+
+  path = normalizePath(path);
+
+  if (path.startsWith("/categories/")) {
+    return normalizePath(path.replace(/^\/categories\//, "/products/"));
+  }
+
+  return path;
+}
+
+function addEntry(entries, pathOrUrl, options = {}) {
+  const path = normalizeSitemapPath(pathOrUrl);
+  if (isNoIndexPath(path)) return;
+
+  const url = canonicalUrl(path);
+  if (entries.has(url)) return;
+
+  entries.set(url, {
+    url,
+    lastModified: normalizeLastModified(options.lastModified),
+    changeFrequency: normalizeChangeFrequency(options.changeFrequency),
+    priority: normalizePriority(options.priority),
+  });
+}
+
+function extractProducts(productsResponse) {
+  return unpackPaginatedProducts(productsResponse?.data || productsResponse);
+}
+
+export default async function sitemap() {
+  const entries = new Map();
+
+  PUBLIC_SITEMAP_ROUTES.forEach((route) => {
+    addEntry(entries, route.path, route);
+  });
+
+  const [apiSitemap, categoriesResponse, productsResponse] = await Promise.all([
+    fetchApi("sitemap"),
+    fetchApi("categories"),
+    fetchApi("products-by-category?category_slug=all-flowers&per_page=200"),
+  ]);
+
+  apiSitemap?.data?.forEach((item) => {
+    addEntry(entries, item.loc, {
+      lastModified: item.lastmod,
+      changeFrequency: item.changeFrequency || item.changefreq,
+      priority: item.priority,
+    });
+  });
+
+  categoriesResponse?.data?.forEach((category) => {
+    const slug = category.route_slug || category.slug;
+    if (!slug) return;
+    addEntry(entries, `/products/${slug}`, {
+      lastModified: category.updated_at || category.created_at,
+      changeFrequency: "daily",
+      priority: category.parent_id ? 0.75 : 0.8,
+    });
+  });
+
+  extractProducts(productsResponse).forEach((product) => {
+    if (!product?.slug) return;
+    addEntry(entries, `/product-details/${product.slug}`, {
+      lastModified: product.updated_at || product.created_at,
+      changeFrequency: "daily",
+      priority: 0.72,
+    });
+  });
+
+  return Array.from(entries.values());
 }

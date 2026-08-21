@@ -9,6 +9,185 @@ use App\Http\Resources\Product as ProductResource;
    
 class ProductController extends BaseController
 {
+    private function normalizeSlugValue($value)
+    {
+        $value = strtolower(trim((string) $value));
+        $value = str_replace('&', ' and ', $value);
+        $value = preg_replace('/[^a-z0-9]+/', '-', $value);
+        return trim($value, '-');
+    }
+
+    private function categorySlugAliases($slug)
+    {
+        $slug = $this->normalizeSlugValue($slug);
+        $aliases = [$slug];
+
+        $aliasGroups = [
+            'premium-flowers' => ['premium-flowers', 'primimum-flowers', 'premium', 'primimum', 'premium-blooms', 'imported-flowers', 'exotic-flowers'],
+            'primimum-flowers' => ['premium-flowers', 'primimum-flowers', 'premium', 'primimum', 'premium-blooms', 'imported-flowers', 'exotic-flowers'],
+            'rare-flowers' => ['rare-flowers', 'rare', 'seasonal-flowers', 'seasonal', 'rare-seasonal-flowers'],
+            'garlands' => ['garlands', 'garland', 'mala', 'flower-garlands', 'temple-garlands', 'temple-pooja'],
+            'gifts' => ['gifts', 'gift', 'bouquets-gifting', 'bouquet', 'bouquets', 'flower-gifts'],
+            'puja-flowers' => ['puja-flowers', 'pooja-flowers', 'daily-puja-flowers', 'daily-pooja-flowers', 'temple-flowers'],
+            'patri-leaves' => ['patri-leaves', 'patri', 'leaves', 'patri-and-leaves'],
+        ];
+
+        foreach ($aliasGroups as $canonicalSlug => $groupAliases) {
+            if (in_array($slug, $groupAliases, true)) {
+                $aliases = array_merge($aliases, $groupAliases, [$canonicalSlug]);
+                break;
+            }
+        }
+
+        return array_values(array_unique(array_filter($aliases)));
+    }
+
+    private function resolveCategoryBySlug($slug)
+    {
+        $aliases = $this->categorySlugAliases($slug);
+        $categories = DB::table('categories')->where('status', 1)->get();
+
+        foreach ($categories as $category) {
+            $categoryValues = [
+                $this->normalizeSlugValue($category->slug ?? ''),
+                $this->normalizeSlugValue($category->title ?? ''),
+                $this->normalizeSlugValue($category->name ?? ''),
+            ];
+
+            if (array_intersect($aliases, array_filter($categoryValues))) {
+                return $category;
+            }
+        }
+
+        return null;
+    }
+
+    private function virtualCategoryKeywords($slug)
+    {
+        $slug = $this->normalizeSlugValue($slug);
+
+        $keywordGroups = [
+            'premium-flowers' => ['premium', 'imported', 'exotic', 'rose', 'roses', 'lily', 'lilies', 'orchid', 'orchids', 'tulip', 'tulips'],
+            'primimum-flowers' => ['premium', 'primimum', 'imported', 'exotic', 'rose', 'roses', 'lily', 'lilies', 'orchid', 'orchids', 'tulip', 'tulips'],
+            'rare-flowers' => ['rare', 'seasonal', 'lotus', 'jasmine', 'malli', 'kanakambaram', 'tuberose', 'sampangi', 'orchid'],
+            'garlands' => ['garland', 'garlands', 'mala', 'temple', 'pooja', 'puja'],
+            'gifts' => ['gift', 'gifting', 'bouquet', 'bouquets', 'basket', 'premium'],
+        ];
+
+        foreach ($keywordGroups as $key => $keywords) {
+            if (in_array($slug, $this->categorySlugAliases($key), true)) {
+                return $keywords;
+            }
+        }
+
+        return [];
+    }
+
+    private function descendantCategoryIds($categoryId)
+    {
+        $categories = DB::table('categories')->select('id', 'parent_id')->where('status', 1)->get();
+        $ids = [(int) $categoryId];
+        $queue = [(int) $categoryId];
+
+        while (!empty($queue)) {
+            $parentId = array_shift($queue);
+            foreach ($categories as $category) {
+                if ((int) $category->parent_id === $parentId && !in_array((int) $category->id, $ids, true)) {
+                    $ids[] = (int) $category->id;
+                    $queue[] = (int) $category->id;
+                }
+            }
+        }
+
+        return $ids;
+    }
+
+    private function listingPerPage(Request $request)
+    {
+        $configuredPerPage = (int) config('PER_PAGE');
+        $requestedPerPage = (int) ($request->per_page ?: $request->show ?: $configuredPerPage);
+        $perPage = $requestedPerPage > 0 ? $requestedPerPage : ($configuredPerPage ?: 200);
+
+        return min(200, max(1, $perPage));
+    }
+
+    private function hydrateListingProducts($data)
+    {
+        $products = $data->getCollection();
+        $productIds = $products->pluck('id')->filter()->values()->all();
+
+        if (empty($productIds)) {
+            return $data;
+        }
+
+        $weightsByProduct = DB::table('product_weights')
+            ->select('id', 'product_id', 'name', 'sell_price', 'list_price', 'stock', 'qty')
+            ->whereIn('product_id', $productIds)
+            ->orderByRaw('CAST(sell_price AS DECIMAL(10,2)) ASC')
+            ->orderBy('id')
+            ->get()
+            ->groupBy('product_id');
+
+        $imagesByProduct = DB::table('product_images')
+            ->select('product_id', 'name')
+            ->whereIn('product_id', $productIds)
+            ->orderBy('priority')
+            ->orderBy('id')
+            ->get()
+            ->groupBy('product_id');
+
+        $categoriesByProduct = DB::table('category_product')
+            ->join('categories', 'categories.id', '=', 'category_product.category_id')
+            ->select(
+                'category_product.product_id',
+                'categories.id',
+                'categories.title',
+                'categories.slug',
+                'categories.parent_id'
+            )
+            ->whereIn('category_product.product_id', $productIds)
+            ->where('categories.status', 1)
+            ->orderByRaw('COALESCE(categories.priority, 999999) ASC')
+            ->orderBy('categories.id')
+            ->get()
+            ->groupBy('product_id');
+
+        $products = $products->map(function ($product) use ($weightsByProduct, $imagesByProduct, $categoriesByProduct) {
+            $weights = $weightsByProduct->get($product->id, collect())->values();
+            $images = $imagesByProduct->get($product->id, collect())->values();
+            $categories = $categoriesByProduct->get($product->id, collect())->values();
+
+            $product->weights = $weights;
+            $product->images = $images;
+            $product->categories = $categories;
+            $product->category_slugs = $categories->pluck('slug')->filter()->values();
+
+            if (!$product->image_name && $images->isNotEmpty()) {
+                $product->image_name = $images->first()->name;
+            }
+
+            if ((!$product->weight_id || !$product->sell_price) && $weights->isNotEmpty()) {
+                $defaultWeight = $weights->first();
+                $product->weight_id = $defaultWeight->id;
+                $product->weight_name = $defaultWeight->name;
+                $product->sell_price = $defaultWeight->sell_price;
+                $product->list_price = $defaultWeight->list_price;
+            }
+
+            if (!$product->category_slug && $categories->isNotEmpty()) {
+                $defaultCategory = $categories->first();
+                $product->category_slug = $defaultCategory->slug;
+                $product->category_title = $defaultCategory->title;
+            }
+
+            return $product;
+        });
+
+        $data->setCollection($products);
+
+        return $data;
+    }
+
     public function search(Request $request)
     {
         $user_id = null;
@@ -80,23 +259,27 @@ class ProductController extends BaseController
             $user_id = $user->id;
         }
         
-         $category_slug = $request->category_slug;
+         $category_slug = $this->normalizeSlugValue($request->category_slug);
          $show_all_flowers = empty($category_slug) || in_array($category_slug, ['all-flowers', 'flowers', 'all']);
          $category = null;
+         $categoryIds = [];
+         $virtualKeywords = [];
          if(!$show_all_flowers){
-             $category = DB::table('categories')->where('slug',$category_slug)->where('status',1)->first();
+             $category = $this->resolveCategoryBySlug($category_slug);
+             if(!$category){
+                 $virtualKeywords = $this->virtualCategoryKeywords($category_slug);
+             }
          }
-         if(!$show_all_flowers && !$category){
+         if(!$show_all_flowers && !$category && empty($virtualKeywords)){
              return response()->json(['success' => false,'message' => 'Page not found.'], 404);
          }
+         if(!$show_all_flowers){
+             $categoryIds = $category ? $this->descendantCategoryIds($category->id) : [];
+         }
          
-         $perpage = config('PER_PAGE');
+         $perpage = $this->listingPerPage($request);
          $order = $request->orderby;
          $query = DB::table('products','p');
-         if(!$show_all_flowers){
-             $query->join('category_product', 'p.id', '=', 'category_product.product_id');
-             $query->join('categories', 'categories.id', '=', 'category_product.category_id');
-         }
  
         $query->select(
             'p.id',
@@ -104,6 +287,8 @@ class ProductController extends BaseController
             'p.title',
             'p.sku',
             'p.slug',
+            'p.created_at',
+            'p.updated_at',
             'product_weights.id as weight_id',
             'product_weights.name as weight_name',
             'product_weights.sell_price',
@@ -116,14 +301,43 @@ class ProductController extends BaseController
             $query->addSelect(DB::raw("(SELECT id FROM wishlist WHERE wishlist.product_id  = p.id and user_id = $user_id) as wishlist_id"));
         }
         $query->leftJoin('product_images', function ($imgjoin) {
-                $imgjoin->on('product_images.id', '=', DB::raw('(SELECT id FROM product_images WHERE product_images.product_id = p.id LIMIT 1)'));
+                $imgjoin->on('product_images.id', '=', DB::raw('(SELECT id FROM product_images WHERE product_images.product_id = p.id ORDER BY priority ASC, id ASC LIMIT 1)'));
             });
         $query->leftJoin('product_weights', function ($weightsjoin) {
-                $weightsjoin->on('product_weights.id', '=', DB::raw('(SELECT id FROM product_weights WHERE product_weights.product_id = p.id LIMIT 1)'));
+                $weightsjoin->on('product_weights.id', '=', DB::raw('(SELECT id FROM product_weights WHERE product_weights.product_id = p.id ORDER BY CAST(sell_price AS DECIMAL(10,2)) ASC, id ASC LIMIT 1)'));
             });
          $query->where('p.status', 1);
-         if(!$show_all_flowers){
-             $query->where('categories.slug', $category_slug);
+         if(!$show_all_flowers && $category){
+             $query->whereExists(function($categoryFilterQuery) use ($categoryIds) {
+                 $categoryFilterQuery
+                     ->select(DB::raw(1))
+                     ->from('category_product as cp_filter')
+                     ->whereColumn('cp_filter.product_id', 'p.id')
+                     ->whereIn('cp_filter.category_id', $categoryIds);
+             });
+         }else if(!$show_all_flowers && !empty($virtualKeywords)){
+             $query->where(function($keywordQuery) use ($virtualKeywords) {
+                 foreach ($virtualKeywords as $keyword) {
+                     $like = '%' . $keyword . '%';
+                     $keywordQuery
+                         ->orWhere('p.title', 'like', $like)
+                         ->orWhere('p.slug', 'like', $like)
+                         ->orWhere('p.sku', 'like', $like)
+                         ->orWhereExists(function($existsQuery) use ($like) {
+                             $existsQuery
+                                 ->select(DB::raw(1))
+                                 ->from('category_product as cp_virtual')
+                                 ->join('categories as c_virtual', 'c_virtual.id', '=', 'cp_virtual.category_id')
+                                 ->whereColumn('cp_virtual.product_id', 'p.id')
+                                 ->where('c_virtual.status', 1)
+                                 ->where(function($categoryQuery) use ($like) {
+                                     $categoryQuery
+                                         ->where('c_virtual.title', 'like', $like)
+                                         ->orWhere('c_virtual.slug', 'like', $like);
+                                 });
+                         });
+                 }
+             });
          }
          if($request->filled('q')){
              $query->where(function($searchQuery) use ($request) {
@@ -140,10 +354,12 @@ class ProductController extends BaseController
              $query->orderBy(function ($obq) {
                  $obq->selectRaw('MIN(sell_price) as min_sell_price')->from('product_weights')->whereColumn('product_id', 'p.id');
              }, 'desc');
+         }else if($order == 'newest' || $order == 'recently-added'){
+             $query->orderByDesc('p.created_at')->orderByDesc('p.id');
          }else{
              $query->orderByDesc('p.id');
          }
-         $data = $query->paginate($perpage);
+         $data = $this->hydrateListingProducts($query->paginate($perpage));
          return response()->json(['success' => true,'data' => $data], 200);
     }
      

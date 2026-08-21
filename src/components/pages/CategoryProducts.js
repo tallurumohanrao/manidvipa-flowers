@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { FaShoppingBasket, FaSlidersH, FaStar, FaTimes } from "react-icons/fa";
+import { FaChevronDown, FaShoppingBasket, FaSlidersH, FaStar, FaTimes } from "react-icons/fa";
 import Toast from "@/components/Toast";
 import { useCartCount, useToast, useUser } from "@/context/UserContext";
 import styles from "@/scss/pages/listingPage.module.scss";
@@ -18,8 +18,31 @@ const IMG_URL = process.env.NEXT_PUBLIC_IMG_URL;
 const DEFAULT_CATEGORY = "all-flowers";
 const DEFAULT_SORT = "popular";
 const DEFAULT_PAGE_SIZE = 12;
+const CATEGORY_FETCH_PAGE_SIZE = 200;
 const REQUEST_FLOWER_MESSAGE =
   "Hello Manidvipa Flowers, I am looking for a flower that I could not find on your website. Can you help me source it?";
+
+const categorySlugAliasMap = {
+  "primimum-flowers": "premium-flowers",
+  primimum: "premium-flowers",
+  premium: "premium-flowers",
+  "premium-blooms": "premium-flowers",
+  "imported-flowers": "premium-flowers",
+  "exotic-flowers": "premium-flowers",
+  rare: "rare-flowers",
+  seasonal: "rare-flowers",
+  "seasonal-flowers": "rare-flowers",
+  garland: "garlands",
+  mala: "garlands",
+  "flower-garlands": "garlands",
+  "temple-garlands": "garlands",
+  "pooja-flowers": "puja-flowers",
+  "daily-puja-flowers": "puja-flowers",
+  "daily-pooja-flowers": "puja-flowers",
+  "patri-and-leaves": "patri-leaves",
+  patri: "patri-leaves",
+  leaves: "patri-leaves",
+};
 
 const fallbackCategoryOptions = [
   { value: "all-flowers", label: "All Flowers", keywords: [] },
@@ -33,14 +56,14 @@ const fallbackCategoryOptions = [
   {
     value: "premium-flowers",
     label: "Premium Flowers",
-    keywords: ["premium", "imported", "exotic"],
+    keywords: ["premium", "imported", "exotic", "rose", "roses", "tulip", "tulips", "orchid", "orchids", "lily", "lilies"],
     collections: ["premium"],
     flags: ["isPremium", "is_premium"],
   },
   {
     value: "rare-flowers",
     label: "Rare Flowers",
-    keywords: ["rare", "limited", "special"],
+    keywords: ["rare", "limited", "special", "seasonal", "lotus", "jasmine", "malli", "kanakambaram", "tuberose", "sampangi", "marigold"],
     collections: ["rare"],
     flags: ["isRare", "is_rare"],
   },
@@ -62,7 +85,7 @@ const fallbackCategoryOptions = [
   { value: "gerbera", label: "Gerbera", keywords: ["gerbera"] },
   { value: "other-flowers", label: "Other Flowers", keywords: ["mixed", "assorted", "other"] },
   { value: "patri-leaves", label: "Patri & Leaves", keywords: ["patri", "leaves", "leaf", "tulasi", "bilva", "mango leaves", "betel"] },
-  { value: "garlands", label: "Garlands", keywords: ["garland", "garlands", "mala"] },
+  { value: "garlands", label: "Garlands", keywords: ["garland", "garlands", "mala", "temple", "pooja", "puja"] },
   { value: "bouquets-gifting", label: "Bouquets & Gifting", keywords: ["bouquet", "bouquets", "gift", "gifting"] },
   { value: "temple-pooja", label: "Temple & Pooja", keywords: ["temple", "pooja", "puja", "ritual"] },
 ];
@@ -150,32 +173,106 @@ function normalizeParamValue(value) {
   return normalizeText(value).replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
+function normalizeCategoryValue(value) {
+  const normalizedValue = normalizeParamValue(value);
+  return categorySlugAliasMap[normalizedValue] || normalizedValue;
+}
+
 function parseListParam(searchParams, key) {
   const value = searchParams.get(key);
   return value ? value.split(",").map(normalizeParamValue).filter(Boolean) : [];
 }
 
 function buildCategoryOptions(categories = []) {
-  const seenValues = new Set([DEFAULT_CATEGORY]);
+  const optionMap = new Map();
+  const addOption = (option) => {
+    const value = normalizeCategoryValue(option?.value || option?.slug || option?.title);
+    if (!value) return;
+
+    const existingOption = optionMap.get(value);
+    const parentValue = normalizeCategoryValue(option?.parentValue || option?.parent_slug || option?.parent_title);
+    const keywords = Array.from(
+      new Set([
+        ...(existingOption?.keywords || []),
+        ...(option?.keywords || []),
+        option?.slug,
+        option?.route_slug,
+        option?.title,
+        value,
+      ].filter(Boolean))
+    );
+
+    optionMap.set(value, {
+      ...existingOption,
+      ...option,
+      value,
+      label:
+        value === "premium-flowers"
+          ? "Premium Flowers"
+          : option?.label || option?.title || existingOption?.label || formatCategoryTitle(value),
+      keywords,
+      parentValue: parentValue && parentValue !== value ? parentValue : existingOption?.parentValue || null,
+      children: existingOption?.children || [],
+      isDynamic: existingOption?.isDynamic || Boolean(option?.isDynamic),
+    });
+  };
+
+  fallbackCategoryOptions.forEach((option) => addOption(option));
+
   const dynamicCategories = Array.isArray(categories) ? categories : [];
+
+  dynamicCategories.forEach((category) => {
+    addOption({
+      value: category?.route_slug || category?.slug || category?.title,
+      label: category?.route_slug === "premium-flowers" || category?.slug === "primimum-flowers"
+        ? "Premium Flowers"
+        : category?.title || formatCategoryTitle(category?.slug),
+      slug: category?.slug,
+      route_slug: category?.route_slug,
+      title: category?.title,
+      keywords: [category?.slug, category?.route_slug, category?.title].filter(Boolean),
+      parentValue: category?.parent_route_slug || category?.parent_slug || category?.parent_title,
+      children: [],
+      isDynamic: true,
+    });
+  });
+
+  if (!optionMap.has(DEFAULT_CATEGORY)) {
+    addOption({ value: DEFAULT_CATEGORY, label: "All Flowers", keywords: [], children: [] });
+  }
+
   const options = [
-    { value: DEFAULT_CATEGORY, label: "All Flowers", keywords: [] },
-    ...dynamicCategories
-      .map((category) => {
-        const value = normalizeParamValue(category?.slug || category?.title);
-        if (!value || seenValues.has(value)) return null;
-        seenValues.add(value);
-
-        return {
-          value,
-          label: category?.title || formatCategoryTitle(value),
-          keywords: [category?.slug, category?.title].filter(Boolean),
-        };
-      })
-      .filter(Boolean),
+    optionMap.get(DEFAULT_CATEGORY),
+    ...Array.from(optionMap.values()).filter((option) => option.value !== DEFAULT_CATEGORY),
   ];
+  const optionByValue = new Map(options.map((option) => [option.value, option]));
 
-  return options.length > 1 ? options : fallbackCategoryOptions;
+  options.forEach((option) => {
+    if (!option.parentValue) return;
+
+    const parentOption = optionByValue.get(option.parentValue);
+    if (!parentOption) return;
+
+    parentOption.children = [...(parentOption.children || []), option];
+    parentOption.keywords = Array.from(new Set([...(parentOption.keywords || []), ...(option.keywords || [])]));
+  });
+
+  return options;
+}
+
+function buildCategoryTreeOptions(options = []) {
+  const allOption =
+    options.find((option) => option.value === DEFAULT_CATEGORY) ||
+    { value: DEFAULT_CATEGORY, label: "All Flowers", keywords: [], children: [] };
+  const optionByValue = new Map(options.map((option) => [option.value, option]));
+  const childValues = new Set(
+    options
+      .filter((option) => option.parentValue && optionByValue.has(option.parentValue))
+      .map((option) => option.value)
+  );
+  const parents = options.filter((option) => option.value !== DEFAULT_CATEGORY && !childValues.has(option.value));
+
+  return { allOption, parents };
 }
 
 function formatCategoryTitle(categorySlug = DEFAULT_CATEGORY, options = fallbackCategoryOptions) {
@@ -222,6 +319,11 @@ function getProductTags(product) {
 }
 
 function getSearchableProductText(product) {
+  const productCategories = Array.isArray(product?.categories)
+    ? product.categories.flatMap((category) => [category?.title, category?.slug])
+    : [];
+  const productCategorySlugs = Array.isArray(product?.category_slugs) ? product.category_slugs : [];
+
   return [
     product?.title,
     product?.name,
@@ -240,6 +342,8 @@ function getSearchableProductText(product) {
     product?.availability,
     product?.stock_status,
     product?.status,
+    ...productCategories,
+    ...productCategorySlugs,
     ...getProductTags(product),
   ]
     .filter(Boolean)
@@ -294,6 +398,7 @@ function buildWeightOptions(product) {
       key: String(getWeightId(weight, product) || index),
       label: getWeightName(weight, `Option ${index + 1}`),
       sellPrice: parsePriceValue(weight?.sell_price || weight?.price || product?.sell_price),
+      listPrice: parsePriceValue(weight?.list_price || weight?.mrp || product?.list_price),
       weightId: getWeightId(weight, product),
     }));
   }
@@ -304,8 +409,9 @@ function buildWeightOptions(product) {
   return [
     {
       key: String(fallbackWeightId),
-      label: product?.unit ? `1 ${product.unit}` : "1",
+      label: product?.weight_name || product?.weight || product?.unit || "1",
       sellPrice: parsePriceValue(product?.sell_price || product?.price),
+      listPrice: parsePriceValue(product?.list_price || product?.mrp || product?.price),
       weightId: fallbackWeightId,
     },
   ];
@@ -330,6 +436,7 @@ function getProductUnit(product) {
 function getProductImage(product) {
   if (product?.localImage) return product.localImage;
   if (product?.image_name && IMG_URL) return `${IMG_URL}/${product.image_name}`;
+  if (Array.isArray(product?.images) && product.images[0]?.name && IMG_URL) return `${IMG_URL}/${product.images[0].name}`;
   if (product?.image && String(product.image).startsWith("http")) return product.image;
 
   const searchableText = getSearchableProductText(product);
@@ -434,12 +541,35 @@ function appendWhatsAppMessage(href, message) {
   return `${href}${separator}text=${encodeURIComponent(message)}`;
 }
 
-async function fetchCategoryProducts(categorySlug, userToken) {
+function getOrderByParam(sortOption) {
+  const orderByMap = {
+    "price-low": "price-asc",
+    "price-high": "price-desc",
+    newest: "newest",
+    "recently-added": "recently-added",
+    "best-selling": "best-selling",
+  };
+
+  return orderByMap[sortOption] || "";
+}
+
+async function fetchCategoryProducts(categorySlug, userToken, options = {}) {
+  const params = new URLSearchParams({
+    category_slug: normalizeCategoryValue(categorySlug || DEFAULT_CATEGORY),
+    per_page: String(CATEGORY_FETCH_PAGE_SIZE),
+  });
+  const orderBy = getOrderByParam(options.sortOption);
+
+  if (orderBy) params.set("orderby", orderBy);
+
   const data = await fetchListingData(
     "GET",
-    `products-by-category?category_slug=${encodeURIComponent(categorySlug)}`,
+    `products-by-category?${params.toString()}`,
     userToken ? userToken : undefined
   );
+
+  if (!data?.success) return [];
+
   return unpackProductList(data);
 }
 
@@ -482,43 +612,82 @@ function CategoryProductCard({ product, userToken }) {
   const { guestSession } = useUser();
   const { showToast } = useToast();
   const { setCartCount } = useCartCount();
-  const [quantity, setQuantity] = useState(1);
+  const [selectedWeightIndex, setSelectedWeightIndex] = useState(0);
+  const [quantity, setQuantity] = useState(0);
   const [isAdding, setIsAdding] = useState(false);
+  const [resolvedProductDetails, setResolvedProductDetails] = useState(null);
+  const [isResolvingWeights, setIsResolvingWeights] = useState(false);
+  const [wasAdded, setWasAdded] = useState(false);
 
-  const productId = getProductId(product);
+  const cartProduct = useMemo(() => {
+    if (!resolvedProductDetails?.weights?.length) return product;
+
+    return {
+      ...product,
+      product_id: resolvedProductDetails?.data?.id || getProductId(product),
+      weight_id: resolvedProductDetails?.data?.weight_id || product?.weight_id,
+      default_weight_id: resolvedProductDetails?.data?.default_weight_id || product?.default_weight_id,
+      weights: resolvedProductDetails.weights,
+    };
+  }, [product, resolvedProductDetails]);
+  const weightOptions = useMemo(() => buildWeightOptions(cartProduct), [cartProduct]);
+  const selectedWeight = weightOptions[selectedWeightIndex] || weightOptions[0];
+  const productId = getProductId(cartProduct);
   const productTitle = getProductTitle(product);
-  const productPrice = getProductPrice(product);
-  const productOriginalPrice = getProductOriginalPrice(product);
-  const productUnit = getProductUnit(product);
+  const productPrice = selectedWeight?.sellPrice || getProductPrice(cartProduct);
+  const productOriginalPrice = selectedWeight?.listPrice || getProductOriginalPrice(cartProduct);
+  const productUnit = selectedWeight?.label || getProductUnit(cartProduct);
   const productHref = product?.slug ? `/product-details/${product.slug}` : "#";
   const canAttemptCart = Boolean(productId || product?.slug);
   const rating = getRatingValue(product);
   const badges = getProductBadges(product);
-  const totalProductPrice = productPrice * quantity;
-  const totalOriginalPrice = productOriginalPrice * quantity;
+  const displayQuantity = quantity > 0 ? quantity : 1;
+  const totalProductPrice = productPrice * displayQuantity;
+  const totalOriginalPrice = productOriginalPrice * displayQuantity;
   const hasDiscount = totalOriginalPrice > totalProductPrice && totalProductPrice > 0;
   const priceMetaText =
-    quantity > 1
+    displayQuantity > 1
       ? `total - ${formatRupees(productPrice)} / ${productUnit}`
       : `/ ${productUnit}`;
 
+  useEffect(() => {
+    setSelectedWeightIndex(0);
+    setQuantity(0);
+    setResolvedProductDetails(null);
+    setIsResolvingWeights(false);
+    setWasAdded(false);
+  }, [product?.id, product?.product_id, product?.slug]);
+
   const updateQuantity = (nextQuantity) => {
-    setQuantity(Math.min(99, Math.max(1, nextQuantity)));
+    const numericQuantity = Number(nextQuantity);
+    if (!Number.isFinite(numericQuantity)) {
+      setQuantity(0);
+      return;
+    }
+
+    setQuantity(Math.min(99, Math.max(0, Math.floor(numericQuantity))));
   };
 
   const resolveDefaultCartSelection = async () => {
-    const existingWeight = buildWeightOptions(product)[0];
+    const existingWeight = selectedWeight || buildWeightOptions(cartProduct)[0];
     if (productId && existingWeight?.weightId) {
       return { productId, weightId: existingWeight.weightId };
     }
 
     if (!product?.slug) return null;
 
-    const details = await fetchListingData(
-      "GET",
-      `product-details?product_slug=${encodeURIComponent(product.slug)}`,
-      userToken ? userToken : undefined
-    );
+    setIsResolvingWeights(true);
+
+    let details = null;
+    try {
+      details = await fetchListingData(
+        "GET",
+        `product-details?product_slug=${encodeURIComponent(product.slug)}`,
+        userToken ? userToken : undefined
+      );
+    } finally {
+      setIsResolvingWeights(false);
+    }
 
     const hydratedProduct = {
       ...product,
@@ -528,11 +697,12 @@ function CategoryProductCard({ product, userToken }) {
       weights:
         details?.weights ||
         details?.data?.weights ||
-        details?.data?.product_weights ||
-        details?.product_weights ||
-        [],
+      details?.data?.product_weights ||
+      details?.product_weights ||
+      [],
     };
-    const hydratedWeight = buildWeightOptions(hydratedProduct)[0];
+    const hydratedWeights = buildWeightOptions(hydratedProduct);
+    const hydratedWeight = hydratedWeights[selectedWeightIndex] || hydratedWeights[0];
     const hydratedProductId = getProductId(hydratedProduct);
 
     if (!hydratedProductId || !hydratedWeight?.weightId) return null;
@@ -547,9 +717,15 @@ function CategoryProductCard({ product, userToken }) {
       return;
     }
 
+    if (isResolvingWeights) {
+      showToast("Please wait while product options are loading.", "error");
+      return;
+    }
+
     setIsAdding(true);
 
     try {
+      const cartQuantity = quantity > 0 ? quantity : 1;
       const cartSelection = await resolveDefaultCartSelection();
 
       if (!cartSelection?.productId || !cartSelection?.weightId) {
@@ -570,7 +746,7 @@ function CategoryProductCard({ product, userToken }) {
         {
           cart_session: guestSession,
           product_id: cartSelection.productId,
-          quantity,
+          quantity: cartQuantity,
           weight_id: cartSelection.weightId,
         }
       );
@@ -580,7 +756,10 @@ function CategoryProductCard({ product, userToken }) {
         return;
       }
 
-      showToast(cartData.message || "Added to cart successfully", "success");
+      setWasAdded(true);
+      setQuantity(cartQuantity);
+      window.setTimeout(() => setWasAdded(false), 1600);
+      showToast(`${cartQuantity} item${cartQuantity > 1 ? "s" : ""} added to cart.`, "success");
 
       const refreshedCart = await fetchCartBySession(
         guestSession,
@@ -642,20 +821,45 @@ function CategoryProductCard({ product, userToken }) {
           </span>
         </p>
 
+        {weightOptions.length > 0 && (
+          <select
+            className={styles.weightSelect}
+            value={selectedWeightIndex}
+            onChange={(event) => setSelectedWeightIndex(Number(event.target.value))}
+            disabled={isAdding || isResolvingWeights || weightOptions.length < 2}
+            aria-label={`Select weight for ${productTitle}`}
+          >
+            {weightOptions.map((weight, index) => (
+              <option key={weight.key} value={index}>
+                {weight.label}
+              </option>
+            ))}
+          </select>
+        )}
+
         <div className={styles.quantityRow}>
           <button
             type="button"
             onClick={() => updateQuantity(quantity - 1)}
-            disabled={quantity <= 1 || isAdding}
+            disabled={quantity <= 0 || isAdding || isResolvingWeights}
             aria-label={`Decrease quantity for ${productTitle}`}
           >
             −
           </button>
-          <span>{quantity}</span>
+          <input
+            type="number"
+            min="0"
+            max="99"
+            value={quantity}
+            onChange={(event) => updateQuantity(event.target.value)}
+            onBlur={(event) => updateQuantity(event.target.value)}
+            disabled={isAdding || isResolvingWeights}
+            aria-label={`Quantity for ${productTitle}`}
+          />
           <button
             type="button"
             onClick={() => updateQuantity(quantity + 1)}
-            disabled={isAdding}
+            disabled={isAdding || isResolvingWeights}
             aria-label={`Increase quantity for ${productTitle}`}
           >
             +
@@ -665,13 +869,13 @@ function CategoryProductCard({ product, userToken }) {
         <div className={styles.cardActions}>
           <button
             type="button"
-            className={styles.addToCartButton}
+            className={`${styles.addToCartButton} ${wasAdded ? styles.addedToCartButton : ""}`}
             onClick={handleAddToCart}
-            disabled={isAdding || !canAttemptCart}
+            disabled={isAdding || isResolvingWeights || !canAttemptCart}
             title={!canAttemptCart ? "Product details are required for cart" : undefined}
           >
             <FaShoppingBasket />
-            {isAdding ? "ADDING..." : "ADD"}
+            {wasAdded ? "ADDED" : isAdding ? "ADDING..." : isResolvingWeights ? "LOADING..." : "ADD"}
           </button>
           <Link href={productHref} className={styles.viewDetailsButton}>
             VIEW DETAILS
@@ -696,7 +900,7 @@ export default function CategoryProducts({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const initialProducts = unpackProductList(produtsCategory);
-  const initialCategoryValue = normalizeParamValue(category_slug || DEFAULT_CATEGORY);
+  const initialCategoryValue = normalizeCategoryValue(category_slug || DEFAULT_CATEGORY);
 
   const [productCategory, setProductCategory] = useState(initialProducts);
   const [isLoading, setIsLoading] = useState(!initialProducts.length);
@@ -713,7 +917,7 @@ export default function CategoryProducts({
   );
   const [currentPage, setCurrentPage] = useState(Math.max(1, Number(searchParams.get("page")) || 1));
   const [activeCategory, setActiveCategory] = useState(
-    normalizeParamValue(searchParams.get("category") || initialCategoryValue || DEFAULT_CATEGORY)
+    normalizeCategoryValue(searchParams.get("category") || initialCategoryValue || DEFAULT_CATEGORY)
   );
   const [selectedPrices, setSelectedPrices] = useState(() => parseListParam(searchParams, "price"));
   const [selectedCollections, setSelectedCollections] = useState(() => parseListParam(searchParams, "collection"));
@@ -721,11 +925,32 @@ export default function CategoryProducts({
   const [selectedTypes, setSelectedTypes] = useState(() => parseListParam(searchParams, "type"));
   const [selectedAvailability, setSelectedAvailability] = useState(() => parseListParam(searchParams, "availability"));
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [openCategoryGroups, setOpenCategoryGroups] = useState([]);
   const hasMountedFiltersRef = useRef(false);
+  const hasInitializedCategoryGroupsRef = useRef(false);
 
   const categoryFilterOptions = useMemo(
     () => buildCategoryOptions(categories),
     [categories]
+  );
+  const categoryTreeOptions = useMemo(
+    () => buildCategoryTreeOptions(categoryFilterOptions),
+    [categoryFilterOptions]
+  );
+  const activeCategoryOption = useMemo(
+    () => categoryFilterOptions.find((category) => category.value === activeCategory),
+    [activeCategory, categoryFilterOptions]
+  );
+  const activeParentCategoryOption = useMemo(
+    () =>
+      activeCategoryOption?.parentValue
+        ? categoryFilterOptions.find((category) => category.value === activeCategoryOption.parentValue)
+        : null,
+    [activeCategoryOption, categoryFilterOptions]
+  );
+  const openCategoryGroupValues = useMemo(
+    () => new Set(openCategoryGroups),
+    [openCategoryGroups]
   );
   const computedCategoryTitle = formatCategoryTitle(
     activeCategory || category_slug || DEFAULT_CATEGORY,
@@ -750,7 +975,8 @@ export default function CategoryProducts({
     setLoadError("");
 
     try {
-      const products = await fetchCategoryProducts(category_slug || DEFAULT_CATEGORY, userToken);
+      const requestCategory = activeCategory || category_slug || DEFAULT_CATEGORY;
+      const products = await fetchCategoryProducts(requestCategory, userToken, { sortOption });
 
       if (products.length) {
         setProductCategory(products);
@@ -763,11 +989,34 @@ export default function CategoryProducts({
     } finally {
       setIsLoading(false);
     }
-  }, [category_slug, setIsLoading, setLoadError, setProductCategory, userToken]);
+  }, [activeCategory, category_slug, setIsLoading, setLoadError, setProductCategory, sortOption, userToken]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    if (hasInitializedCategoryGroupsRef.current) return;
+
+    const defaultOpenGroups = categoryTreeOptions.parents
+      .filter((category) => category.children?.length)
+      .map((category) => category.value);
+
+    if (defaultOpenGroups.length) {
+      setOpenCategoryGroups(defaultOpenGroups);
+      hasInitializedCategoryGroupsRef.current = true;
+    }
+  }, [categoryTreeOptions.parents]);
+
+  useEffect(() => {
+    if (!activeParentCategoryOption?.value) return;
+
+    setOpenCategoryGroups((currentGroups) =>
+      currentGroups.includes(activeParentCategoryOption.value)
+        ? currentGroups
+        : [...currentGroups, activeParentCategoryOption.value]
+    );
+  }, [activeParentCategoryOption?.value]);
 
   useEffect(() => {
     if (!hasMountedFiltersRef.current) {
@@ -826,6 +1075,14 @@ export default function CategoryProducts({
     );
   };
 
+  const closeMobileFilters = useCallback(() => {
+    if (typeof window === "undefined") return;
+
+    if (window.matchMedia("(max-width: 991px)").matches) {
+      setIsFilterOpen(false);
+    }
+  }, []);
+
   const clearFilters = () => {
     setActiveCategory(DEFAULT_CATEGORY);
     setSelectedPrices([]);
@@ -836,10 +1093,18 @@ export default function CategoryProducts({
     setSortOption(DEFAULT_SORT);
     setPageSize(DEFAULT_PAGE_SIZE);
     setCurrentPage(1);
+    closeMobileFilters();
+  };
+
+  const toggleCategoryGroup = (categoryValue) => {
+    setOpenCategoryGroups((currentGroups) =>
+      currentGroups.includes(categoryValue)
+        ? currentGroups.filter((currentValue) => currentValue !== categoryValue)
+        : [...currentGroups, categoryValue]
+    );
   };
 
   const filteredProducts = useMemo(() => {
-    const activeCategoryOption = categoryFilterOptions.find((category) => category.value === activeCategory);
     const selectedPriceOptions = priceOptions.filter((price) => selectedPrices.includes(price.value));
     const selectedCollectionOptions = collectionOptions.filter((collection) => selectedCollections.includes(collection.value));
     const selectedTypeOptions = flowerTypeOptions.filter((type) => selectedTypes.includes(type.value));
@@ -890,7 +1155,7 @@ export default function CategoryProducts({
     });
   }, [
     activeCategory,
-    categoryFilterOptions,
+    activeCategoryOption,
     productCategory,
     selectedAvailability,
     selectedCollections,
@@ -922,20 +1187,60 @@ export default function CategoryProducts({
     safeCurrentPage * pageSize
   );
 
+  const renderCategoryButton = (category, isChild = false) => {
+    const hasActiveChild = !isChild && category.children?.some((child) => child.value === activeCategory);
+    const hasChildren = !isChild && Boolean(category.children?.length);
+    const isOpen = hasChildren && openCategoryGroupValues.has(category.value);
+    const className = [
+      styles.categoryButton,
+      isChild ? styles.childCategoryButton : styles.parentCategoryButton,
+      activeCategory === category.value ? styles.activeCategory : "",
+      hasActiveChild ? styles.categoryHasActiveChild : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    return (
+      <button
+        type="button"
+        key={category.value}
+        className={className}
+        aria-expanded={hasChildren ? isOpen : undefined}
+        onClick={() => {
+          setActiveCategory(category.value);
+          if (hasChildren) toggleCategoryGroup(category.value);
+          if (!hasChildren) closeMobileFilters();
+        }}
+      >
+        <span>{category.label}</span>
+        {hasChildren ? (
+          <span className={styles.categoryMeta}>
+            <span className={styles.childCount}>{category.children.length}</span>
+            <FaChevronDown
+              aria-hidden="true"
+              className={`${styles.categoryChevron} ${isOpen ? styles.categoryChevronOpen : ""}`}
+            />
+          </span>
+        ) : null}
+      </button>
+    );
+  };
+
   const renderFilters = (
     <>
       <div className={styles.filterBlock}>
         <h2>Categories</h2>
         <div className={styles.categoryList}>
-          {categoryFilterOptions.map((category) => (
-            <button
-              type="button"
-              key={category.value}
-              className={activeCategory === category.value ? styles.activeCategory : ""}
-              onClick={() => setActiveCategory(category.value)}
-            >
-              {category.label}
-            </button>
+          {renderCategoryButton(categoryTreeOptions.allOption)}
+          {categoryTreeOptions.parents.map((category) => (
+            <div className={styles.categoryGroup} key={category.value}>
+              {renderCategoryButton(category)}
+              {category.children?.length && openCategoryGroupValues.has(category.value) ? (
+                <div className={styles.childCategoryList}>
+                  {category.children.map((childCategory) => renderCategoryButton(childCategory, true))}
+                </div>
+              ) : null}
+            </div>
           ))}
         </div>
       </div>
@@ -1013,9 +1318,21 @@ export default function CategoryProducts({
         <div className="container">
           <div className={styles.breadcrumbs}>
             <Link href="/">Home</Link>
-            <span>›</span>
+            <span>&rsaquo;</span>
             <Link href="/flowers">Flowers</Link>
-            <span>›</span>
+            {activeParentCategoryOption ? (
+              <>
+                <span>&rsaquo;</span>
+                <button
+                  type="button"
+                  className={styles.breadcrumbButton}
+                  onClick={() => setActiveCategory(activeParentCategoryOption.value)}
+                >
+                  {activeParentCategoryOption.label}
+                </button>
+              </>
+            ) : null}
+            <span>&rsaquo;</span>
             <strong>{finalBreadcrumbLabel}</strong>
           </div>
 
@@ -1162,13 +1479,6 @@ export default function CategoryProducts({
                       {page}
                     </button>
                   ))}
-                <button
-                  type="button"
-                  disabled={safeCurrentPage === totalPages}
-                  onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
-                >
-                  Next
-                </button>
                 <button
                   type="button"
                   disabled={safeCurrentPage === totalPages}

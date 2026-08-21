@@ -18,11 +18,33 @@ class HomeController extends BaseController
     }
     public function sitemap(){
         #$data = Cache::rememberForever('sitemap', function () {
-            $categories = DB::table('categories')->select('title','slug','created_at')->orderByDesc('priority')->get();
-            $data[] = ['loc'=>config('app.frontend_url'),'lastmod'=>date('Y-m-d\TH:i:sP'),'changefreq'=>'daily','priority'=>'1.0'];
+            $frontendUrl = rtrim(config('app.frontend_url'), '/');
+            $categories = DB::table('categories')->select('title','slug','created_at','updated_at')->where('status', 1)->orderByDesc('priority')->get();
+            $products = DB::table('products')->select('title','slug','created_at','updated_at')->where('status', 1)->orderByDesc('id')->limit(500)->get();
+            $staticRoutes = [
+                ['path' => '', 'changefreq' => 'daily', 'priority' => '1.0'],
+                ['path' => '/flowers', 'changefreq' => 'daily', 'priority' => '0.95'],
+                ['path' => '/puja-flowers', 'changefreq' => 'daily', 'priority' => '0.95'],
+                ['path' => '/premium-flowers', 'changefreq' => 'daily', 'priority' => '0.9'],
+                ['path' => '/rare-flowers', 'changefreq' => 'daily', 'priority' => '0.9'],
+                ['path' => '/garlands', 'changefreq' => 'daily', 'priority' => '0.85'],
+                ['path' => '/decorations', 'changefreq' => 'weekly', 'priority' => '0.85'],
+                ['path' => '/gifts', 'changefreq' => 'daily', 'priority' => '0.85'],
+                ['path' => '/subscriptions', 'changefreq' => 'weekly', 'priority' => '0.9'],
+                ['path' => '/contact-us', 'changefreq' => 'monthly', 'priority' => '0.7'],
+                ['path' => '/about', 'changefreq' => 'monthly', 'priority' => '0.6'],
+            ];
+            foreach($staticRoutes as $route){
+                $data[] = ['loc'=>$frontendUrl.$route['path'],'lastmod'=>date('Y-m-d\TH:i:sP'),'changefreq'=>$route['changefreq'],'priority'=>$route['priority']];
+            }
             foreach($categories as $category){
-                $data[] = ['loc'=>config('app.frontend_url').'/categories/'.$category->slug,'lastmod'=>date('Y-m-d\TH:i:sP',strtotime($category->created_at)),'changefreq'=>'daily','priority'=>'1.0'];
+                $date = $category->updated_at ?: $category->created_at;
+                $data[] = ['loc'=>$frontendUrl.'/products/'.$category->slug,'lastmod'=>date('Y-m-d\TH:i:sP',strtotime($date)),'changefreq'=>'daily','priority'=>'0.8'];
                 #$data[] = ['title'=>$category->title,'slug'=>$category->slug,'date'=>str_replace('+00:00', 'Z', gmdate('c', strtotime($category->created_at)))];
+            }
+            foreach($products as $product){
+                $date = $product->updated_at ?: $product->created_at;
+                $data[] = ['loc'=>$frontendUrl.'/product-details/'.$product->slug,'lastmod'=>date('Y-m-d\TH:i:sP',strtotime($date)),'changefreq'=>'daily','priority'=>'0.72'];
             }
             #return $data;
         #});
@@ -145,7 +167,11 @@ class HomeController extends BaseController
                 })
                 ->leftJoin('product_images', function ($imgjoin) {
                     $imgjoin->on('product_images.id', '=', DB::raw('(SELECT id FROM product_images WHERE product_images.product_id = products.id LIMIT 1)'));
-                })->get();
+                })
+                ->where('products.status', 1)
+                ->orderByRaw('COALESCE(featured_products.priority, 999999) ASC')
+                ->orderByDesc('featured_products.id')
+                ->get();
         return response()->json(['success' => true,'data' => $data], 200);
     }
     

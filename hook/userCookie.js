@@ -38,11 +38,19 @@ export async function fetchListingData(
       options.body = JSON.stringify(formData);
     }
 
-    const isBannerEndpoint =
-      typeof endpoint === "string" && endpoint.startsWith("banners");
+    const endpointPath =
+      typeof endpoint === "string" ? endpoint.split("?")[0] : "";
+    const noStoreEndpointPaths = new Set([
+      "banners",
+      "home-featured-products",
+      "products-by-category",
+      "product-details",
+      "search",
+    ]);
+    const shouldUseNoStore = noStoreEndpointPaths.has(endpointPath);
     const fetchOptions =
       req_method === "GET"
-        ? isBannerEndpoint
+        ? shouldUseNoStore
           ? { ...options, cache: "no-store" }
           : { ...options, next: { revalidate: 60 } }
         : options;

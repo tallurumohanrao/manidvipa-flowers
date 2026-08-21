@@ -4,8 +4,30 @@ namespace App\Traits;
 
 use Illuminate\Http\Request;
 use File,Storage,Image,Str;
+use Illuminate\Validation\ValidationException;
 
 trait StoreImageTrait {
+    private array $allowedImageExtensions = ['jpg', 'jpeg', 'png', 'webp'];
+
+    private function mirrorPublicStorageFile(string $sourcePath, string $relativePath): void
+    {
+        if (!File::exists($sourcePath)) {
+            return;
+        }
+
+        $destinationPath = public_path('storage/' . $relativePath);
+        $destinationDirectory = dirname($destinationPath);
+
+        if (!File::isDirectory($destinationDirectory)) {
+            File::makeDirectory($destinationDirectory, 0755, true);
+        }
+
+        if (File::exists($destinationPath) && realpath($sourcePath) === realpath($destinationPath)) {
+            return;
+        }
+
+        File::copy($sourcePath, $destinationPath);
+    }
 
     /**
      * Does very basic image validity checking and stores it. Redirects back if somethings wrong.
@@ -32,35 +54,47 @@ trait StoreImageTrait {
                 return redirect()->back()->withInput();
             }
             $exp = explode('.',$file->getClientOriginalName());
-            $extension = $request->file($fieldname)->getClientOriginalExtension();
-            $mimeType = $request->file($fieldname)->getClientMimeType();
+            $extension = strtolower($request->file($fieldname)->getClientOriginalExtension());
+            $mimeType = $request->file($fieldname)->getMimeType();
+
+            if (!Str::is('image/*', $mimeType) || !in_array($extension, $this->allowedImageExtensions, true)) {
+                throw ValidationException::withMessages([
+                    $fieldname => 'Only JPG, JPEG, PNG and WEBP images are allowed.',
+                ]);
+            }
+
             if($extension == 'png'){
                 $name = preg_replace("/[^a-zA-Z0-9]+/", "-",$exp['0']).time().'.jpg';
             }else{
                 $name = preg_replace("/[^a-zA-Z0-9]+/", "-",$exp['0']) . time() .'.'. $extension;
             }
-            if(Str::is('image/*',$mimeType) && !in_array($extension,['svg'])){
+            if(Str::is('image/*',$mimeType)){
                 //$name = $exp['0'].time().'.'.$file->getClientOriginalExtension();
                 //$name = $exp['0'].time().'.jpg';
                 #$name = $this->getNewFileName(preg_replace("/[^a-zA-Z0-9]+/", "-",$exp['0']).time(), $file->getClientOriginalExtension(), $directory);
-                if(Image::make($file->getRealPath())->save(storage_path('app/public/'.$directory.'/'.$name), 50)){
+                $storedPath = storage_path('app/public/'.$directory.'/'.$name);
+                if (!File::isDirectory(dirname($storedPath))) {
+                    File::makeDirectory(dirname($storedPath), 0755, true);
+                }
+                if(Image::make($file->getRealPath())->save($storedPath, 50)){
+                    $this->mirrorPublicStorageFile($storedPath, $directory.'/'.$name);
+
                     if(!in_array($directory,['banners'])){
                         $sizes = ['100X100','280X280'];
                         foreach($sizes as $size) :
                             $destinationPathThumbnail = storage_path('app/public/'.$directory.'/'.$size);
+                            if (!File::isDirectory($destinationPathThumbnail)) {
+                                File::makeDirectory($destinationPathThumbnail, 0755, true);
+                            }
                             $img = Image::make($file->path());
                             $hw = explode('X',$size);
                             $img->resize($hw[0], $hw[1], function ($constraint) {
                                 $constraint->aspectRatio();
                             })->save($destinationPathThumbnail.'/'.$name);
+                            $this->mirrorPublicStorageFile($destinationPathThumbnail.'/'.$name, $directory.'/'.$size.'/'.$name);
                         endforeach;
                     }
                 //if($file->storeAs( $directory , $name , 'public' )){
-                    Storage::delete('public/'.$directory.'/'.$old_file);
-                    return $name;
-                }
-            }else{
-                if($file->storeAs( $directory , $name , 'public' )){
                     Storage::delete('public/'.$directory.'/'.$old_file);
                     return $name;
                 }
@@ -89,7 +123,16 @@ trait StoreImageTrait {
 
     public function verifyAndStoreMultipleImage( $file, $fieldname = 'image', $directory = 'unknown' ) {
         $exp = explode('.',$file->getClientOriginalName());
-        $name = $this->getNewFileName($exp['0'], $file->getClientOriginalExtension(), $directory);
+        $extension = strtolower($file->getClientOriginalExtension());
+        $mimeType = $file->getMimeType();
+
+        if (!Str::is('image/*', $mimeType) || !in_array($extension, $this->allowedImageExtensions, true)) {
+            throw ValidationException::withMessages([
+                $fieldname => 'Only JPG, JPEG, PNG and WEBP images are allowed.',
+            ]);
+        }
+
+        $name = $this->getNewFileName($exp['0'], $extension, $directory);
         if($file->storeAs( $directory , $name , 'public' )){
             return $name;
         }

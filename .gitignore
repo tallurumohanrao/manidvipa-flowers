@@ -23,6 +23,12 @@
 # misc
 .DS_Store
 *.pem
+*.zip
+*.bak
+*.backup
+* copy*
+.codex/
+admin/_legacy_backups/
 
 # debug
 npm-debug.log*

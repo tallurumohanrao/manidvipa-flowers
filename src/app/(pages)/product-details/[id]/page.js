@@ -5,6 +5,12 @@ import {
   fetchListingData,
   fetchSiteSettingsData,
 } from "../../../../../hook/userCookie";
+import {
+  buildBreadcrumbSchema,
+  buildProductMetadata,
+  buildProductSchema,
+  jsonLdScriptContent,
+} from "@/lib/seo";
 
 const fetchAboutData = async (query, userToken) => {
   try {
@@ -77,6 +83,19 @@ function buildFallbackProductDetails(slug) {
   };
 }
 
+export async function generateMetadata({ params }) {
+  const { id } = await params;
+  let productDetails = await fetchAboutData(
+    `product-details?product_slug=${encodeURIComponent(id)}`
+  );
+
+  if (!productDetails?.data) {
+    productDetails = buildFallbackProductDetails(id);
+  }
+
+  return buildProductMetadata(productDetails, id);
+}
+
 export default async function Page({ params }) {
   const { id } = await params;
 
@@ -96,7 +115,7 @@ export default async function Page({ params }) {
   }
 
   let produtsDetails = await fetchAboutData(
-    `product-details?product_slug=${id}`,
+    `product-details?product_slug=${encodeURIComponent(id)}`,
     userToken
   );
 
@@ -108,14 +127,33 @@ export default async function Page({ params }) {
     ? await fetchAboutData(`reviews?product_id=${produtsDetails.data.id}`, userToken)
     : { success: true, data: [] };
   const siteSettings = await fetchSiteSettingsData(userToken);
+  const productTitle = produtsDetails?.data?.title || titleFromSlug(id);
+  const productSchema = buildProductSchema(produtsDetails, id);
+  const breadcrumbSchema = buildBreadcrumbSchema([
+    { name: "Home", path: "/" },
+    { name: "Flowers", path: "/flowers" },
+    { name: productTitle, path: `/product-details/${id}` },
+  ]);
 
   return (
-    <ProductDetails
-      userToken={userToken}
-      guestSession={guestSession}
-      produtsDetails={produtsDetails}
-      produtsReviews={produtsReviews}
-      siteSettings={siteSettings}
-    />
+    <>
+      {productSchema ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: jsonLdScriptContent(productSchema) }}
+        />
+      ) : null}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLdScriptContent(breadcrumbSchema) }}
+      />
+      <ProductDetails
+        userToken={userToken}
+        guestSession={guestSession}
+        produtsDetails={produtsDetails}
+        produtsReviews={produtsReviews}
+        siteSettings={siteSettings}
+      />
+    </>
   );
 }

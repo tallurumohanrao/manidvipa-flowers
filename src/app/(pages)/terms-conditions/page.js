@@ -2,6 +2,14 @@ import React from "react";
 import styles from "@/scss/pages/about.module.scss";
 import Banner from "@/components/banner";
 import { fetchListingData } from "../../../../hook/userCookie";
+import { buildMetadata } from "@/lib/seo";
+
+export const metadata = buildMetadata({
+  title: "Terms and Conditions | Manidvipa Flowers",
+  description:
+    "Read Manidvipa Flowers terms and conditions for orders, delivery, payments and website usage.",
+  path: "/terms-conditions",
+});
 
 const fetchAboutData = async () => {
   try {
@@ -20,7 +28,7 @@ export default async function About() {
 
   return (
     <>
-      <Banner title="About Us" />
+      <Banner title="Terms and Conditions" />
       <section className={styles.about}>
         <div className="container">
           <div className="row">

@@ -26,6 +26,8 @@ class StoreProductRequest extends FormRequest
         $id = request('product');
         return [
             'title' => "required|unique:products,title,{$id}",
+            'product_category' => 'required|array|min:1',
+            'product_category.*' => 'integer|exists:categories,id',
             'status' => 'required',
         ];
     }
@@ -34,6 +36,7 @@ class StoreProductRequest extends FormRequest
     {
         return [
             'title.required' => 'Title is required',
+            'product_category.required' => 'Select at least one category',
             'status.required' => 'Status is required',
         ];
     }

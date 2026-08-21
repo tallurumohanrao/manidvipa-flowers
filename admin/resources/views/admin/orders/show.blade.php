@@ -66,6 +66,20 @@ if($shippingaddress){
                                 @endif
                             </strong>
                         </address>
+                        <p>
+                            <strong class="muted">Delivery Information</strong>
+                            <button type="button" class="btn-primary" data-toggle="modal" data-target="#DeliveryPreferenceModalCenter">Change</button>
+                        </p>
+                        <address>
+                            Delivery Date:
+                            <strong id="DeliveryDateHtml">
+                                {{ $order->serve_date ? date('d/m/Y',strtotime($order->serve_date)) : 'NILL' }}
+                            </strong><br />
+                            Time Slot:
+                            <strong id="DeliverySlotHtml">
+                                {{ $deliveryTimeSlotLabel ?: 'To be confirmed' }}
+                            </strong>
+                        </address>
                     </div>
                     <div class="col-md-3 col-sm-6">
                         @if($billing)
@@ -165,6 +179,9 @@ if($shippingaddress){
                                 @if(in_array($orderlineitem->title,['Sub Total','Total']))
                                 <td colspan="6" class="text-right border-right-0"><b>{!! $orderlineitem->title !!} : </b></td>
                                 <td class="text-right border-left-0"><b>{!! currency($orderlineitem->amount) !!}</b></td>
+                                @elseif(stripos($orderlineitem->title,'Delivery Time Slot:') === 0)
+                                <td colspan="6" class="text-right border-right-0" id="DeliveryLineItemTitle">{!! $orderlineitem->title !!} : </td>
+                                <td class="text-right border-left-0">{!! currency($orderlineitem->amount) !!}</td>
                                 @else
                                 <td colspan="6" class="text-right border-right-0">{!! $orderlineitem->title !!} : </td>
                                 <td class="text-right border-left-0">{!! currency($orderlineitem->amount) !!}</td>
@@ -278,6 +295,41 @@ if($shippingaddress){
       </div>
     </div>
   </div>
+
+  <div class="modal fade" id="DeliveryPreferenceModalCenter" tabindex="-1" role="dialog" aria-labelledby="deliveryPreferenceModalCenterTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Delivery Date & Time Slot</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        </div>
+        <div class="modal-body">
+          <form action="{{ route('admin.'.$module.'.updateDeliveryPreference', ['id'=>$order->id]) }}" method="POST" id="DeliveryPreferenceForm">
+            @csrf
+            @method('PATCH')
+            <label class="col-form-label" for="serve_date">Delivery Date</label>
+            <input type="date" name="serve_date" id="serve_date" class="form-control" value="{{ $order->serve_date ? date('Y-m-d',strtotime($order->serve_date)) : date('Y-m-d') }}">
+
+            <label class="col-form-label" for="serve_time_slot">Delivery Time Slot</label>
+            <input type="text" name="serve_time_slot" id="serve_time_slot" class="form-control" list="deliveryTimeSlotOptions" value="{{ $deliveryTimeSlotLabel ?: '6 AM - 9 AM' }}" placeholder="Example: 6 AM - 9 AM">
+            <datalist id="deliveryTimeSlotOptions">
+              <option value="6 AM - 9 AM">
+              <option value="9 AM - 12 PM">
+              <option value="12 PM - 3 PM">
+              <option value="3 PM - 6 PM">
+              <option value="After 6 PM">
+              <option value="Early morning - confirm on call">
+            </datalist>
+            <small class="text-muted">You can select a suggestion or type a custom slot.</small>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+          <button type="submit" form="DeliveryPreferenceForm" class="btn btn-primary">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
 @stop
 
 
@@ -347,6 +399,39 @@ $("#PaymentForm").submit(function () {
                 $('#PaymentHtml').html(response.html);
                 location.reload(true);
             }
+        }
+    });
+});
+
+$("#DeliveryPreferenceForm").submit(function (event) {
+    event.preventDefault();
+    $.ajax({
+        url: $(this).attr('action'),
+        method: "POST",
+        data: new FormData(this),
+        cache:false,
+        contentType: false,
+        processData: false,
+        success: function (response) {
+            if(response.success == true){
+                $("#DeliveryPreferenceModalCenter").modal('hide');
+                $('#DeliveryDateHtml').html(response.date_html);
+                $('#DeliverySlotHtml').html(response.slot_html);
+                if($('#DeliveryLineItemTitle').length){
+                    $('#DeliveryLineItemTitle').html(response.lineitem_html + ' : ');
+                }
+                Message.add(response.message, {type: 'success'});
+                location.reload(true);
+            }else{
+                Message.add(response.message, {type: 'error'});
+            }
+        },
+        error: function (response) {
+            let message = 'Unable to update delivery date and time slot.';
+            if(response.responseJSON && response.responseJSON.message){
+                message = response.responseJSON.message;
+            }
+            Message.add(message, {type: 'error'});
         }
     });
 });
