@@ -9,20 +9,9 @@ const IMG_URL = process.env.NEXT_PUBLIC_IMG_URL;
 const Orders = ({ handleOrderActive, userToken }) => {
   const [orders, setOrders] = useState([]);
 
-  const handleOrderCancel = async (id) => {
-    try {
-      const response = await fetchListingData(
-        "POST",
-        `cancel-order?order_id=${id}`,
-        userToken
-      );
-      if (response.success) {
-        alert("Your Order is Cancelled");
-      }
-    } catch (error) {
-      console.error("Error canceling order:", error);
-    }
-  };
+  const isCancelledOrder = (order) =>
+    Number(order?.order_status_id) === 5 ||
+    order?.order_status_name?.toLowerCase() === "cancelled";
 
   const fetchOrders = useCallback(async () => {
     if (userToken) {
@@ -34,6 +23,25 @@ const Orders = ({ handleOrderActive, userToken }) => {
       }
     }
   }, [userToken]);
+
+  const handleOrderCancel = async (id) => {
+    try {
+      const response = await fetchListingData(
+        "POST",
+        `cancel-order?order_id=${id}`,
+        userToken
+      );
+      if (response.success) {
+        alert(response.message || "Your order is cancelled.");
+        fetchOrders();
+      } else {
+        alert(response?.message || "Unable to cancel this order.");
+      }
+    } catch (error) {
+      console.error("Error canceling order:", error);
+      alert("Unable to cancel this order.");
+    }
+  };
 
   useEffect(() => {
     fetchOrders();
@@ -65,9 +73,15 @@ const Orders = ({ handleOrderActive, userToken }) => {
                       {/* <ShipToDropdown shipTo={order.shipTo} /> */}
                       <div>
                         <p>
-                          <strong>Status:</strong>
+                          <strong>Order Status:</strong>
                         </p>
-                        <p>{order.shipping_status}</p>
+                        <p>{order.order_status_name || "N/A"}</p>
+                      </div>
+                      <div>
+                        <p>
+                          <strong>Delivery Status:</strong>
+                        </p>
+                        <p>{order.shipping_status || "N/A"}</p>
                       </div>
                     </div>
                     <div className="col-sm-3 text-md-end">
@@ -82,7 +96,7 @@ const Orders = ({ handleOrderActive, userToken }) => {
                       </button>
                       <Modal
                         buttonClass={
-                          order.order_status_id === 5
+                          isCancelledOrder(order)
                             ? `${styles.custom_display}`
                             : `tyrian-purple ${styles.view_item_button}`
                         }
@@ -90,7 +104,7 @@ const Orders = ({ handleOrderActive, userToken }) => {
                         onConfirm={() => handleOrderCancel(order.order_id)}
                       >
                         <span style={{ color: "black" }}>
-                          Are you sure you want to delete this Order?
+                          Are you sure you want to cancel this order?
                         </span>
                       </Modal>
                       {/* {order.invoice && (

@@ -2,14 +2,16 @@ import React from "react";
 import styles from "@/scss/pages/testimonials.module.scss";
 import Banner from "@/components/banner";
 import Image from "next/image";
-import { buildMetadata } from "@/lib/seo";
+import { buildMetadataWithAdminSeo } from "@/lib/metadata";
 
-export const metadata = buildMetadata({
-  title: "Customer Testimonials | Manidvipa Flowers Hyderabad",
-  description:
-    "Read customer testimonials for Manidvipa Flowers fresh flowers, puja flowers, garlands and Hyderabad flower delivery service.",
-  path: "/testimonials",
-});
+export async function generateMetadata() {
+  return buildMetadataWithAdminSeo({
+    title: "Customer Testimonials | Manidvipa Flowers Hyderabad",
+    description:
+      "Read customer testimonials for Manidvipa Flowers fresh flowers, puja flowers, garlands and Hyderabad flower delivery service.",
+    path: "/testimonials",
+  });
+}
 
 export default function Page() {
   return (

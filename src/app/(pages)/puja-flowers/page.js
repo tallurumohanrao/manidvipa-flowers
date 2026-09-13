@@ -1,13 +1,16 @@
 import React from "react";
 import FlowerCategoryPage from "@/components/pages/FlowerCategoryPage";
 import {
-  buildPageMetadata,
+  getPageMetadataOptions,
   productCategoryPageConfigs,
 } from "@/data/storefrontNavigation";
+import { buildMetadataWithAdminSeo } from "@/lib/metadata";
 
 const pageConfig = productCategoryPageConfigs.pujaFlowers;
 
-export const metadata = buildPageMetadata(pageConfig);
+export async function generateMetadata() {
+  return buildMetadataWithAdminSeo(getPageMetadataOptions(pageConfig));
+}
 
 export default async function PujaFlowersPage() {
   return <FlowerCategoryPage config={pageConfig} />;

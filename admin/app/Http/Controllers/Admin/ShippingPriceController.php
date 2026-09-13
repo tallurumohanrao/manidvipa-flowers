@@ -36,6 +36,7 @@ class ShippingPriceController extends Controller
      */
     public function create()
     {
+        abort_if(Gate::denies($this->module.'_create'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         return view('admin.'.$this->module.'.create', ['row' => []]);
     }
 
@@ -47,7 +48,8 @@ class ShippingPriceController extends Controller
      */
     public function store(StoreShippingPriceRequest $request)
     {
-        $formInput = $request->except('_token','FormButton');
+        abort_if(Gate::denies($this->module.'_create'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
+        $formInput = $this->formInput($request);
         $formInput['name'] = Str::slug($request->title,'');
         $formInput['created_at'] = date('Y-m-d H:i:s');
         $id = DB::table('shipping_prices')->insertGetId($formInput);
@@ -73,6 +75,7 @@ class ShippingPriceController extends Controller
      */
     public function edit($id)
     {
+        abort_if(Gate::denies($this->module.'_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         $row = DB::table('shipping_prices')->where('id',$id)->first();
         return view('admin.'.$this->module.'.edit', compact('row'));
     }
@@ -86,7 +89,8 @@ class ShippingPriceController extends Controller
      */
     public function update(StoreShippingPriceRequest $request, $id)
     {
-        $formInput = $request->except('_method','_token','FormButton');
+        abort_if(Gate::denies($this->module.'_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
+        $formInput = $this->formInput($request);
         $formInput['name'] = Str::slug($request->title,'');
         $formInput['updated_at'] = date('Y-m-d H:i:s');
         DB::table('shipping_prices')->where('id',$id)->update($formInput);
@@ -95,7 +99,7 @@ class ShippingPriceController extends Controller
 
     public function updateStatus(Request $request, $id)
     {
-        abort_if(Gate::denies($this->module.'_create'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
+        abort_if(Gate::denies($this->module.'_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         if($request->ajax() && $request->isMethod('PATCH')){
             if(DB::table('shipping_prices')->where('id',$id)->update(['status'=>$request->status])){
                 $status=$request->status==1?'enabled':'disabled';
@@ -112,6 +116,7 @@ class ShippingPriceController extends Controller
      */
     public function destroy($id)
     {
+        abort_if(Gate::denies($this->module.'_delete'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         if(DB::table('shipping_prices')->where('id',$id)->delete() == 1)
         return response()->json(['success'=>true, 'message' => 'Deleted successfully.']);
         else
@@ -119,6 +124,7 @@ class ShippingPriceController extends Controller
     }
     public function massDestroy(Request $request)
     {
+        abort_if(Gate::denies($this->module.'_delete'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         $ids = explode(',',$request->ids);
         foreach($ids as $id) :
             $result = DB::table('shipping_prices')->where('id',$id)->delete();
@@ -128,6 +134,27 @@ class ShippingPriceController extends Controller
         return response()->json(['success'=>true, 'message' => 'Deleted successfully.']);
         else
         return response()->json(['success'=>false, 'message' => 'An unexpected error has occurred.']);
+    }
+
+    private function formInput(StoreShippingPriceRequest $request): array
+    {
+        $formInput = $request->only([
+            'title',
+            'from_km',
+            'to_km',
+            'min_order_amount',
+            'max_order_amount',
+            'shipping_amount',
+            'status',
+        ]);
+
+        foreach(['from_km','to_km','min_order_amount','max_order_amount'] as $field){
+            if(!array_key_exists($field, $formInput) || $formInput[$field] === ''){
+                $formInput[$field] = null;
+            }
+        }
+
+        return $formInput;
     }
 
 }

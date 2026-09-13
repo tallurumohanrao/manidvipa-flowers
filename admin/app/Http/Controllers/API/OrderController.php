@@ -9,10 +9,11 @@ use App\Http\Controllers\API\BaseController as BaseController;
 
 use Auth,Validator,DB,Str;
 use App\Traits\GoogleDistanceTrait;
+use App\Traits\ShippingChargeTrait;
 
 class OrderController extends BaseController
 {
-    use GoogleDistanceTrait;
+    use GoogleDistanceTrait,ShippingChargeTrait;
 
     public function storeWhatsAppOrder(Request $request)
     {
@@ -47,9 +48,19 @@ class OrderController extends BaseController
             : date('Y-m-d', strtotime('+1 day'));
         $serveTimeSlotLabel = $request->serve_time_slot_label ?: $request->serve_time_slot;
         $order_encrypt_key = Str::random(40);
-        $statusId = DB::table('order_statuses')->where('id', '<>', 1)->orderBy('id')->value('id')
+        $statusId = DB::table('order_statuses')->whereRaw('LOWER(name) = ?', ['pending'])->value('id')
+            ?: DB::table('order_statuses')->where('id', '<>', 1)->orderBy('id')->value('id')
             ?: DB::table('order_statuses')->orderBy('id')->value('id')
             ?: 1;
+        $pendingShippingStatusId = $this->statusIdByName('shipping_statuses', 'Pending', 1);
+        $distance = null;
+        $shippingResult = null;
+        if($request->filled('address_id')){
+            $distanceResponse = $this->getDistance($request->address_id);
+            if($distanceResponse['status'] === 'success'){
+                $distance = $distanceResponse['distance'];
+            }
+        }
 
         DB::beginTransaction();
         try {
@@ -78,17 +89,18 @@ class OrderController extends BaseController
                     continue;
                 }
 
-                $weight = DB::table('product_weights')->where(['product_id'=>$value->product_id,'id'=>$value->weight_id])->first();
+                $weight = DB::table('product_weights')->where(['product_id'=>$value->product_id,'id'=>$value->weight_id])->lockForUpdate()->first();
                 if(!$weight){
                     continue;
                 }
 
                 $quantity = max(1, (int) $value->quantity);
-                if($weight->stock && ($weight->qty < $quantity)){
+                $stockError = $this->reserveProductWeight($weight, $quantity, $product->title, $now);
+                if($stockError){
                     DB::rollBack();
                     return response()->json([
                         'success'=>false,
-                        'message'=>$product->title.' stock not available. Available stock is ('.$weight->qty.').'
+                        'message'=>$stockError
                     ], 200);
                 }
 
@@ -140,9 +152,13 @@ class OrderController extends BaseController
                 }
             }
 
+            if($distance !== null){
+                $shippingResult = $this->calculateShippingCharge($distance, (float) $subTotal);
+            }
+
             $vat = config('VAT_AMOUNT');
             $vat_amount = @$vat ? floor(($subTotal * $vat)/100) : 0;
-            $shipping_amount = 0;
+            $shipping_amount = $shippingResult && $shippingResult['available'] ? $shippingResult['amount'] : 0;
             $total = $subTotal + $shipping_amount + $coupon_discount + $vat_amount;
 
             DB::table('orders')->where('id',$orderId)->update(['sub_total'=>$subTotal,'amount'=>$total,'updated_at'=>$now]);
@@ -150,7 +166,12 @@ class OrderController extends BaseController
             if($couponTitle){
                 DB::table('order_lineitems')->insert(['order_id' => $orderId, 'title' =>$couponTitle, 'amount' => $coupon_discount, 'weight' => 2]);
             }
-            DB::table('order_lineitems')->insert(['order_id' => $orderId, 'title' => 'Delivery Charges', 'amount' => $shipping_amount, 'weight' => 3]);
+            DB::table('order_lineitems')->insert([
+                'order_id' => $orderId,
+                'title' => $shippingResult && $shippingResult['available'] ? $shippingResult['title'] : 'Delivery Charges',
+                'amount' => $shipping_amount,
+                'weight' => 3,
+            ]);
             if(@$vat){
                 DB::table('order_lineitems')->insert(['order_id' => $orderId, 'title' => 'GST', 'amount' =>$vat_amount , 'weight' => 4]);
             }
@@ -161,11 +182,11 @@ class OrderController extends BaseController
             DB::table('order_lineitems')->insert(['order_id' => $orderId, 'title' => 'Total', 'amount' => $total, 'weight' => 9]);
 
             DB::table('order_shippings')->insert([
-                'name' => 'Confirm on WhatsApp',
+                'name' => $shippingResult && $shippingResult['available'] ? $shippingResult['price_title'] : 'Confirm on WhatsApp',
                 'shipping_type' => null,
                 'amount' => $shipping_amount,
                 'order_id' => $orderId,
-                'shipping_status_id' => 1,
+                'shipping_status_id' => $pendingShippingStatusId,
                 'created_at' => $now,
             ]);
 
@@ -232,6 +253,7 @@ class OrderController extends BaseController
     public function store(Request $request)
     {
         $user_id = null;
+        $user = null;
         if(auth('sanctum')->check()){
             $user = auth('sanctum')->user();
             $user_id = $user->id;
@@ -258,136 +280,167 @@ class OrderController extends BaseController
         if($carts == null OR $carts->count() < 1){
             return response()->json(['success'=>false,'message'=>'Cart empty.'], 200);
         }
-        
+
         $vat = config('VAT_AMOUNT');
-        $vat_amount = null;
-        
-        // $user = DB::table('users')->select('id','name','email','phone','status')->where('id',$user_id)->first();
-        // if($user == null OR empty($user)){
-        //     return response()->json(['success'=>false,'message'=>'Customer does not existed with requested input.'], 422);
-        // }
-        $order_encrypt_key = Str::random(40);
-        $create['order_encrypt_key'] = $order_encrypt_key;
-        $create['user_id'] = $user_id;
-        $create['name'] = $request->name ?? $user->name;
-        $create['email'] = $request->email ?? $user->email;
-        $create['contact_number'] = $request->contact_number ?? $user->contact_number;
-        $create['serve_date'] = date('Y-m-d',strtotime($request->serve_date));
-        $create['order_status_id'] = 1;
-        $create['created_at'] = date('Y-m-d H:i:s');
-        $orderId = DB::table('orders')->insertGetId($create);
-        if(!$orderId){
-            return response()->json(['success'=>false,'message'=>'Server error.'], 500);
-        }
-        $products = null;
-        $subTotal = 0;
-        foreach($carts as $value) :
-            $product = DB::table('products')->where('id',$value->product_id)->first(); 
-            if(!$product){
-                continue;
-            }
-            $weight = DB::table('product_weights')->where(['product_id'=>$value->product_id,'id'=>$value->weight_id])->first(); 
-            if(!$weight){
-                continue;
-            }            
-            DB::table('order_products')->insert(['order_id'=>$orderId,'product_id'=>$product->id,'weight_id'=>$weight->id,'product_title'=>$product->title,'weight'=>$weight->name,'sku'=>$product->sku,'amount'=> $value->quantity * $weight->sell_price,'sell_price'=> $weight->sell_price,'list_price'=> $weight->list_price,'cost_price'=> $weight->cost_price,'quantity'=>$value->quantity,'created_at' => date('Y-m-d H:i:s')]);
-            $subTotal += ( $weight->sell_price * $value->quantity );
-        endforeach;
-        
-        $cart_coupon = DB::table('cart_line_items')->where(['cart_session'=>$cart_session,'value_name'=>'coupon'])->first(); 
-        $coupon_discount = 0;
-        if(@$cart_coupon){
-            $coupon_row = DB::table('coupons')->where('id',$cart_coupon->value_id)->first(); 
-            $discount_price = $coupon_row->discount;
-            if ($coupon_row->is_percentage_discount) {
-                $coupon_discount = ($subTotal * $discount_price) / 100;
-            }else{
-                $coupon_discount = $discount_price;
-            }
-            $coupon_discount = $coupon_discount * - 1;
-        }
-        
-        //$shipping = DB::table('shipping_prices')->where('min_order_amount','<=',$subTotal)->where('max_order_amount','>=',$subTotal)->whereStatus(1)->first();
         $shipping = null;
         $distance = null;
+        $shippingResult = null;
         $shipping_amount = 0;
         if($request->filled('address_id')){
             $distance_response = $this->getDistance($address_id);
             if($distance_response['status'] =='success'){
                 $distance = $distance_response['distance'];
-                $shipping = DB::table('shipping_prices')->select('title','shipping_amount')->where('from_km','<=',$distance)->where('to_km','>=',$distance)->whereStatus(1)->first();
-            }
-        }
-        if(@$shipping){
-            $shipping_amount = $shipping->shipping_amount;
-        }
-        
-        if(@$vat){
-            $vat_amount = floor(($subTotal * $vat)/100);
-        }
-        $total = $subTotal + $shipping_amount + $coupon_discount + $vat_amount;
-        DB::table('orders')->where('id',$orderId)->update(['sub_total'=>$subTotal,'amount'=>$total]);
-        DB::table('order_lineitems')->insert(['order_id' => $orderId, 'title' => 'Sub Total', 'amount' => $subTotal, 'weight' => 1]);
-        if(@$cart_coupon){
-            DB::table('order_lineitems')->insert(['order_id' => $orderId, 'title' =>"Coupon (".$coupon_row->coupon_code.")", 'amount' => $coupon_discount, 'weight' => 2]);
-        }
-        if(@$shipping_amount){
-            DB::table('order_lineitems')->insert(['order_id' => $orderId, 'title' => 'Delivery Charges', 'amount' => $shipping_amount, 'weight' => 3]);
-        }
-        if(@$vat){
-            DB::table('order_lineitems')->insert(['order_id' => $orderId, 'title' => 'GST', 'amount' =>$vat_amount , 'weight' => 4]);
-        }
-        $serve_time_slot_label = $request->serve_time_slot_label ?: $request->serve_time_slot;
-        if(!empty($serve_time_slot_label)){
-            DB::table('order_lineitems')->insert(['order_id' => $orderId, 'title' => 'Delivery Time Slot: '.trim($serve_time_slot_label), 'amount' => 0, 'weight' => 5]);
-        }
-        DB::table('order_lineitems')->insert(['order_id' => $orderId, 'title' => 'Total', 'amount' => $total, 'weight' => 9]);
-        $shippingStore['name'] = @$shipping?->title;
-        $shippingStore['shipping_type'] =  null;
-        $shippingStore['amount'] = $shipping_amount;
-        $shippingStore['order_id'] = $orderId;
-        $shippingStore['shipping_status_id'] = 1;
-        $shippingStore['created_at'] = date('Y-m-d H:i:s');
-        DB::table('order_shippings')->insert($shippingStore);
-
-        $address = DB::table('addresses')->where(['user_id'=>$user_id,'id'=>$address_id])->first();
-        if($address){
-            $shipping_address['order_id'] = $orderId;
-            $shipping_address['full_name'] = $address->full_name;
-            $shipping_address['email'] = $address->email;
-            $shipping_address['phone_number'] = $address->phone_number;
-            $shipping_address['address_line1'] = $address->address_line1;
-            $shipping_address['address_line2'] = $address->address_line2;
-            $shipping_address['landmark'] = $address->landmark;
-            $shipping_address['city'] = $address->city;
-            $shipping_address['state'] = $address->state;
-            $shipping_address['pincode'] = $address->pincode;
-            $shipping_address['address_type'] = $address->address_type;
-            $shipping_address['created_at'] = date('Y-m-d H:i:s');
-            DB::table('order_shipping_addresses')->insert($shipping_address);
-        }
-        
-        $this->clear($cart_session,$user_id);
-        if($request->payment_method == 'cod'){
-            DB::table('orders')->where('id',$orderId)->update(['order_status_id'=>2,'updated_at'=>date('Y-m-d H:i:s')]);
-             $payInfo = [
-                   'transaction_id' => null,
-                   'order_id' => $orderId,
-                   'payment_amount' => null,
-                   'payment_method' => 'Cash On Delivery',
-                   'payment_status' => 'Pending',
-                   'created_at' => date('Y-m-d H:i:s')
-                ];
-
-            $result = DB::table('order_payments')->insert($payInfo);
-        
-            if($orderId){
-                return response()->json(['success' => true,'data' => ['order_id'=>$orderId,'order_encrypt_key'=>$order_encrypt_key,'payment_method'=>$request->payment_method],'message'=>'Order placed successfully.'], 200);
             }else{
-                return response()->json(['success' => false,'message'=>'Unable to place the order, please contact administrator.'], 422);
+                return response()->json([
+                    'success'=>false,
+                    'message'=>'Unable to calculate delivery charges for the selected address. Please check the address or contact support.',
+                ], 422);
             }
-        }else{
+        }
+
+        // $user = DB::table('users')->select('id','name','email','phone','status')->where('id',$user_id)->first();
+        // if($user == null OR empty($user)){
+        //     return response()->json(['success'=>false,'message'=>'Customer does not existed with requested input.'], 422);
+        // }
+        $order_encrypt_key = Str::random(40);
+
+        DB::beginTransaction();
+        try {
+            $now = date('Y-m-d H:i:s');
+            $create['order_encrypt_key'] = $order_encrypt_key;
+            $create['user_id'] = $user_id;
+            $create['name'] = $request->name ?? ($user->name ?? '');
+            $create['email'] = $request->email ?? ($user->email ?? '');
+            $create['contact_number'] = $request->contact_number ?? ($user->contact_number ?? '');
+            $create['serve_date'] = date('Y-m-d',strtotime($request->serve_date));
+            $create['order_status_id'] = $this->statusIdByName('order_statuses', 'Checkout', 1);
+            $create['created_at'] = $now;
+            $orderId = DB::table('orders')->insertGetId($create);
+            if(!$orderId){
+                DB::rollBack();
+                return response()->json(['success'=>false,'message'=>'Server error.'], 500);
+            }
+
+            $orderProducts = [];
+            $subTotal = 0;
+            foreach($carts as $value) :
+                $product = DB::table('products')->where('id',$value->product_id)->first();
+                if(!$product){
+                    continue;
+                }
+                $weight = DB::table('product_weights')->where(['product_id'=>$value->product_id,'id'=>$value->weight_id])->lockForUpdate()->first();
+                if(!$weight){
+                    continue;
+                }
+
+                $quantity = max(1, (int) $value->quantity);
+                $stockError = $this->reserveProductWeight($weight, $quantity, $product->title, $now);
+                if($stockError){
+                    DB::rollBack();
+                    return response()->json(['success'=>false,'message'=>$stockError], 200);
+                }
+
+                DB::table('order_products')->insert(['order_id'=>$orderId,'product_id'=>$product->id,'weight_id'=>$weight->id,'product_title'=>$product->title,'weight'=>$weight->name,'sku'=>$product->sku,'amount'=> $quantity * $weight->sell_price,'sell_price'=> $weight->sell_price,'list_price'=> $weight->list_price,'cost_price'=> $weight->cost_price,'quantity'=>$quantity,'created_at' => $now]);
+                $subTotal += ( $weight->sell_price * $quantity );
+                $orderProducts[] = $product->id;
+            endforeach;
+
+            if(count($orderProducts) < 1){
+                DB::rollBack();
+                return response()->json(['success'=>false,'message'=>'Cart products are not available.'], 200);
+            }
+
+            $cart_coupon = DB::table('cart_line_items')->where(['cart_session'=>$cart_session,'value_name'=>'coupon'])->first();
+            $coupon_discount = 0;
+            $coupon_row = null;
+            if(@$cart_coupon){
+                $coupon_row = DB::table('coupons')->where('id',$cart_coupon->value_id)->first();
+                if($coupon_row){
+                    $discount_price = $coupon_row->discount;
+                    if ($coupon_row->is_percentage_discount) {
+                        $coupon_discount = ($subTotal * $discount_price) / 100;
+                    }else{
+                        $coupon_discount = $discount_price;
+                    }
+                    $coupon_discount = $coupon_discount * - 1;
+                }
+            }
+
+            $shippingResult = $this->calculateShippingCharge($distance === null ? null : (float) $distance, (float) $subTotal);
+            if(!$shippingResult['available']){
+                DB::rollBack();
+                return response()->json([
+                    'success'=>false,
+                    'message'=>$shippingResult['message'],
+                    'distance'=>$distance,
+                ], 422);
+            }
+            $shipping_amount = $shippingResult['amount'];
+
+            $vat_amount = @$vat ? floor(($subTotal * $vat)/100) : 0;
+            $total = $subTotal + $shipping_amount + $coupon_discount + $vat_amount;
+            DB::table('orders')->where('id',$orderId)->update(['sub_total'=>$subTotal,'amount'=>$total,'updated_at'=>$now]);
+            DB::table('order_lineitems')->insert(['order_id' => $orderId, 'title' => 'Sub Total', 'amount' => $subTotal, 'weight' => 1]);
+            if($coupon_row){
+                DB::table('order_lineitems')->insert(['order_id' => $orderId, 'title' =>"Coupon (".$coupon_row->coupon_code.")", 'amount' => $coupon_discount, 'weight' => 2]);
+            }
+            DB::table('order_lineitems')->insert(['order_id' => $orderId, 'title' => $shippingResult['title'], 'amount' => $shipping_amount, 'weight' => 3]);
+            if(@$vat){
+                DB::table('order_lineitems')->insert(['order_id' => $orderId, 'title' => 'GST', 'amount' =>$vat_amount , 'weight' => 4]);
+            }
+            $serve_time_slot_label = $request->serve_time_slot_label ?: $request->serve_time_slot;
+            if(!empty($serve_time_slot_label)){
+                DB::table('order_lineitems')->insert(['order_id' => $orderId, 'title' => 'Delivery Time Slot: '.trim($serve_time_slot_label), 'amount' => 0, 'weight' => 5]);
+            }
+            DB::table('order_lineitems')->insert(['order_id' => $orderId, 'title' => 'Total', 'amount' => $total, 'weight' => 9]);
+            $shippingStore['name'] = $shippingResult['price_title'];
+            $shippingStore['shipping_type'] =  null;
+            $shippingStore['amount'] = $shipping_amount;
+            $shippingStore['order_id'] = $orderId;
+            $shippingStore['shipping_status_id'] = $this->statusIdByName('shipping_statuses', 'Pending', 1);
+            $shippingStore['created_at'] = $now;
+            DB::table('order_shippings')->insert($shippingStore);
+
+            $address = DB::table('addresses')->where(['user_id'=>$user_id,'id'=>$address_id])->first();
+            if($address){
+                $shipping_address['order_id'] = $orderId;
+                $shipping_address['full_name'] = $address->full_name;
+                $shipping_address['email'] = $address->email;
+                $shipping_address['phone_number'] = $address->phone_number;
+                $shipping_address['address_line1'] = $address->address_line1;
+                $shipping_address['address_line2'] = $address->address_line2;
+                $shipping_address['landmark'] = $address->landmark;
+                $shipping_address['city'] = $address->city;
+                $shipping_address['state'] = $address->state;
+                $shipping_address['pincode'] = $address->pincode;
+                $shipping_address['address_type'] = $address->address_type;
+                $shipping_address['created_at'] = $now;
+                DB::table('order_shipping_addresses')->insert($shipping_address);
+            }
+
+            $this->clear($cart_session,$user_id);
+            if($request->payment_method == 'cod'){
+                DB::table('orders')->where('id',$orderId)->update(['order_status_id'=>$this->statusIdByName('order_statuses', 'Pending', 2),'updated_at'=>$now]);
+                 $payInfo = [
+                       'transaction_id' => null,
+                       'order_id' => $orderId,
+                       'payment_amount' => null,
+                       'payment_method' => 'Cash On Delivery',
+                       'payment_status' => 'Pending',
+                       'created_at' => $now
+                    ];
+
+                DB::table('order_payments')->insert($payInfo);
+                DB::commit();
+                return response()->json(['success' => true,'data' => ['order_id'=>$orderId,'order_encrypt_key'=>$order_encrypt_key,'payment_method'=>$request->payment_method],'message'=>'Order placed successfully.'], 200);
+            }
+
+            DB::commit();
             return response()->json(['success' => true,'data' => ['order_id'=>$orderId,'order_encrypt_key'=>$order_encrypt_key,'payment_method'=>$request->payment_method],'message'=>'Payment pending...'], 200);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            report($e);
+            return response()->json(['success'=>false,'message'=>'Unable to place the order, please try again.'], 500);
         }
     }
     
@@ -400,7 +453,7 @@ class OrderController extends BaseController
         }
         $orderId = $request->order_id;
         $user_id = $request->user_id;
-        DB::table('orders')->where('id',$orderId)->update(['order_status_id'=>2,'admin_sms_sent'=>1,'updated_at'=>date('Y-m-d H:i:s')]);
+        DB::table('orders')->where('id',$orderId)->update(['order_status_id'=>$this->statusIdByName('order_statuses', 'Pending', 2),'admin_sms_sent'=>1,'updated_at'=>date('Y-m-d H:i:s')]);
              $payInfo = [
                    'transaction_id' => $request->transaction_id,
                    'order_id' => $orderId,
@@ -416,6 +469,32 @@ class OrderController extends BaseController
         }else{
             return response()->json(['success' => false,'message'=>'Server error.'], 500);
         }
+    }
+
+    private function statusIdByName(string $table, string $name, int $fallback): int
+    {
+        $id = DB::table($table)->whereRaw('LOWER(name) = ?', [strtolower($name)])->value('id');
+
+        return $id ? (int) $id : $fallback;
+    }
+
+    private function reserveProductWeight($weight, int $quantity, string $productTitle, string $now): ?string
+    {
+        if((int) ($weight->stock ?? 0) !== 1){
+            return null;
+        }
+
+        $availableQuantity = (int) ($weight->qty ?? 0);
+        if($availableQuantity < $quantity){
+            return $productTitle.' stock not available. Available stock is ('.$availableQuantity.').';
+        }
+
+        DB::table('product_weights')->where('id',$weight->id)->update([
+            'qty'=> DB::raw('qty-'.$quantity),
+            'updated_at'=>$now,
+        ]);
+
+        return null;
     }
 
     public function clear($cart_session,$user_id){

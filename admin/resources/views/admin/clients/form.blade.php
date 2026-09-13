@@ -17,6 +17,6 @@
 <div class="form-group row">
     <label class="col-sm-3 col-form-label" for="status">Status</label>
     <div class="col-sm-2">
-        {!! html()->select('status',array('1' => 'Enable', '2' => 'Disable'))->id('status')->class('form-control') !!}
+        {!! html()->select('status',array('1' => 'Enable', '0' => 'Disable'))->id('status')->class('form-control') !!}
     </div>
 </div>

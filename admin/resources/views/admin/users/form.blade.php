@@ -1,14 +1,14 @@
 <div class="form-group row">
     <label class="col-sm-3 col-form-label" for="name">Name</label>
     <div class="col-sm-9">
-        {{ html()->text('name')->class('form-control')->placeholder('Name') }}
+        {{ html()->text('name')->class('form-control')->placeholder('Name')->required() }}
     </div>
 </div>
 
 <div class="form-group row">
     <label class="col-sm-3 col-form-label" for="email">Email</label>
     <div class="col-sm-9">
-    {{ html()->email('email')->class('form-control')->placeholder('Email') }}
+    {{ html()->email('email')->class('form-control')->placeholder('Email')->required() }}
     </div>
 </div>
 
@@ -20,14 +20,14 @@
 </div>
 
 <div class="form-group row">
-    <label class="col-sm-3 col-form-label" for="confirmation_password">Confirm Password</label>
+    <label class="col-sm-3 col-form-label" for="password_confirmation">Confirm Password</label>
     <div class="col-sm-9">
-        {{ html()->password('confirmation_password')->class('form-control') }}
+        {{ html()->password('password_confirmation')->class('form-control') }}
     </div>
 </div>
 <div class="form-group row">
     <label class="col-sm-3 col-form-label" for="status">Status</label>
     <div class="col-sm-9">
-    {!! html()->select('status',[''=>'Status','1' => 'Enable', '2' => 'Disable'])->class('form-control') !!}
+    {!! html()->select('status',[''=>'Status','1' => 'Enable', '0' => 'Disable'])->class('form-control')->required() !!}
     </div>
 </div>

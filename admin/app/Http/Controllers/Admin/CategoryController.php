@@ -145,7 +145,7 @@ class CategoryController extends Controller
      */
     public function edit(Category $category)
     {
-        abort_if(Gate::denies($this->module.'_create'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
+        abort_if(Gate::denies($this->module.'_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         return view('admin.'.$this->module.'.edit', [
             'row' => $category,
             'parentCategories' => $this->getParentCategories($category->id),
@@ -161,7 +161,7 @@ class CategoryController extends Controller
      */
     public function update(StoreCategoryRequest $request, Category $category)
     {
-        abort_if(Gate::denies($this->module.'_create'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
+        abort_if(Gate::denies($this->module.'_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         $formInput = $this->prepareCategoryInput($request);
         if ((int) $formInput['parent_id'] === (int) $category->id) {
             $formInput['parent_id'] = null;
@@ -174,7 +174,7 @@ class CategoryController extends Controller
 
     public function updateStatus(Request $request, $id)
     {
-        abort_if(Gate::denies($this->module.'_create'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
+        abort_if(Gate::denies($this->module.'_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         if($request->ajax() && $request->isMethod('PATCH')){
             $category = $this->model::findOrFail($id);
             if($category->update(['status'=>$request->status])){

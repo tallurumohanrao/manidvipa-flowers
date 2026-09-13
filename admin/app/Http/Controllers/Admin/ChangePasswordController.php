@@ -28,14 +28,14 @@ class ChangePasswordController extends Controller
      */
     public function changePassword(StoreChangePasswordRequest $request)
     {
-        $user = Auth::getUser();
+        $user = Auth::guard('admin')->user();
         #$this->validator($request->all())->validate();
         if (Hash::check($request->get('current_password'), $user->password)) {
             $user->password = Hash::make($request->get('new_password'));
             $user->save();
             return back()->with('success', 'Password changed successfully!');
         } else {
-            return back()->withErrors('Current password is incorrect');
+            return back()->withErrors(['current_password' => 'Current password is incorrect'], 'changePasswordForm');
         }
     }
 

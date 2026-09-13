@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 use App\Http\Requests\StoreFaqRequest;
 use App\Traits\RedirectTrait;
 use Symfony\Component\HttpFoundation\Response;
-use Gate,View;
+use Gate,View,Cache;
 
 class FaqController extends Controller
 {
@@ -18,6 +18,11 @@ class FaqController extends Controller
         $this->model = $model;
         $this->module = 'faqs';
         View::share ( 'module', $this->module );
+    }
+
+    private function clearStorefrontCache(): void
+    {
+        Cache::forget('api_faqs');
     }
     /**
      * Display a listing of the resource.
@@ -68,6 +73,7 @@ class FaqController extends Controller
         $request->request->add(['slug'=>'']);
         $formInput = $request->all();
         $faq = $this->model::create($formInput);
+        $this->clearStorefrontCache();
         return $this->redirectAfterSave($request->FormButton, $faq->id);
     }
 
@@ -106,8 +112,10 @@ class FaqController extends Controller
         abort_if(Gate::denies($this->module.'_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         $request->request->add(['slug'=>'']);
         $formInput = $request->all();
-        if($faq->update($formInput) === true)
+        if($faq->update($formInput) === true) {
+            $this->clearStorefrontCache();
             return $this->redirectAfterSave($request->FormButton, $faq->id);
+        }
     }
 
     public function updateStatus(Request $request, $id)
@@ -116,6 +124,7 @@ class FaqController extends Controller
         if($request->ajax() && $request->isMethod('PATCH')){
             $faq = $this->model::findOrFail($id);
             if($faq->update(['status'=>$request->status])){
+                $this->clearStorefrontCache();
                 $status=$request->status==1?'enabled':'disabled';
                 return response()->json(['status'=>'success','message'=>"Status $status successfully."]);
             }
@@ -130,23 +139,30 @@ class FaqController extends Controller
     public function destroy(Faq $faq)
     {
         abort_if(Gate::denies($this->module.'_delete'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
-        if($faq->delete() == 1)
-        return response()->json(['success'=>true, 'message' => 'Deleted successfully.']);
-        else
+        if($faq->delete() == 1) {
+            $this->clearStorefrontCache();
+            return response()->json(['success'=>true, 'message' => 'Deleted successfully.']);
+        }
+
         return response()->json(['success'=>false, 'message' => 'An unexpected error has occurred.']);
     }
     public function massDestroy(Request $request)
     {
         abort_if(Gate::denies($this->module.'_delete'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         $ids = explode(',',$request->ids);
+        $result = 0;
         foreach($ids as $id) :
             $model = $this->model::find($id);
-            $result = $model->delete();
+            if ($model) {
+                $result = $model->delete();
+            }
         endforeach;
 
-        if($result == 1)
-        return response()->json(['success'=>true, 'message' => 'Deleted successfully.']);
-        else
+        if($result == 1) {
+            $this->clearStorefrontCache();
+            return response()->json(['success'=>true, 'message' => 'Deleted successfully.']);
+        }
+
         return response()->json(['success'=>false, 'message' => 'An unexpected error has occurred.']);
     }
 

@@ -14,10 +14,11 @@ export default function Page() {
   });
   const { showToast } = useToast();
   const [message, setMessage] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const validateForm = () => {
     if (!formData.email) {
-      setMessage("email required");
+      setMessage("Email is required");
       return false;
     }
     return true;
@@ -30,6 +31,7 @@ export default function Page() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
+    setIsSubmitting(true);
     try {
       const response = await fetch(`${url}/send-password-reset-notification`, {
         method: "POST",
@@ -39,15 +41,14 @@ export default function Page() {
         body: JSON.stringify({ email: formData.email }),
       });
       const result = await response.json();
-      if (!result.status) {
-        showToast(result.message, "error");
-        setMessage(result.message);
-      } else {
-        showToast(result.message);
-        setMessage(result.message);
-      }
+      const nextMessage = result.message || "Unable to send password reset link.";
+      showToast(nextMessage, result.success ? "success" : "error");
+      setMessage(nextMessage);
     } catch (error) {
       showToast(error.message, "error");
+      setMessage(error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -72,6 +73,9 @@ export default function Page() {
                     className={`form-input ${styles.form_input}`}
                     onChange={handleChange}
                     name="email"
+                    value={formData.email}
+                    autoComplete="email"
+                    required
                   />
                 </div>
                 {message && <p className={`${styles.message}`}>{message}</p>}
@@ -87,8 +91,8 @@ export default function Page() {
                 </div>
 
                 <div className="form-button">
-                  <button type="submit" className="blue-but">
-                    Continue
+                  <button type="submit" className="blue-but" disabled={isSubmitting}>
+                    {isSubmitting ? "Sending..." : "Continue"}
                   </button>
                 </div>
               </form>

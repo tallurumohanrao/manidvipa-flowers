@@ -2,6 +2,7 @@
 
 namespace App\Models\Admin;
 
+use App\Notifications\Admin\ResetAdminPassword;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -47,6 +48,11 @@ class Admin extends Authenticatable
     public function roles()
     {
         return $this->belongsToMany(Role::class)->whereStatus(1)->withTimestamps();
+    }
+
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new ResetAdminPassword($token));
     }
 
     // public function reports()

@@ -70,7 +70,7 @@ class UserController extends Controller
         $create = $request->all();
 
         $create['password'] = Hash::make($request->password);
-        $create['alerts'] = implode(',',$request->alerts);
+        $create['alerts'] = implode(',', (array) $request->input('alerts', []));
         $user = User::create($create);
         return $this->redirectAfterSave($request->FormButton, $user->id);
     }

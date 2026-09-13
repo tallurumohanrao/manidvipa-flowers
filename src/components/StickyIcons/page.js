@@ -1,11 +1,18 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import styles from "@/scss/components/stickyIcons.module.scss";
-import { FaWhatsapp, FaArrowUp } from "react-icons/fa";
+import { FaWhatsapp, FaArrowUp, FaShoppingCart } from "react-icons/fa";
 import { IoCallSharp } from "react-icons/io5";
+import { useCartCount } from "@/context/UserContext";
 
 const StickyIcons = ({ siteSettings }) => {
   const contactUs = siteSettings?.data;
+  const phoneNumber = contactUs?.SITE_PHONE || "+91 73375 25445";
+  const callHref = `tel:${String(phoneNumber).replace(/\s+/g, "")}`;
+  const whatsappNumber = String(contactUs?.SITE_WHATSAPP || phoneNumber).replace(/\D/g, "");
+  const whatsappHref = whatsappNumber ? `https://wa.me/${whatsappNumber}` : "/contact-us";
+  const { cartCount } = useCartCount();
 
   const [showScrollBtn, setShowScrollBtn] = useState(false);
 
@@ -38,21 +45,29 @@ const StickyIcons = ({ siteSettings }) => {
       >
         <div className="container-fluid">
           <div className="row">
-            <div className={`col-6 py-2 ${styles.faSearch} `}>
+            <div className={`col-4 py-2 ${styles.bottomPanelItem}`}>
               <a
-                href="tel:+919491747624"
+                href={callHref}
                 rel="noopener noreferrer"
-                aria-label="mobile instagram"
+                aria-label="Call Manidvipa Flowers"
               >
                 <IoCallSharp className="fs-2" title="Call" />
               </a>
             </div>
-            <div className="col-6 py-2 ">
+            <div className={`col-4 py-2 ${styles.bottomPanelItem}`}>
+              <Link href="/cart" aria-label={`Open cart${cartCount > 0 ? `, ${cartCount} items` : ""}`} className={styles.mobileCartLink}>
+                <FaShoppingCart className="fs-2" title="Cart" />
+                {cartCount > 0 ? (
+                  <span className={styles.mobileCartCount}>{cartCount}</span>
+                ) : null}
+              </Link>
+            </div>
+            <div className="col-4 py-2">
               <a
                 target="_blank"
                 rel="noopener noreferrer"
-                href={`https://wa.me/${contactUs?.SITE_WHATSAPP}`}
-                aria-label="mobile whatsapp"
+                href={whatsappHref}
+                aria-label="WhatsApp Manidvipa Flowers"
               >
                 <FaWhatsapp className="fs-2" title="whatsapp" />
               </a>

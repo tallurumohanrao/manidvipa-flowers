@@ -11,6 +11,6 @@
 <div class="form-group row">
     {!! Form::label('status', 'Status', ['class' => 'col-sm-3 col-form-label']) !!}
     <div class="col-sm-2">
-    {!! Form::select('status', array('1' => 'Enable', '2' => 'Disable'), NULL, [ 'class' => 'form-control', 'autocomplete' => 'off' ]); !!}
+    {!! Form::select('status', array('1' => 'Enable', '0' => 'Disable'), NULL, [ 'class' => 'form-control', 'autocomplete' => 'off' ]); !!}
     </div>
 </div>

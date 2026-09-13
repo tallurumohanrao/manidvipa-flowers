@@ -9,8 +9,12 @@
 		<ul class="list-inline mb-3 text-right">
 			<li class="list-inline-item">
 				<div class="btn-group">
-                <a href="{{ route('admin.'.$module.'.create') }}" class="btn btn-primary">{{ $module }}</a>
-                  <a class="btn btn-danger" href="javascript:;" id="delete_all" data-url="{{ route('admin.'.$module.'.massdestroy') }}" role="button">Delete</a>
+                @can($module.'_create')
+                    <a href="{{ route('admin.'.$module.'.create') }}" class="btn btn-primary">Create SEO entry</a>
+                @endcan
+                @can($module.'_delete')
+                    <a class="btn btn-danger" href="javascript:;" id="delete_all" data-url="{{ route('admin.'.$module.'.massdestroy') }}" role="button">Delete</a>
+                @endcan
 				</div>
 			</li>
 		</ul>
@@ -35,7 +39,7 @@
                                 {!! Form::text('alias', request()->get('alias') ,['class' => 'form-control form-control-sm', 'placeholder' => 'Alias', 'autocomplete' => 'off', 'aria-controls'=>'dataTable']) !!}
                             </li>--}}
                             <li class="list-inline-item">
-                            {!! html()->select('status', array('' => 'Status', '1' => 'Enable', '2' => 'Disable'))->value(request('status'))->id('status')->class('custom-select custom-select-sm form-control form-control-sm w-80') !!}
+                            {!! html()->select('status', array('' => 'Status', '1' => 'Enable', '0' => 'Disable'))->value(request('status'))->id('status')->class('custom-select custom-select-sm form-control form-control-sm w-80') !!}
                             </li>
                             <li class="list-inline-item">
                             {!! html()->button('Search','submit')->class('form-control form-control-sm') !!}
@@ -62,6 +66,7 @@
                                     <th>Page Title</th>
                                     <th>Meta Keywords</th>
                                     <th>Meta Description</th>
+                                    <th>Schema</th>
                                     <th>Robots</th>
                                     <th>Status</th>
                                     <th>Created At</th>
@@ -84,18 +89,27 @@
                                     <td>{{$seo->page_title}}</td>
                                     <td>{{$seo->meta_keywords}}</td>
                                     <td>{{$seo->meta_description}}</td>
+                                    <td>
+                                        @if(!empty($seo->schema_markup))
+                                            <span class="badge badge-success">Added</span>
+                                        @else
+                                            <span class="badge badge-secondary">Empty</span>
+                                        @endif
+                                    </td>
                                     <td>{{$seo->robots }}</td>
                                     <td>
+                                        @can($module.'_edit')
                                         <label class="switch">
-                                        {{ html()->checkbox('status', $seo->status, null)->class('status')->id('status_'.$seo->id)->attributes(['data-id'=>$seo->id,'data-url'=>route('admin.'.$module.'.update.status',$seo)]) }}
+                                        {{ html()->checkbox('status', $seo->status, null)->class('status')->id('status_'.$seo->id)->attributes(['aria-label'=>'Toggle SEO status', 'data-id'=>$seo->id,'data-url'=>route('admin.'.$module.'.update.status',$seo)]) }}
                                         <span class="slider round"></span>
                                         </label>
+                                        @else <span class="badge badge-{{ $seo->status ? 'success' : 'secondary' }}">{{ $seo->status ? 'Enabled' : 'Disabled' }}</span> @endcan
                                     </td>
                                     <td>{{$seo->created_at}}</td>
                                     <td>
                                         <div class="btn-group">
-                                            <a href="{{ route('admin.'.$module.'.edit',$seo) }}"><i class="fas fa-edit p-1"></i></a>
-                                            <a href="javascript:;" class="delete" data-id="{{ $seo->id }}" data-url="{{ route('admin.'.$module.'.destroy',$seo) }}"><i class="fas fa-trash text-danger p-1"></i></a>
+                                            <a href="{{ route('admin.'.$module.'.edit',$seo) }}" title="Edit SEO page" aria-label="Edit SEO page"><i class="fas fa-edit p-1" aria-hidden="true"></i></a>
+                                            <a href="javascript:;" class="delete" title="Delete SEO page" aria-label="Delete SEO page" data-id="{{ $seo->id }}" data-url="{{ route('admin.'.$module.'.destroy',$seo) }}"><i class="fas fa-trash text-danger p-1" aria-hidden="true"></i></a>
                                         </div>
                                     </td>
                                 </tr>

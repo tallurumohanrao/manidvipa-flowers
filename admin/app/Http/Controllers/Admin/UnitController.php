@@ -76,7 +76,7 @@ class UnitController extends Controller
      */
     public function edit($id)
     {
-        abort_if(Gate::denies('units_create'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
+        abort_if(Gate::denies('units_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         $row = DB::table('weights')->where('id',$id)->first();
         return view('admin.units.edit', ['row' => $row]);
     }
@@ -90,7 +90,7 @@ class UnitController extends Controller
      */
     public function update(StoreUnitRequest $request, $id)
     {
-        abort_if(Gate::denies('units_create'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
+        abort_if(Gate::denies('units_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         $input = $request->except('_token','_method','FormButton');
         $input['updated_at'] = date('Y-m-d H:i:s');
         DB::table('weights')->where('id',$id)->update($input);
@@ -99,7 +99,7 @@ class UnitController extends Controller
 
     public function updateStatus(Request $request, $id)
     {
-        abort_if(Gate::denies('units_create'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
+        abort_if(Gate::denies('units_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         if($request->ajax() && $request->isMethod('PATCH')){
             if(DB::table('weights')->where('id',$id)->update(['status'=>$request->status])){
                 $status=$request->status==1?'enabled':'disabled';

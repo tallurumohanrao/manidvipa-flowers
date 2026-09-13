@@ -295,7 +295,10 @@ class AccountController extends BaseController
         $input = $request->all();
         $validator = Validator::make($input, [
             'current_password' => 'required',
-            'new_password' => 'required'
+            'new_password' => 'required|string|min:8|confirmed|different:current_password',
+        ], [
+            'new_password.confirmed' => 'New password and confirm password are not matching.',
+            'new_password.different' => 'New password and current password should not be same.',
         ]);
         if($validator->fails()){
             return $this->sendError('Validation Error.', $validator->errors());       
@@ -324,16 +327,21 @@ class AccountController extends BaseController
              return response()->json(['success' => false,'message' => 'Please login to access myaccount.'], 200);
         }
         $validator = Validator::make($request->all(), [
-            'name' => "required",
-            'email' => "required|email|unique:users,email,$user_id",
-            'mobile' => "required|unique:users,mobile,$user_id",
+            'name' => "required|string|max:255",
+            'email' => "required|email|max:191|unique:users,email,$user_id",
+            'mobile' => "required|digits:10|unique:users,mobile,$user_id",
         ]);
         if($validator->fails()){
             return $this->sendError('Validation Error.', $validator->errors());       
         }
         
-        DB::table('users')->where('id',$user_id)->update($request->only('name','email','mobile'));
-            return response()->json(['success'=>true,'message'=>'Profile updated successfully.'],200);
+        DB::table('users')->where('id',$user_id)->update([
+            'name' => trim($request->name),
+            'email' => strtolower(trim($request->email)),
+            'mobile' => $request->mobile,
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+        return response()->json(['success'=>true,'message'=>'Profile updated successfully.'],200);
     }
     
     public function cancelorder(Request $request)
@@ -345,25 +353,85 @@ class AccountController extends BaseController
         } else {
              return response()->json(['success' => false,'message' => 'Please login to access myaccount.'], 200);
         }
+        $validator = Validator::make($request->all(), [
+            'order_id' => 'required|integer',
+        ]);
+        if($validator->fails()){
+            return $this->sendError('Validation Error.', $validator->errors());
+        }
+        $cancelledOrderStatusId = $this->statusIdByName('order_statuses', 'Cancelled', 5);
+        $cancelledShippingStatusId = $this->statusIdByName('shipping_statuses', 'Cancelled', 4);
         if($order = DB::table('orders')->where(['id'=>$request->order_id,'user_id'=>$user_id])->first()){
-            if($order->order_status_id == 5){
+            if((int) $order->order_status_id === $cancelledOrderStatusId){
                 return response()->json(['success'=>true,'message'=>'Order has already cancelled.']);
             }
         }else{
             return response()->json(['success'=>false,'message'=>'Page not found.']);
         }
-        if(DB::table('orders')->where(['id'=>$request->order_id,'user_id'=>$user_id])->update(['order_status_id'=>5])){
-            DB::table('order_shippings')->where('order_id',$request->order_id)->update(['shipping_status_id'=>4]);
-            $products = DB::table('order_products')->where('order_id',$request->order_id)->get();
-            foreach($products as $product) :
-                $weight = DB::table('product_weights')->where('id',$product->weight_id)->first();
-                if($weight AND ($weight->stock == 1)){
-                    DB::table('product_weights')->where('id',$product->weight_id)->update(['qty'=> DB::raw('qty+'.$product->quantity)]);
-                }
-            endforeach;
+
+        $now = date('Y-m-d H:i:s');
+        DB::beginTransaction();
+        try {
+            DB::table('orders')->where(['id'=>$request->order_id,'user_id'=>$user_id])->update([
+                'order_status_id' => $cancelledOrderStatusId,
+                'updated_at' => $now,
+            ]);
+            DB::table('order_shippings')->where('order_id',$request->order_id)->update([
+                'shipping_status_id' => $cancelledShippingStatusId,
+                'updated_at' => $now,
+            ]);
+            $this->releaseOrderStock((int) $request->order_id);
+            $this->logWorkflowEvent((int) $request->order_id, 'customer_cancelled', 'Active', 'Cancelled', 'Customer cancelled the order.');
+            DB::commit();
+
             return response()->json(['success'=>true,'message'=>'Order Cancelled Successfully.']);
-        }else{
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            report($e);
             return response()->json(['success'=>false,'message'=>'Unable to Cancel the order.']);
         }
+    }
+
+    private function statusIdByName(string $table, string $name, int $fallback): int
+    {
+        return (int) (DB::table($table)->whereRaw('LOWER(name) = ?', [strtolower($name)])->value('id') ?: $fallback);
+    }
+
+    private function releaseOrderStock(int $orderId): void
+    {
+        $products = DB::table('order_products')
+            ->select('weight_id','quantity')
+            ->where('order_id',$orderId)
+            ->whereNotNull('weight_id')
+            ->get();
+
+        foreach($products as $product) :
+            $quantity = max(0, (int) $product->quantity);
+            if($quantity < 1){
+                continue;
+            }
+            $weight = DB::table('product_weights')->where('id',$product->weight_id)->lockForUpdate()->first();
+            if($weight && (int) $weight->stock === 1){
+                DB::table('product_weights')->where('id',$product->weight_id)->update(['qty'=> DB::raw('qty+'.$quantity)]);
+            }
+        endforeach;
+    }
+
+    private function logWorkflowEvent(int $orderId, string $eventType, $fromValue = null, $toValue = null, ?string $note = null): void
+    {
+        if(! \Illuminate\Support\Facades\Schema::hasTable('order_workflow_events')){
+            return;
+        }
+
+        DB::table('order_workflow_events')->insert([
+            'order_id' => $orderId,
+            'admin_id' => null,
+            'event_type' => $eventType,
+            'from_value' => $fromValue,
+            'to_value' => $toValue,
+            'note' => $note,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 }

@@ -2,18 +2,20 @@
 @section('title','Reset Password')
 @section('content')
 <h4 class="mb-3 f-w-400">{{ __('Reset Password') }}</h4>
-{!! Form::open(['method' => 'POST', 'route' => ['admin.password.email']]) !!}
+@if (session('status'))
+    <div class="alert alert-success" role="alert">{{ session('status') }}</div>
+@endif
+<form method="POST" action="{{ route('admin.password.email') }}">
+@csrf
 <div class="input-group mb-2">
     <div class="input-group-prepend">
         <span class="input-group-text"><i class="feather icon-mail"></i></span>
     </div>
-    {!! Form::email('email', null ,['class' => 'form-control', 'placeholder' => 'Email', 'autocomplete' => 'off']) !!}
+    <input type="email" name="email" value="{{ old('email') }}" class="form-control" placeholder="Email" autocomplete="email" required>
 </div>
 @error('email')
-    <span class="invalid-feedback" role="alert">
-        <strong>{{ $message }}</strong>
-    </span>
+    <span class="text-danger d-block mb-2">{{ $message }}</span>
 @enderror
-{!! Form::button('Send Password Reset Link',['type'=>'submit','class'=>'btn btn-primary mb-4']) !!}
-{!! Form::close() !!}
+<button type="submit" class="btn btn-primary mb-4">Send Password Reset Link</button>
+</form>
 @endsection

@@ -60,7 +60,7 @@ export default async function RootLayout({ children }) {
       />
       {children}
       <Footer categories={categories} siteSettings={siteSettings} />
-      <StickyIcons />
+      <StickyIcons siteSettings={siteSettings} />
     </UserProvider>
   );
 }

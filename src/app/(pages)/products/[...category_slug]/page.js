@@ -14,6 +14,7 @@ import {
   titleFromSlug,
   unpackPaginatedProducts,
 } from "@/lib/seo";
+import { fetchFirstSeoMetadata } from "@/lib/metadata";
 
 function resolveCategorySlug(category_slug) {
   return Array.isArray(category_slug)
@@ -26,8 +27,12 @@ export async function generateMetadata({ params }) {
   const categorySlug = resolveCategorySlug(category_slug);
   const categoriesData = await fetchListingData("GET", "categories");
   const category = findCategoryBySlug(categoriesData?.data || [], categorySlug);
+  const seoData = await fetchFirstSeoMetadata([
+    `/products/${categorySlug}`,
+    `/${categorySlug}`,
+  ]);
 
-  return buildCategoryMetadata(categorySlug, category);
+  return buildCategoryMetadata(categorySlug, category, seoData);
 }
 
 export default async function Page({ params }) {

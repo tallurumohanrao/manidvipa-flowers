@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><meta http-equiv="Content-Type" content="text/html; charset=gb18030">
+<head>
+    <meta charset="UTF-8">
 
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
@@ -44,20 +45,32 @@
                     </button>
 
                     <ul class="navbar-nav ml-auto">
+                    @can('settings_edit')
                     @if(request('developer') == 'yes')
                         @if(File::exists(storage_path('framework/down'))==1)
-                        <li class="list-inline-item">{{ link_to_route('admin.up','Maintenance OFF', NULL, [ 'class' => 'nav-link' ]) }}</li>
+                        <li class="list-inline-item">
+                            <form method="POST" action="{{ route('admin.up') }}">
+                                @csrf
+                                <button type="submit" class="btn btn-link nav-link">Maintenance OFF</button>
+                            </form>
+                        </li>
                         @else
                         <li class="list-inline-item">
-                            <a href="javascript:maintenance()" class="nav-link">Maintenance ON</a>
+                            <button type="button" onclick="maintenance()" class="btn btn-link nav-link">Maintenance ON</button>
                             {{-- link_to_route('admin.down','Maintenance ON', NULL, [ 'class' => 'nav-link', 'onclick' => 'javascript:maintenance()' ]) --}}</li>
                         @endif
                     @endif
+                    @endcan
+                    @can('settings_edit')
                     @if(Route::has('admin.clear'))
                         <li class="list-inline-item">
-                            <a href="{{ route('admin.clear') }}" class="nav-link">Clear Cache</a>
+                            <form method="POST" action="{{ route('admin.clear') }}">
+                                @csrf
+                                <button type="submit" class="btn btn-link nav-link">Clear Cache</button>
+                            </form>
                         </li>
                     @endif
+                    @endcan
                     </ul>
 
                     <!-- Topbar Navbar -->
@@ -65,12 +78,12 @@
 
                         <!-- Nav Item - User Information -->
                         <li class="nav-item dropdown no-arrow">
-                            @auth
+                            @auth('admin')
                             <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
                                 data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                <span class="mr-2 d-none d-lg-inline text-gray-600 small">{{ auth()->user()->name }}</span>
-                                @if(@auth()->user()->image && File::exists(public_path('storage/admins/'.@auth()->user()->image)))
-                                {{ Html::img(asset('storage/admins/'.auth()->user()->image), auth()->user()->name)->class('img-profile rounded-circle') }}
+                                <span class="mr-2 d-none d-lg-inline text-gray-600 small">{{ auth('admin')->user()->name }}</span>
+                                @if(auth('admin')->user()->image && File::exists(public_path('storage/admins/'.auth('admin')->user()->image)))
+                                {{ Html::img(asset('storage/admins/'.auth('admin')->user()->image), auth('admin')->user()->name)->class('img-profile rounded-circle') }}
                                 @endif
                             </a>
                             @endauth
@@ -200,15 +213,20 @@ $( function() {
 	$(function(){
 		@include('admin.includes.flash-message')
 	})
+    @can('settings_edit')
     @if(Route::has('admin.down'))
+	<form method="POST" action="{{ route('admin.down') }}" id="maintenance-form" class="d-none">
+        @csrf
+    </form>
 	function maintenance(){
 	    if(!confirm('Do you want to proceed site under maintenance?')){
 	        return false;
         }else{
-            $(location).attr('href','{{ route("admin.down") }}');
+            document.getElementById('maintenance-form').submit();
         }
-	}
+    }
     @endif
+    @endcan
 	</script>
 </body>
 </html>

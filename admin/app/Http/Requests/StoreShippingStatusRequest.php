@@ -26,6 +26,8 @@ class StoreShippingStatusRequest extends FormRequest
         $id = request('shippingstatus');
         return [
             'name' => "required|max:190|unique:shipping_statuses,name,$id",
+            'subject' => ['nullable', 'string', 'max:190'],
+            'body_html' => ['nullable', 'string', 'max:20000'],
         ];
     }
 

@@ -49,6 +49,7 @@ const ChangePassword = ({ userToken }) => {
     const data = {
       current_password: formData.current_password,
       new_password: formData.new_password,
+      new_password_confirmation: formData.confirm_new_password,
     };
     try {
       const response = await fetch(`${url}/update-user-password`, {
@@ -59,16 +60,18 @@ const ChangePassword = ({ userToken }) => {
         },
         body: JSON.stringify(data),
       });
+      const result = await response.json();
 
-      if (!response.ok) {
-        const errorDetails = await response.text();
-        throw new Error(`Update failed: ${response.status} ${errorDetails}`);
-      } else {
+      if (response.ok && result.success) {
+        setMessage(result.message || "Password changed successfully.");
         Cookies.remove("userSession", { sameSite: "Strict", path: "/" });
         router.push("/login");
+      } else {
+        setMessage(result.message || "Unable to update password.");
       }
     } catch (error) {
       console.error("Error:", error.message);
+      setMessage(error.message);
     }
   };
   return (

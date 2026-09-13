@@ -19,7 +19,7 @@ class AccountController extends Controller
      */
     public function index()
     {
-        return view('admin.account.index', ['data' => Auth::user()]);
+        return view('admin.account.index', ['data' => Auth::guard('admin')->user()]);
     }
 
     /**
@@ -30,8 +30,7 @@ class AccountController extends Controller
      */
     public function edit()
     {
-        $admin = Auth::user();
-        return view('admin.account.edit', compact('admin'));
+        return view('admin.account.edit', ['data' => Auth::guard('admin')->user()]);
     }
 
     /**
@@ -43,8 +42,8 @@ class AccountController extends Controller
      */
     public function update(StoreAccountRequest $request,  $id)
     {
-        $admin = Auth::user();
-        $formInput = $request->all();
+        $admin = Auth::guard('admin')->user();
+        $formInput = $request->only('name','email');
 
         $formInput['image'] = $this->verifyAndStoreImage($request, 'image', 'admins'); 
         if($admin->update($formInput) === true){

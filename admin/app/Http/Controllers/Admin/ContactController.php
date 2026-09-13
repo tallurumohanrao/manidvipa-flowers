@@ -19,7 +19,7 @@ class ContactController extends Controller
 
     public function index(Request $request)
     {
-        abort_if(Gate::denies($this->module.'_create'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
+        abort_if(Gate::denies($this->module.'_view'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         $email = $request->email ?? '';
         $mobile = $request->mobile ?? '';
         $query = $this->model::query();

@@ -6,10 +6,10 @@
             <ul class="list-inline">
                 <li class="list-inline-item">
                     <div class="btn-group">
-                        <p><a target="_blank" href="{{ route('admin.'.$module.'.images',['id'=>$row->id]) }}" class="btn btn-primary text-right">Images</a></p>
-                        <p><a target="_blank" href="{{ route('admin.'.$module.'.weights',['id'=>$row->id]) }}" class="btn btn-primary text-right">Weights</a></p>
+                        <p><a href="{{ route('admin.'.$module.'.images',['id'=>$row->id]) }}" class="btn btn-primary text-right">Images</a></p>
+                        <p><a href="{{ route('admin.'.$module.'.weights',['id'=>$row->id]) }}" class="btn btn-primary text-right">Weights &amp; stock</a></p>
                         {{--<p><a target="_blank" href="{{ route('admin.'.$module.'.sizes',['id'=>$row->id]) }}" class="btn btn-primary text-right">Sizes</a></p>--}}
-                        <p><a target="_blank" href="{{ route('admin.'.$module.'.reviews',['id'=>$row->id]) }}" class="btn btn-primary text-right">Reviews</a></p>
+                        <p><a href="{{ route('admin.'.$module.'.reviews',['id'=>$row->id]) }}" class="btn btn-primary text-right">Reviews</a></p>
                     </div>
                 </li>
             </ul>

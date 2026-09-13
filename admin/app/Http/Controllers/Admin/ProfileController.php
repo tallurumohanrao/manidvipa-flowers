@@ -86,7 +86,7 @@ class ProfileController extends Controller
      */
     public function edit(Profile $profile)
     {
-        abort_if(Gate::denies($this->module.'_create'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
+        abort_if(Gate::denies($this->module.'_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         return view('admin.'.$this->module.'.edit', ['row' => $profile]);
     }
 
@@ -99,7 +99,7 @@ class ProfileController extends Controller
      */
     public function update(StoreProfileRequest $request, Profile $profile)
     {
-        abort_if(Gate::denies($this->module.'_create'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
+        abort_if(Gate::denies($this->module.'_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         $request->request->add(['slug'=>'']);
         $formInput = $request->all();
         if($profile->update($formInput) === true)
@@ -108,7 +108,7 @@ class ProfileController extends Controller
 
     public function updateStatus(Request $request, $id)
     {
-        abort_if(Gate::denies($this->module.'_create'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
+        abort_if(Gate::denies($this->module.'_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         if($request->ajax() && $request->isMethod('PATCH')){
             $profile = $this->model::findOrFail($id);
             if($profile->update(['status'=>$request->status])){

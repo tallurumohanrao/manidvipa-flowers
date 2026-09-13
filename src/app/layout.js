@@ -10,6 +10,7 @@ import {
   isNoIndexPath,
   jsonLdScriptContent,
   normalizePath,
+  parseAdminSchemaMarkup,
   SITE_NAME,
 } from "@/lib/seo";
 
@@ -32,7 +33,11 @@ export async function generateMetadata() {
   });
 }
 
-export default function RootLayout({ children }) {
+export default async function RootLayout({ children }) {
+  const headersList = await headers();
+  const pathName = normalizePath(headersList.get("x-metadata-pathName") || "/");
+  const data = await fetchStaticMetadata(pathName);
+  const adminSchemas = parseAdminSchemaMarkup(data?.schema_markup);
   const siteSchema = {
     "@context": "https://schema.org",
     "@graph": [buildLocalBusinessSchema(), buildWebSiteSchema()],
@@ -45,6 +50,13 @@ export default function RootLayout({ children }) {
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: jsonLdScriptContent(siteSchema) }}
         />
+        {adminSchemas.map((schema, index) => (
+          <script
+            key={`admin-schema-${index}`}
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: jsonLdScriptContent(schema) }}
+          />
+        ))}
         {children}
       </body>
     </html>

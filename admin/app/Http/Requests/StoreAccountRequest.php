@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreAccountRequest extends FormRequest
 {
@@ -26,8 +27,8 @@ class StoreAccountRequest extends FormRequest
     {   
         $rules= [
             'name' => 'required|max:255',
-            'email' => 'required',
-            'image' => 'required_without:old_image|max:8000',
+            'email' => ['required', 'email', 'max:191', Rule::unique('admins', 'email')->ignore(auth('admin')->id())],
+            'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:8192',
         ];
         return $rules;
     }
@@ -37,8 +38,6 @@ class StoreAccountRequest extends FormRequest
         return [
             'name.required' => 'Name is required.',
             'email.required' => 'Email is required.',
-            'image.required' => 'Image is required.', 
-            'image.required_without' => 'Image is required.',
         ];
     }
 }

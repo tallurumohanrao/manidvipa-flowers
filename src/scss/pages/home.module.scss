@@ -1266,11 +1266,17 @@
 
 .premiumExploreLink {
   display: inline-flex;
+  align-items: center;
+  gap: 4px;
   color: $color-primary;
   font-size: $fs-12;
   font-weight: $fw-700;
   line-height: 1.2;
   text-decoration: none;
+}
+
+.premiumExploreShortText {
+  display: none;
 }
 
 .rareProductInfo {
@@ -1726,6 +1732,41 @@
   letter-spacing: 0;
 }
 
+.faqGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $m-15;
+}
+
+.faqItem {
+  min-width: 0;
+  border: $border-1 solid #eadfe4;
+  border-radius: $border-10;
+  background-color: $bg-white;
+  box-shadow: 0 10px 26px rgba(86, 8, 53, 0.06);
+  overflow: hidden;
+
+  summary {
+    min-height: 58px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    padding: $p-15 $p-20;
+    color: $color-primary;
+    font-size: $fs-16;
+    font-weight: $fw-700;
+    line-height: 1.35;
+  }
+
+  p {
+    margin: 0;
+    padding: 0 $p-20 $p-20;
+    color: $color-dark-charcol;
+    font-size: $fs-14;
+    line-height: 1.55;
+  }
+}
+
 .instagramSection {
   padding: 34px 0 28px;
   background-color: $bg-white;
@@ -2129,6 +2170,10 @@
     grid-template-columns: 1fr;
   }
 
+  .faqGrid {
+    grid-template-columns: 1fr;
+  }
+
   .decorationGallery {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2167,6 +2212,10 @@
 }
 
 @media (max-width: $sm) {
+  .homePage {
+    padding-bottom: 64px;
+  }
+
   .homeContainer {
     width: calc(100% - 28px);
   }
@@ -2293,6 +2342,69 @@
 
   .premiumProductGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .premiumCollectionPanel {
+    padding: $p-15;
+  }
+
+  .premiumProductCard {
+    border-radius: $border-10;
+    box-shadow: 0 10px 22px rgba(86, 8, 53, 0.08);
+  }
+
+  .premiumProductImage {
+    aspect-ratio: 1.08 / 1;
+    border-radius: $border-10 $border-10 0 0;
+  }
+
+  .premiumProductInfo {
+    padding: 10px;
+
+    h3 {
+      display: -webkit-box;
+      min-height: 38px;
+      margin-bottom: $m-6;
+      overflow: hidden;
+      font-size: clamp(15px, 4.05vw, 17px);
+      line-height: 1.12;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+
+    p {
+      margin-bottom: $m-8;
+      font-size: $fs-12;
+    }
+
+    strong {
+      font-size: 15px;
+    }
+  }
+
+  .premiumProductTag {
+    max-width: 100%;
+    margin-bottom: $m-6;
+    padding: 4px 7px;
+    overflow: hidden;
+    font-size: 9px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .premiumExploreLink {
+    gap: 4px;
+    font-size: 11px;
+    line-height: 1.15;
+  }
+
+  .premiumExploreFullText {
+    display: none;
+  }
+
+  .premiumExploreShortText {
+    display: inline;
   }
 
   .rareProductGrid {

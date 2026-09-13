@@ -1,4 +1,31 @@
 @extends('admin.layouts.app')
+@push('styles')
+<style>
+    .order-status-text {
+        font-weight: 700;
+    }
+
+    .order-text-warning {
+        color: #b36b00;
+    }
+
+    .order-text-primary {
+        color: #2f55d4;
+    }
+
+    .order-text-success {
+        color: #16864f;
+    }
+
+    .order-text-danger {
+        color: #d52b1e;
+    }
+
+    .order-text-muted {
+        color: #6c757d;
+    }
+</style>
+@endpush
 @section('content')
 @php
 $billing = null;
@@ -21,18 +48,90 @@ if($shippingaddress){
     $s_address[] = $shippingaddress->country;
     $shipping = implode(', ',array_filter($s_address)).'.';
 }
+$statusTextClass = function ($status) {
+    $value = strtolower(trim((string) ($status ?: 'pending')));
+
+    if(preg_match('/cancel|fail|reject|return|refund/', $value)){
+        return 'order-text-danger';
+    }
+
+    if(preg_match('/complete|paid|delivered|success/', $value)){
+        return 'order-text-success';
+    }
+
+    if(preg_match('/accepted|process|dispatch|out for delivery|shipped|packed|ready/', $value)){
+        return 'order-text-primary';
+    }
+
+    if(preg_match('/pending|checkout|not started|confirm/', $value)){
+        return 'order-text-warning';
+    }
+
+    return 'order-text-muted';
+};
 @endphp
+
 <section class="content">
-	<div class="container-fluid">
-		<h4 class="heading text-capitalize">Order ID #{{ $order->id }}</h4>
-		<hr>
-		<div class="card shadow mb-4">
+    <div class="container-fluid">
+        <h4 class="heading text-capitalize">Order ID #{{ $order->id }}</h4>
+        <hr>
+        <div class="card shadow mb-4">
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-12">
-                        <p>Order Status : <span id="BookingHtml">{{ $order->order_status }}</span>
-                            <a href="{{ route('admin.'.$module.'.index') }}" class="btn btn-danger float-right">Cancel</a></p>
-                        <button type="button" class="btn-primary" data-toggle="modal" data-target="#BookingModalCenter">Change</button></p>
+                        <p>Order Status : <span id="BookingHtml" class="order-status-text {{ $statusTextClass($order->order_status) }}">{{ $order->order_status ?: 'Pending' }}</span>
+                            <a href="{{ route('admin.'.$module.'.index') }}" class="btn btn-danger float-right">Back to Orders</a></p>
+                        @can($module.'_edit')
+                        <button type="button" class="btn-primary" data-toggle="modal" data-target="#BookingModalCenter">Change</button>
+                        <button type="button" class="btn btn-success btn-sm ml-2" data-toggle="modal" data-target="#WorkflowModalCenter">Manage Workflow</button>
+                        @endcan
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-3 col-sm-6 mb-3">
+                        <div class="card border-left-primary h-100">
+                            <div class="card-body py-3">
+                                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Order Manager</div>
+                                <div class="h6 mb-1">{{ $order->accepted_by_name ?: 'Unassigned' }}</div>
+                                <small class="text-muted">
+                                    @if($order->accepted_at)
+                                        Accepted {{ date(config('app.datetime'),strtotime($order->accepted_at)) }}
+                                    @else
+                                        Accepts and verifies the order.
+                                    @endif
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-sm-6 mb-3">
+                        <div class="card border-left-warning h-100">
+                            <div class="card-body py-3">
+                                <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Packing Person</div>
+                                <div class="h6 mb-1">{{ $order->packing_admin_name ?: 'Unassigned' }}</div>
+                                <small class="text-muted">Packing: <span class="order-status-text {{ $statusTextClass($packingStatuses[$order->packing_status ?? 'not_started'] ?? 'Not Started') }}">{{ $packingStatuses[$order->packing_status ?? 'not_started'] ?? 'Not Started' }}</span></small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-sm-6 mb-3">
+                        <div class="card border-left-info h-100">
+                            <div class="card-body py-3">
+                                <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Delivery Person</div>
+                                <div class="h6 mb-1">{{ $order->delivery_admin_name ?: 'Unassigned' }}</div>
+                                <small class="text-muted">Delivery: <span class="order-status-text {{ $statusTextClass($order->shipping_status ?: 'Pending') }}">{{ $order->shipping_status ?: 'Pending' }}</span></small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-sm-6 mb-3">
+                        <div class="card border-left-success h-100">
+                            <div class="card-body py-3">
+                                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Current Flow</div>
+                                <div class="small">
+                                    <div class="mb-1">Order: <span class="order-status-text {{ $statusTextClass($order->order_status) }}">{{ $order->order_status ?: 'Pending' }}</span></div>
+                                    <div class="mb-1">Packing: <span class="order-status-text {{ $statusTextClass($packingStatuses[$order->packing_status ?? 'not_started'] ?? 'Not Started') }}">{{ $packingStatuses[$order->packing_status ?? 'not_started'] ?? 'Not Started' }}</span></div>
+                                    <div>Shipping: <span class="order-status-text {{ $statusTextClass($order->shipping_status ?: 'Pending') }}">{{ $order->shipping_status ?: 'Pending' }}</span></div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="row">
@@ -68,15 +167,17 @@ if($shippingaddress){
                         </address>
                         <p>
                             <strong class="muted">Delivery Information</strong>
+                            @can($module.'_edit')
                             <button type="button" class="btn-primary" data-toggle="modal" data-target="#DeliveryPreferenceModalCenter">Change</button>
+                            @endcan
                         </p>
                         <address>
                             Delivery Date:
-                            <strong id="DeliveryDateHtml">
+                            <strong id="DeliveryDateHtml" class="order-status-text {{ $order->serve_date ? 'order-text-success' : 'order-text-muted' }}">
                                 {{ $order->serve_date ? date('d/m/Y',strtotime($order->serve_date)) : 'NILL' }}
                             </strong><br />
                             Time Slot:
-                            <strong id="DeliverySlotHtml">
+                            <strong id="DeliverySlotHtml" class="order-status-text {{ $deliveryTimeSlotLabel ? 'order-text-primary' : 'order-text-muted' }}">
                                 {{ $deliveryTimeSlotLabel ?: 'To be confirmed' }}
                             </strong>
                         </address>
@@ -100,11 +201,13 @@ if($shippingaddress){
                     <div class="col-md-3 col-sm-6">
                         <p>
                             <strong class="muted">Payment Information</strong>
+                            @can($module.'_edit')
                             <button type="button" class="btn-primary" data-toggle="modal" data-target="#PaymentModalCenter">Change</button>
+                            @endcan
                         </p>
                         <address>
                             {{--<strong>Payment Status: {{ $order->orderPayment->payment_status ?? '' }}</strong>--}}
-                            <p class="text-capitalize">Payment Status: <span id="PaymentHtml">{{ $order->payment_status }}</span></p>
+                            <p class="text-capitalize">Payment Status: <span id="PaymentHtml" class="order-status-text {{ $statusTextClass($order->payment_status ?: 'Pending') }}">{{ $order->payment_status ?: 'Pending' }}</span></p>
 
                             Payment Method: <span class="text-capitalize">{{ $order->payment_method }}</span><br />
 
@@ -119,10 +222,12 @@ if($shippingaddress){
                     <div class="col-md-3 col-sm-6">
                         <p>
                             <strong class="muted">Shipping Information</strong>
+                            @can($module.'_edit')
                             <button type="button" class="btn-primary" data-toggle="modal" data-target="#ShippingModalCenter">Change</button>
+                            @endcan
                         </p>
                         <address>
-                            <strong>Shipping Status: <span id="ShippingHtml">{{ $order->shipping_status }}</span></strong><br />
+                            <strong>Shipping Status: <span id="ShippingHtml" class="order-status-text {{ $statusTextClass($order->shipping_status ?: 'Pending') }}">{{ $order->shipping_status ?: 'Pending' }}</span></strong><br />
 
                             Shipping Type: {{ $order->shipping_type }}<br />
                             @if($order->shipping_tracking_no)
@@ -141,9 +246,9 @@ if($shippingaddress){
 
                 </div>
                 <div class="row">
-            		<div class="col-sm-12">
-            		<div class="table-responsive">
-            			<table class="table table-bordered  table-hover tablegrid">
+                    <div class="col-sm-12">
+                    <div class="table-responsive">
+                        <table class="table table-bordered  table-hover tablegrid">
                             <thead>
                                 <tr role="row">
                                     <th>S.No.</th>
@@ -195,15 +300,61 @@ if($shippingaddress){
                 </div>
 
                 <div class="row">
-            		<div class="col-sm-12">
-            		<div class="table-responsive">
-            			<table class="table table-bordered table-hover tablegrid">
+                     <div class="col-sm-12">
+                     <div class="table-responsive">
+                         <table class="table table-bordered table-hover tablegrid">
                             <thead>
+                                <tr role="row">
+                                    <th colspan="6">Order Workflow Timeline</th>
+                                </tr>
+                                <tr role="row">
+                                    <th>S.No.</th>
+                                    <th>Activity</th>
+                                    <th>From</th>
+                                    <th>To / Note</th>
+                                    <th>By</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            @forelse($workflowEvents as $workflowEvent)
+                                <tr>
+                                    <td>{{ $loop->iteration }}</td>
+                                    <td>{{ ucwords(str_replace('_',' ', $workflowEvent->event_type)) }}</td>
+                                    <td>{{ $workflowEvent->from_value ?: '-' }}</td>
+                                    <td>
+                                        {{ $workflowEvent->to_value ?: '-' }}
+                                        @if($workflowEvent->note)
+                                            <div class="text-muted small">{{ $workflowEvent->note }}</div>
+                                        @endif
+                                    </td>
+                                    <td>{{ $workflowEvent->admin_name ?: 'System' }}</td>
+                                    <td>{{ $workflowEvent->created_at ? date(config('app.datetime'),strtotime($workflowEvent->created_at)) : 'NILL' }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted">No workflow activity recorded yet.</td>
+                                </tr>
+                            @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                     <div class="col-sm-12">
+                     <div class="table-responsive">
+                         <table class="table table-bordered table-hover tablegrid">
+                            <thead>
+                                <tr role="row">
+                                    <th colspan="3">Order Comments</th>
+                                </tr>
                                 <tr role="row">
                                     <th>S.No.</th>
                                     <th>Comment</th>
                                     <th>By</th>
-                                </tr> 
+                                </tr>
                             </thead>
                             <tbody>
                             @foreach($ordercomments as $ordercomment)
@@ -221,7 +372,7 @@ if($shippingaddress){
 
             </div>
         </div>
-	</div>
+    </div>
 </section>
 
 
@@ -284,7 +435,7 @@ if($shippingaddress){
         <div class="modal-body">
             {{ html()->model($order)->form('PATCH')->route('admin.'.$module.'.updateShipping', ['id'=>$order->id])->id('shippingForm')->open() }}
             <label class="col-form-label" for="shipping_status">Shipping Status</label>
-            {!! html()->select('shipping_status',$shippingStatuses,$order->shipping_status)->class('form-control') !!}
+            {!! html()->select('shipping_status',$shippingStatuses,$order->shipping_status_id)->class('form-control') !!}
 
           </div>
           <div class="modal-footer">
@@ -292,6 +443,60 @@ if($shippingaddress){
               <button type="submit" class="btn btn-primary">Save</button>
               {{ html()->form()->close() }}
           </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="WorkflowModalCenter" tabindex="-1" role="dialog" aria-labelledby="workflowModalCenterTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Manage Order Workflow</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        </div>
+        <div class="modal-body">
+          <form action="{{ route('admin.'.$module.'.updateWorkflow', ['id'=>$order->id]) }}" method="POST" id="WorkflowForm">
+            @csrf
+            @method('PATCH')
+            <div class="row">
+              <div class="col-md-6">
+                <label class="col-form-label" for="workflow_order_status">Order Status</label>
+                {!! html()->select('order_status',$orderStatuses,$order->order_status_id)->id('workflow_order_status')->class('form-control') !!}
+                <small class="text-muted">Use this after order checking: Pending → Accepted → Processing → Completed.</small>
+              </div>
+              <div class="col-md-6">
+                <label class="col-form-label" for="accepted_by_admin_id">Order Manager</label>
+                {!! html()->select('accepted_by_admin_id',$admins,$order->accepted_by_admin_id)->placeholder('Unassigned')->id('accepted_by_admin_id')->class('form-control') !!}
+                <small class="text-muted">Person responsible for checking customer, payment, stock, and delivery date.</small>
+              </div>
+              <div class="col-md-6">
+                <label class="col-form-label" for="packing_admin_id">Packing Person</label>
+                {!! html()->select('packing_admin_id',$admins,$order->packing_admin_id)->placeholder('Unassigned')->id('packing_admin_id')->class('form-control') !!}
+              </div>
+              <div class="col-md-6">
+                <label class="col-form-label" for="packing_status">Packing Status</label>
+                {!! html()->select('packing_status',$packingStatuses,$order->packing_status ?? 'not_started')->id('packing_status')->class('form-control') !!}
+              </div>
+              <div class="col-md-6">
+                <label class="col-form-label" for="delivery_admin_id">Delivery Person</label>
+                {!! html()->select('delivery_admin_id',$admins,$order->delivery_admin_id)->placeholder('Unassigned')->id('delivery_admin_id')->class('form-control') !!}
+              </div>
+              <div class="col-md-6">
+                <label class="col-form-label" for="workflow_shipping_status">Delivery / Shipping Status</label>
+                {!! html()->select('shipping_status',$shippingStatuses,$order->shipping_status_id)->placeholder('Pending')->id('workflow_shipping_status')->class('form-control') !!}
+                <small class="text-muted">Use Dispatched, Out for Delivery, and Delivered during delivery.</small>
+              </div>
+              <div class="col-md-12">
+                <label class="col-form-label" for="workflow_note">Internal Note</label>
+                <textarea name="workflow_note" id="workflow_note" rows="3" class="form-control" placeholder="Example: Packed by Ramesh and handed to delivery staff at 4 PM."></textarea>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+          <button type="submit" form="WorkflowForm" class="btn btn-primary">Save Workflow</button>
+        </div>
       </div>
     </div>
   </div>
@@ -399,6 +604,34 @@ $("#PaymentForm").submit(function () {
                 $('#PaymentHtml').html(response.html);
                 location.reload(true);
             }
+        }
+    });
+});
+
+$("#WorkflowForm").submit(function (event) {
+    event.preventDefault();
+    $.ajax({
+        url: $(this).attr('action'),
+        method: "POST",
+        data: new FormData(this),
+        cache:false,
+        contentType: false,
+        processData: false,
+        success: function (response) {
+            if(response.success == true){
+                $("#WorkflowModalCenter").modal('hide');
+                Message.add(response.message, {type: 'success'});
+                location.reload(true);
+            }else{
+                Message.add(response.message, {type: 'error'});
+            }
+        },
+        error: function (response) {
+            let message = 'Unable to update order workflow.';
+            if(response.responseJSON && response.responseJSON.message){
+                message = response.responseJSON.message;
+            }
+            Message.add(message, {type: 'error'});
         }
     });
 });

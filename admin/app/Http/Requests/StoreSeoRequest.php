@@ -6,6 +6,15 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class StoreSeoRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('schema_markup')) {
+            $this->merge([
+                'schema_markup' => $this->normalizeSchemaMarkup($this->input('schema_markup')),
+            ]);
+        }
+    }
+
     /**
      * Determine if the user is authorized to make this request.
      *
@@ -28,6 +37,7 @@ class StoreSeoRequest extends FormRequest
             'url' => "required|max:190|unique:seo_urls,url,{$id}",
             //'alias' => 'required',
             'page_title' => 'required',
+            'schema_markup' => 'nullable|json',
         ];
         return $rules;
     }
@@ -38,6 +48,22 @@ class StoreSeoRequest extends FormRequest
             'url.required' => 'URL is required.',
             'alias.required' => 'Alias is required.',
             'page_title.required' => 'Page title is required.',
+            'schema_markup.json' => 'Schema must be valid JSON-LD. Paste only JSON, or paste a full application/ld+json script tag.',
         ];
+    }
+
+    private function normalizeSchemaMarkup($value): ?string
+    {
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        if (preg_match('/<script\b[^>]*>(.*?)<\/script>/is', $value, $matches)) {
+            $value = trim($matches[1]);
+        }
+
+        return $value;
     }
 }

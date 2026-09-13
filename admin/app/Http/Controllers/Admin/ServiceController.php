@@ -93,7 +93,7 @@ class ServiceController extends Controller
      */
     public function edit(Service $service)
     {
-        abort_if(Gate::denies($this->module.'_create'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
+        abort_if(Gate::denies($this->module.'_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         $categories = DB::table('categories')->where('status',1)->orderBy('title')->get()->pluck('title','id');
         return view('admin.'.$this->module.'.edit', ['row' => $service,'categories'=>$categories]);
     }
@@ -107,7 +107,7 @@ class ServiceController extends Controller
      */
     public function update(StoreServiceRequest $request, Service $service)
     {
-        abort_if(Gate::denies($this->module.'_create'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
+        abort_if(Gate::denies($this->module.'_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         $request->request->add(['slug'=>'']);
         $formInput = $request->all();
         $formInput['image'] = $this->verifyAndStoreImage($request, 'image', $this->module);
@@ -117,7 +117,7 @@ class ServiceController extends Controller
 
     public function updateStatus(Request $request, $id)
     {
-        abort_if(Gate::denies($this->module.'_create'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
+        abort_if(Gate::denies($this->module.'_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         if($request->ajax() && $request->isMethod('PATCH')){
             $service = $this->model::findOrFail($id);
             if($service->update(['status'=>$request->status])){

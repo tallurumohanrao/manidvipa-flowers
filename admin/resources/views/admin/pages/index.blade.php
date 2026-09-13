@@ -37,15 +37,17 @@
                                     <td>{{$row->id}}</td>
                                     <td>{{$row->name}}</td>
                                     <td>
+                                        @can($module.'_edit')
                                         <label class="switch">
-                                        {{ html()->checkbox('status', $row->status, null)->class('status')->id('status_'.$row->id)->attributes(['data-id'=>$row->id,'data-url'=>route('admin.'.$module.'.update.status',$row)]) }}
+                                        {{ html()->checkbox('status', $row->status, null)->class('status')->id('status_'.$row->id)->attributes(['aria-label'=>'Toggle status for '.$row->name, 'data-id'=>$row->id,'data-url'=>route('admin.'.$module.'.update.status',$row)]) }}
                                         <span class="slider round"></span>
                                         </label>
+                                        @else <span class="badge badge-{{ $row->status ? 'success' : 'secondary' }}">{{ $row->status ? 'Enabled' : 'Disabled' }}</span> @endcan
                                     </td>
                                     <td>{{$row->created_at}}</td>
                                     <td>
                                         @can($module.'_edit')
-                                            <a href="{{ route('admin.'.$module.'.edit',$row) }}"><i class="fas fa-edit p-1"></i></a>
+                                            <a href="{{ route('admin.'.$module.'.edit',$row) }}" title="Edit page" aria-label="Edit page"><i class="fas fa-edit p-1" aria-hidden="true"></i></a>
                                         @endcan
                                     </td>
                                 </tr>

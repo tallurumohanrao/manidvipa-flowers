@@ -29,7 +29,7 @@
                                 {{ html()->text('question',request('question'))->class('form-control')->placeholder('Question')->required() }}
                             </li>
                             <li class="list-inline-item">
-                                {!! html()->select('status',array('1' => 'Enable', '2' => 'Disable'))->value(request('status'))->id('status')->class('form-control') !!}
+                                {!! html()->select('status',array('1' => 'Enable', '0' => 'Disable'))->value(request('status'))->id('status')->class('form-control') !!}
                             </li>
                             <li class="list-inline-item">
                             {!! html()->button('Search','submit')->class('btn btn-primary') !!}
@@ -72,18 +72,20 @@
                                         <td>{!! $row->question !!}</td>
                                         <td>{!! $row->answer !!}</td>
                                         <td>
+                                            @can($module.'_edit')
                                             <label class="switch">
-                                            {{ html()->checkbox('status', $row->status, null)->class('status')->id('status_'.$row->id)->attributes(['data-id'=>$row->id,'data-url'=>route('admin.'.$module.'.update.status',$row)]) }}
+                                            {{ html()->checkbox('status', $row->status, null)->class('status')->id('status_'.$row->id)->attributes(['aria-label'=>'Toggle FAQ status', 'data-id'=>$row->id,'data-url'=>route('admin.'.$module.'.update.status',$row)]) }}
                                             <span class="slider round"></span>
                                             </label>
+                                            @else <span class="badge badge-{{ $row->status ? 'success' : 'secondary' }}">{{ $row->status ? 'Enabled' : 'Disabled' }}</span> @endcan
                                         </td>
                                         <td>{{$row->created_at}}</td>
                                         <td>
                                             @can($module.'_edit')
-                                                <a href="{{ route('admin.'.$module.'.edit',$row) }}"><i class="fas fa-edit p-1"></i></a>
+                                                <a href="{{ route('admin.'.$module.'.edit',$row) }}" title="Edit FAQ" aria-label="Edit FAQ"><i class="fas fa-edit p-1" aria-hidden="true"></i></a>
                                             @endcan
                                             @can($module.'_delete')
-                                                <a href="javascript:;" class="delete" data-id="{{ $row->id }}" data-url="{{ route('admin.'.$module.'.destroy',$row) }}"><i class="fas fa-trash text-danger p-1"></i></a>
+                                                <a href="javascript:;" class="delete" title="Delete FAQ" aria-label="Delete FAQ" data-id="{{ $row->id }}" data-url="{{ route('admin.'.$module.'.destroy',$row) }}"><i class="fas fa-trash text-danger p-1" aria-hidden="true"></i></a>
                                             @endcan
                                         </td>
                                     </tr>

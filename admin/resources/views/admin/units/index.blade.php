@@ -52,10 +52,12 @@
                                     <td>{{ $loop->iteration }}</td>
                                     <td>{{ $row->name }}</td>
                                     <td>
+                                        @can('units_edit')
                                         <label class="switch">
-                                        {{ html()->checkbox('status', $row->status, null)->class('status')->id('status_'.$row->id)->attributes(['data-id'=>$row->id,'data-url'=>route('admin.units.update.status',['id'=>$row->id])]) }}
+                                        {{ html()->checkbox('status', $row->status, null)->class('status')->id('status_'.$row->id)->attributes(['aria-label'=>'Toggle status for '.$row->name, 'data-id'=>$row->id,'data-url'=>route('admin.units.update.status',['id'=>$row->id])]) }}
                                         <span class="slider round"></span>
                                         </label>
+                                        @else <span class="badge badge-{{ $row->status ? 'success' : 'secondary' }}">{{ $row->status ? 'Enabled' : 'Disabled' }}</span> @endcan
                                     </td>
                                     <td>{{$row->created_at}}</td>
                                     <td>
@@ -64,7 +66,7 @@
                                             <a href="{{ route('admin.units.edit',['unit'=>$row->id]) }}"><i class="fas fa-edit p-1"></i></a>
                                         @endcan
                                         @can('units_delete')
-                                            <a href="javascript:;" class="delete" data-id="{{ $row->id }}" data-url="{{ route('admin.units.destroy',['unit'=>$row->id]) }}"><i class="fas fa-trash text-danger p-1"></i></a>
+                                            <a href="javascript:;" class="delete" title="Delete unit" aria-label="Delete unit" data-id="{{ $row->id }}" data-url="{{ route('admin.units.destroy',['unit'=>$row->id]) }}"><i class="fas fa-trash text-danger p-1" aria-hidden="true"></i></a>
                                         @endcan
                                         </div>
                                     </td>

@@ -25,8 +25,8 @@ class DailyPriceController extends Controller
     {
         abort_if(Gate::denies('dailyprices_view'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
 
-        $perPage = (int) ($request->per_page ?: 50);
-        $perPage = in_array($perPage, [25, 50, 100, 200], true) ? $perPage : 50;
+        $perPage = (int) ($request->per_page ?: 25);
+        $perPage = in_array($perPage, [25, 50, 100], true) ? $perPage : 25;
 
         $query = $this->basePriceQuery();
         $this->applyFilters($query, $request);
@@ -374,6 +374,137 @@ class DailyPriceController extends Controller
         ]);
     }
 
+    public function voicePreview(Request $request)
+    {
+        abort_if(Gate::denies('dailyprices_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
+
+        $request->validate([
+            'command' => ['required', 'string', 'max:500'],
+            'apply_list_price' => ['nullable', 'boolean'],
+        ]);
+
+        $parsed = $this->parseVoicePriceCommand((string) $request->input('command'));
+
+        if (! empty($parsed['error'])) {
+            return response()->json([
+                'success' => false,
+                'message' => $parsed['error'],
+                'examples' => $this->voiceCommandExamples(),
+            ], 422);
+        }
+
+        $rows = $this->voiceCommandRows($parsed)
+            ->orderBy('p.title')
+            ->orderByRaw($this->weightOrderSql())
+            ->get();
+
+        $previewRows = $this->voicePreviewRows($rows, $parsed, $request->boolean('apply_list_price'));
+
+        if (empty($previewRows)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No active matching price rows need this change. Try a product name, category name, or all products.',
+                'examples' => $this->voiceCommandExamples(),
+            ], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Preview ready. Confirm to update prices.',
+            'summary' => $this->voiceCommandSummary($parsed, count($previewRows), $request->boolean('apply_list_price')),
+            'parsed' => [
+                'action' => $parsed['action'],
+                'value' => $parsed['value'],
+                'scope' => $parsed['scope'],
+                'term' => $parsed['term'],
+            ],
+            'rows' => $previewRows,
+        ]);
+    }
+
+    public function voiceApply(Request $request)
+    {
+        abort_if(Gate::denies('dailyprices_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
+
+        $request->validate([
+            'command' => ['required', 'string', 'max:500'],
+            'weight_ids' => ['required', 'array', 'min:1'],
+            'weight_ids.*' => ['integer'],
+            'apply_list_price' => ['nullable', 'boolean'],
+        ]);
+
+        $parsed = $this->parseVoicePriceCommand((string) $request->input('command'));
+
+        if (! empty($parsed['error'])) {
+            return response()->json([
+                'success' => false,
+                'message' => $parsed['error'],
+            ], 422);
+        }
+
+        $weightIds = array_values(array_unique(array_filter(array_map('intval', (array) $request->input('weight_ids', [])))));
+
+        if (empty($weightIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Preview the command first, then confirm the affected rows.',
+            ], 422);
+        }
+
+        $rows = $this->voiceCommandRows($parsed, $weightIds)
+            ->orderBy('p.title')
+            ->orderByRaw($this->weightOrderSql())
+            ->get();
+
+        $previewRows = collect($this->voicePreviewRows($rows, $parsed, $request->boolean('apply_list_price')))
+            ->keyBy('weight_id');
+
+        if ($previewRows->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No confirmed rows need this change.',
+            ], 422);
+        }
+
+        $updated = 0;
+        $syncProductIds = [];
+        $notes = 'Voice price command: '.trim((string) $request->input('command'));
+
+        DB::transaction(function () use ($rows, $previewRows, $notes, &$updated, &$syncProductIds) {
+            foreach ($rows as $row) {
+                $preview = $previewRows->get((int) $row->weight_id);
+
+                if (! $preview) {
+                    continue;
+                }
+
+                $newSellPrice = (float) $preview['new_sell_price'];
+                $newListPrice = (float) $preview['new_list_price'];
+
+                if (! $this->priceChanged($row, $newSellPrice, $newListPrice)) {
+                    continue;
+                }
+
+                $this->applyPriceUpdate($row, $newSellPrice, $newListPrice, 'voice', $notes);
+                $updated++;
+                $syncProductIds[$row->product_id] = $row->product_id;
+            }
+
+            foreach ($syncProductIds as $productId) {
+                $this->syncProductBasePrice((int) $productId);
+            }
+        });
+
+        return response()->json([
+            'success' => $updated > 0,
+            'message' => $updated > 0
+                ? $updated.' price row'.($updated === 1 ? '' : 's').' updated from the voice command.'
+                : 'No price changes were applied.',
+            'updated' => $updated,
+            'rows' => $previewRows->values(),
+        ], $updated > 0 ? 200 : 422);
+    }
+
     public function rollback(Request $request, $id)
     {
         abort_if(Gate::denies('dailyprices_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
@@ -411,6 +542,229 @@ class DailyPriceController extends Controller
         return redirect()
             ->route('admin.dailyprices.index', $this->filterRedirectParams($request))
             ->with('success', 'Rolled back '.$row->product_title.' - '.$row->weight_name.' to the previous price.');
+    }
+
+    private function parseVoicePriceCommand(string $command): array
+    {
+        $original = trim($command);
+        $normalized = strtolower($original);
+        $normalized = str_replace(['₹', ',', ';'], [' rs ', ' ', ' '], $normalized);
+        $normalized = preg_replace('/\s+/', ' ', $normalized);
+
+        if ($normalized === '') {
+            return ['error' => 'Tell me the price change. Example: Update jasmine price to 250.'];
+        }
+
+        $percentValue = null;
+        if (preg_match('/(\d+(?:\.\d+)?)\s*(%|percent|percentage)\b/', $normalized, $matches)) {
+            $percentValue = (float) $matches[1];
+        }
+
+        $value = $percentValue;
+        if ($value === null && preg_match('/\b(?:to|at|by|rs|rupee|rupees|price)\s*(\d+(?:\.\d+)?)/', $normalized, $matches)) {
+            $value = (float) $matches[1];
+        }
+
+        if ($value === null && preg_match('/\b(\d+(?:\.\d+)?)\b/', $normalized, $matches)) {
+            $value = (float) $matches[1];
+        }
+
+        if ($value === null || $value < 0) {
+            return ['error' => 'I could not find a valid price or percentage in that command.'];
+        }
+
+        $isPercent = $percentValue !== null;
+        $action = null;
+
+        if (preg_match('/\b(increase|raise|hike|add)\b/', $normalized)) {
+            $action = $isPercent ? 'increase_percent' : 'increase_fixed';
+        } elseif (preg_match('/\b(decrease|reduce|drop|cut|less|lower)\b/', $normalized)) {
+            $action = $isPercent ? 'decrease_percent' : 'decrease_fixed';
+        } elseif (preg_match('/\b(set|update|change|make)\b/', $normalized)) {
+            $action = 'set_sell_price';
+        }
+
+        if (! $action) {
+            return ['error' => 'Tell whether to set, increase, or reduce the price.'];
+        }
+
+        if ($action === 'set_sell_price' && $isPercent) {
+            return ['error' => 'Use increase or reduce for percentage commands. Example: Increase jasmine prices by 10 percent.'];
+        }
+
+        $scope = 'product';
+        $term = '';
+
+        if (preg_match('/\bcategory\s+(.+?)\s+(?:price|prices|rate|rates|to|at|by|rs|rupee|rupees|\d|percent|percentage|%)/', $normalized, $matches)) {
+            $scope = 'category';
+            $term = $this->cleanVoiceScopeTerm($matches[1], $value);
+        } elseif (preg_match('/\b(.+?)\s+category\b/', $normalized, $matches)) {
+            $scope = 'category';
+            $term = $this->cleanVoiceScopeTerm($matches[1], $value);
+        } elseif (preg_match('/\b(all|every|entire)\s+(product|products|price|prices|items|weights|rows|catalog)\b/', $normalized)) {
+            $scope = 'all';
+            $term = '';
+        } else {
+            $term = $this->cleanVoiceScopeTerm($normalized, $value);
+        }
+
+        if ($scope !== 'all' && $term === '') {
+            return ['error' => 'Tell which product or category to update, or say all products.'];
+        }
+
+        return [
+            'action' => $action,
+            'value' => round($value, 2),
+            'scope' => $scope,
+            'term' => $term,
+            'command' => $original,
+        ];
+    }
+
+    private function cleanVoiceScopeTerm(string $term, ?float $value = null): string
+    {
+        $term = strtolower($term);
+        $term = preg_replace('/\b(increase|raise|hike|add|decrease|reduce|drop|cut|less|lower|set|update|change|make)\b/', ' ', $term);
+        $term = preg_replace('/\b(all|every|entire|product|products|price|prices|selling|sell|rate|rates|category|by|to|at|rs|rupee|rupees|percent|percentage|mrp|list|also|same|and|the|please|for|of)\b/', ' ', $term);
+
+        if ($value !== null) {
+            $valuePatterns = array_unique([
+                rtrim(rtrim(number_format($value, 2, '.', ''), '0'), '.'),
+                (string) (int) $value,
+            ]);
+
+            foreach ($valuePatterns as $valuePattern) {
+                if ($valuePattern !== '') {
+                    $term = preg_replace('/\b'.preg_quote($valuePattern, '/').'\b/', ' ', $term);
+                }
+            }
+        }
+
+        $term = str_replace('%', ' ', $term);
+        $term = preg_replace('/[^a-z0-9\s\/&-]/', ' ', $term);
+        $term = preg_replace('/\s+/', ' ', $term);
+
+        return trim((string) $term);
+    }
+
+    private function voiceCommandRows(array $parsed, ?array $weightIds = null)
+    {
+        $query = $this->basePriceQuery()
+            ->where('p.status', 1)
+            ->where('pw.status', 1);
+
+        if ($weightIds !== null) {
+            $query->whereIn('pw.id', $weightIds);
+        }
+
+        if (($parsed['scope'] ?? '') === 'category') {
+            $term = $parsed['term'];
+            $query->whereExists(function ($subQuery) use ($term) {
+                $subQuery->select(DB::raw(1))
+                    ->from('category_product as cp_voice')
+                    ->join('categories as c_voice', 'c_voice.id', '=', 'cp_voice.category_id')
+                    ->whereRaw('cp_voice.product_id = p.id')
+                    ->where(function ($categoryQuery) use ($term) {
+                        $categoryQuery
+                            ->where('c_voice.title', 'like', '%'.$term.'%')
+                            ->orWhere('c_voice.name', 'like', '%'.$term.'%')
+                            ->orWhere('c_voice.slug', 'like', '%'.$term.'%');
+                    });
+            });
+        } elseif (($parsed['scope'] ?? '') === 'product') {
+            $term = $parsed['term'];
+            $query->where(function ($productQuery) use ($term) {
+                $productQuery
+                    ->where('p.title', 'like', '%'.$term.'%')
+                    ->orWhere('p.sku', 'like', '%'.$term.'%')
+                    ->orWhere('p.slug', 'like', '%'.$term.'%')
+                    ->orWhereExists(function ($categorySubQuery) use ($term) {
+                        $categorySubQuery->select(DB::raw(1))
+                            ->from('category_product as cp_voice_fallback')
+                            ->join('categories as c_voice_fallback', 'c_voice_fallback.id', '=', 'cp_voice_fallback.category_id')
+                            ->whereRaw('cp_voice_fallback.product_id = p.id')
+                            ->where(function ($categoryQuery) use ($term) {
+                                $categoryQuery
+                                    ->where('c_voice_fallback.title', 'like', '%'.$term.'%')
+                                    ->orWhere('c_voice_fallback.name', 'like', '%'.$term.'%')
+                                    ->orWhere('c_voice_fallback.slug', 'like', '%'.$term.'%');
+                            });
+                    });
+            });
+        }
+
+        return $query;
+    }
+
+    private function voicePreviewRows($rows, array $parsed, bool $applyListPrice): array
+    {
+        $previewRows = [];
+
+        foreach ($rows as $row) {
+            $newSellPrice = $this->applyBulkFormula((float) $row->sell_price, $parsed['action'], (float) $parsed['value']);
+            $newListPrice = $applyListPrice
+                ? $this->applyBulkFormula((float) $row->list_price, $parsed['action'], (float) $parsed['value'])
+                : (float) $row->list_price;
+
+            if ($newSellPrice < 0 || $newListPrice < 0) {
+                continue;
+            }
+
+            if (! $this->priceChanged($row, $newSellPrice, $newListPrice)) {
+                continue;
+            }
+
+            $previewRows[] = [
+                'weight_id' => (int) $row->weight_id,
+                'product_id' => (int) $row->product_id,
+                'product_title' => $row->product_title,
+                'weight_name' => $row->weight_name,
+                'category_titles' => $row->category_titles ?: 'No category mapped',
+                'old_sell_price' => number_format((float) $row->sell_price, 2, '.', ''),
+                'new_sell_price' => number_format($newSellPrice, 2, '.', ''),
+                'old_list_price' => number_format((float) $row->list_price, 2, '.', ''),
+                'new_list_price' => number_format($newListPrice, 2, '.', ''),
+                'display_old_sell_price' => 'Rs. '.number_format((float) $row->sell_price, 2),
+                'display_new_sell_price' => 'Rs. '.number_format($newSellPrice, 2),
+                'display_old_list_price' => 'Rs. '.number_format((float) $row->list_price, 2),
+                'display_new_list_price' => 'Rs. '.number_format($newListPrice, 2),
+            ];
+        }
+
+        return $previewRows;
+    }
+
+    private function voiceCommandSummary(array $parsed, int $count, bool $applyListPrice): string
+    {
+        $actionLabels = [
+            'set_sell_price' => 'Set selling price to Rs. '.number_format((float) $parsed['value'], 2),
+            'increase_percent' => 'Increase selling price by '.number_format((float) $parsed['value'], 2).'%',
+            'decrease_percent' => 'Reduce selling price by '.number_format((float) $parsed['value'], 2).'%',
+            'increase_fixed' => 'Increase selling price by Rs. '.number_format((float) $parsed['value'], 2),
+            'decrease_fixed' => 'Reduce selling price by Rs. '.number_format((float) $parsed['value'], 2),
+        ];
+
+        $scope = $parsed['scope'] === 'all'
+            ? 'all active products'
+            : $parsed['scope'].' "'.$parsed['term'].'"';
+
+        $message = ($actionLabels[$parsed['action']] ?? 'Update selling price').' for '.$scope.' across '.$count.' row'.($count === 1 ? '' : 's').'.';
+
+        if ($applyListPrice) {
+            $message .= ' List price will also change.';
+        }
+
+        return $message;
+    }
+
+    private function voiceCommandExamples(): array
+    {
+        return [
+            'Increase all product prices by 10 percent',
+            'Set roses to 499 rupees',
+            'Reduce category bouquet prices by 5 percent',
+            'Update jasmine price to 250',
+        ];
     }
 
     private function bulkUpdate(Request $request)
@@ -763,7 +1117,7 @@ class DailyPriceController extends Controller
             'old_list_price' => $row->list_price,
             'new_list_price' => $newListPrice,
             'update_source' => $source,
-            'updated_by' => auth()->id(),
+            'updated_by' => auth('admin')->id(),
             'notes' => $notes,
             'created_at' => now(),
             'updated_at' => now(),

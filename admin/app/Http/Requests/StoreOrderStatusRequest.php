@@ -26,6 +26,8 @@ class StoreOrderStatusRequest extends FormRequest
         $id = request('orderstatus');
         return [
             'name' => "required|max:190|unique:order_statuses,name,$id",
+            'subject' => ['nullable', 'string', 'max:190'],
+            'body_html' => ['nullable', 'string', 'max:20000'],
         ];
     }
 

@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Admin\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Providers\RouteServiceProvider;
 use Illuminate\Foundation\Auth\ConfirmsPasswords;
 
 class ConfirmPasswordController extends Controller
@@ -26,7 +25,7 @@ class ConfirmPasswordController extends Controller
      *
      * @var string
      */
-    protected $redirectTo = RouteServiceProvider::HOME;
+    protected $redirectTo = '/admin';
 
     /**
      * Create a new controller instance.
@@ -36,5 +35,17 @@ class ConfirmPasswordController extends Controller
     public function __construct()
     {
         $this->middleware('auth:admin');
+    }
+
+    public function showConfirmForm()
+    {
+        return view('admin.auth.passwords.confirm');
+    }
+
+    protected function rules()
+    {
+        return [
+            'password' => 'required|current_password:admin',
+        ];
     }
 }

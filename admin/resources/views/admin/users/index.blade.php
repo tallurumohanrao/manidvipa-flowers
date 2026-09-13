@@ -32,7 +32,7 @@
                             {{ html()->email('email',request('email'))->class('form-control')->placeholder('Email') }}
                             </li>
                             <li class="list-inline-item">
-                            {!! html()->select('status',[''=>'Status','1' => 'Enable', '2' => 'Disable'])->value(request('status'))->id('status')->class('form-control') !!}
+                            {!! html()->select('status',[''=>'Status','1' => 'Enable', '0' => 'Disable'])->value(request('status'))->id('status')->class('form-control') !!}
                             </li>
                             <li class="list-inline-item">
                             {!! html()->button('Search','submit')->class('btn btn-primary') !!}
@@ -75,18 +75,20 @@
                                 <td>{{$user->name}}</td>
                                 <td>{{$user->email}}</td>
                                 <td>
+                                    @can($module.'_edit')
                                     <label class="switch">
-                                    {{ html()->checkbox('status', $user->status, null)->class('status')->id('status_'.$user->id)->attributes(['data-id'=>$user->id,'data-url'=>route('admin.'.$module.'.update.status',$user)]) }}
+                                    {{ html()->checkbox('status', $user->status, null)->class('status')->id('status_'.$user->id)->attributes(['aria-label'=>'Toggle status for '.$user->name, 'data-id'=>$user->id,'data-url'=>route('admin.'.$module.'.update.status',$user)]) }}
                                     <span class="slider round"></span>
                                     </label>
+                                    @else <span class="badge badge-{{ $user->status ? 'success' : 'secondary' }}">{{ $user->status ? 'Enabled' : 'Disabled' }}</span> @endcan
                                 </td>
                                 <td>{{$user->created_at}}</td>
                                 <td>
                                 @can($module.'_edit')
-                                    <a href="{{ route('admin.'.$module.'.edit',$user) }}"><i class="fas fa-edit p-1"></i></a>
+                                    <a href="{{ route('admin.'.$module.'.edit',$user) }}" title="Edit {{ $user->name }}" aria-label="Edit {{ $user->name }}"><i class="fas fa-edit p-1" aria-hidden="true"></i></a>
                                 @endcan
                                 @can($module.'_delete')
-                                    <a href="javascript:;" class="delete" data-id="{{ $user->id }}" data-url="{{ route('admin.'.$module.'.destroy',$user) }}"><i class="fas fa-trash text-danger p-1"></i></a>
+                                    <a href="javascript:;" class="delete" title="Delete {{ $user->name }}" aria-label="Delete {{ $user->name }}" data-id="{{ $user->id }}" data-url="{{ route('admin.'.$module.'.destroy',$user) }}"><i class="fas fa-trash text-danger p-1" aria-hidden="true"></i></a>
                                 @endcan
                                 </td>
                             </tr>

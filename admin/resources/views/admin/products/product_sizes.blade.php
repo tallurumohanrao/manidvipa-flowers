@@ -28,7 +28,7 @@
                                     <th scope="col">Cost Price</th>
                                     <th scope="col">Status</th>
                                     {{-- <th scope="col">Created At</th> --}}
-                                    <th><a href="javascript:;" onclick="addSizes()"><i class="fa fa-plus-circle"></i></a></th>
+                                    <th><a href="javascript:;" onclick="addSizes()" title="Add product size" aria-label="Add product size"><i class="fa fa-plus-circle" aria-hidden="true"></i></a></th>
                                 </tr>
                             </thead>
 
@@ -67,7 +67,7 @@
                                     {{-- <td>{{$row->created_at}}</td> --}}
                                     <td>
                                         @can($module.'_delete')
-                                            <a href="javascript:;" class="delete btn btn-danger" data-id="{{ $row->id }}" data-url="{{ route('admin.'.$module.'.size.destroy',['id'=>$row->id]) }}"><i class="fa fa-trash"></i></a>
+                                            <a href="javascript:;" class="delete btn btn-danger" title="Delete product size" aria-label="Delete product size" data-id="{{ $row->id }}" data-url="{{ route('admin.'.$module.'.size.destroy',['id'=>$row->id]) }}"><i class="fa fa-trash" aria-hidden="true"></i></a>
                                         @endcan
                                     </td>
                                 </tr>
@@ -98,8 +98,8 @@ function addSizes()
     row += '<td><input name="Size[' + row_no + '][sell_price]" class="form-control" type="text"></td>';
     row += '<td><input name="Size[' + row_no + '][list_price]" class="form-control" type="text"></td>';
     row += '<td><input name="Size[' + row_no + '][cost_price]" class="form-control" type="text"></td>';
-    row += '<td><select class="form-control" autocomplete="off" name="Size[' + row_no + '][status]"><option value="1">Enable</option><option value="2">Disable</option></select></td>';
-    row += '<td> <a onclick="$(\'#row-' + row_no + '\').remove();"  class="btn btn-danger" ><i class="fa fa-trash"></i></a> </td>';
+    row += '<td><select class="form-control" autocomplete="off" name="Size[' + row_no + '][status]"><option value="1">Enable</option><option value="0">Disable</option></select></td>';
+    row += '<td> <a onclick="$(\'#row-' + row_no + '\').remove();"  class="btn btn-danger" title="Remove new size row" aria-label="Remove new size row"><i class="fa fa-trash" aria-hidden="true"></i></a> </td>';
     row += '</tr>';
     $('#tablecontents').append(row);
     row_no++;

@@ -49,8 +49,16 @@ export default async function Checkout() {
   //   ? `checkout-get-address-by-id?address_id=${guestAddressId}`
   //   : null;
 
+  const cartParams = new URLSearchParams({
+    cart_session: guestSession || "",
+  });
+
+  if (guestAddressId) {
+    cartParams.set("address_id", guestAddressId);
+  }
+
   const CartDetailsData = await fetchAboutData(
-    `get-cart?cart_session=${guestSession}`,
+    `get-cart?${cartParams.toString()}`,
     userToken
   );
   const PaymentMethods = await fetchAboutData(`payment-methods`, userToken);

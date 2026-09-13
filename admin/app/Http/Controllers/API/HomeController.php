@@ -129,9 +129,27 @@ class HomeController extends BaseController
         if($validator->fails()){
             return $this->sendError('Validation Error.', $validator->errors());       
         }
-        $data = Cache::rememberForever('api_static_page_'.$request->page_name, function () use($request){
-            return DB::table('pages')->select(['name', 'description'])->where(['slug'=>$request->page_name,'status'=>1])->first();
+        $pageName = $request->page_name === 'refund-policy'
+            ? 'refund-return-policy'
+            : $request->page_name;
+
+        $data = Cache::rememberForever('api_static_page_'.$pageName, function () use($pageName){
+            return DB::table('pages')->select(['name', 'description'])->where(['slug'=>$pageName,'status'=>1])->first();
         });
+        return response()->json(['success' => true,'data' => $data], 200);
+    }
+
+    public function faqs()
+    {
+        $data = Cache::rememberForever('api_faqs', function () {
+            return DB::table('faqs')
+                ->select(['id', 'question', 'answer', 'updated_at'])
+                ->where('status', 1)
+                ->orderBy('id')
+                ->limit(12)
+                ->get();
+        });
+
         return response()->json(['success' => true,'data' => $data], 200);
     }
     
@@ -199,10 +217,49 @@ class HomeController extends BaseController
         return response()->json(['success' => true,'data' => $data], 200);
     }
     
+    private function seoUrlCandidates(?string $url): array
+    {
+        $path = parse_url((string) $url, PHP_URL_PATH) ?: (string) $url;
+        $path = '/'.trim($path, '/');
+        $path = $path === '/' ? '/' : rtrim($path, '/');
+
+        $candidates = [$path];
+
+        if (preg_match('#^/product-details/(.+)$#', $path, $matches)) {
+            $candidates[] = '/productDetails/'.$matches[1];
+            $candidates[] = '/'.$matches[1];
+        }
+
+        if (preg_match('#^/productDetails/(.+)$#', $path, $matches)) {
+            $candidates[] = '/product-details/'.$matches[1];
+            $candidates[] = '/'.$matches[1];
+        }
+
+        if (preg_match('#^/products/(.+)$#', $path, $matches)) {
+            $candidates[] = '/'.$matches[1];
+        }
+
+        return array_values(array_unique($candidates));
+    }
+
     public function seoMetaData(Request $request){
         $url = $request->url;
         $data = Cache::rememberForever('api_seo_meta_data'.$url, function () use($url){
-            return DB::table('seo_urls')->select('url','page_title','meta_keywords','meta_description','robots')->where(['url'=>$url,'status'=>1])->first();
+            $candidates = $this->seoUrlCandidates($url);
+            $rows = DB::table('seo_urls')
+                ->select('url','page_title','meta_keywords','meta_description','schema_markup','robots')
+                ->whereIn('url', $candidates)
+                ->where('status', 1)
+                ->get()
+                ->keyBy('url');
+
+            foreach ($candidates as $candidate) {
+                if ($rows->has($candidate)) {
+                    return $rows->get($candidate);
+                }
+            }
+
+            return null;
         });
         return response()->json(['success' => true,'data' => $data], 200);
     }

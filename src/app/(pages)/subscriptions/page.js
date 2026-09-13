@@ -1,9 +1,10 @@
 import React from "react";
 import SubscriptionsPage from "@/components/pages/SubscriptionsPage";
 import {
-  buildPageMetadata,
+  getPageMetadataOptions,
   menuLandingPageConfigs,
 } from "@/data/storefrontNavigation";
+import { buildMetadataWithAdminSeo } from "@/lib/metadata";
 import {
   fetchListingData,
   fetchSiteSettingsData,
@@ -11,7 +12,9 @@ import {
 
 const pageConfig = menuLandingPageConfigs.subscriptions;
 
-export const metadata = buildPageMetadata(pageConfig);
+export async function generateMetadata() {
+  return buildMetadataWithAdminSeo(getPageMetadataOptions(pageConfig));
+}
 
 export default async function SubscriptionsRoutePage() {
   const [plansData, siteSettings] = await Promise.all([

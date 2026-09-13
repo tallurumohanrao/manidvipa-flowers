@@ -12,11 +12,14 @@
                     </li>
                     <li class="list-inline-item">
                         <div class="btn-group">
-                          <a class="btn btn-danger" href="javascript:;" id="delete_all" data-url="{{ route('admin.'.$module.'.massdestroy') }}" role="button">Delete</a>
+                          @can($module.'_delete')
+                              <a class="btn btn-danger" href="javascript:;" id="delete_all" data-url="{{ route('admin.'.$module.'.massdestroy') }}" role="button">Delete</a>
+                          @endcan
                         </div>
                     </li>
                 </ul>
                 <hr>
+                @can($module.'_create')
             	<div class="row">
                     <div class="col-md-2">
                         {{ html()->form('POST')->route('admin.'.$module.'.store')->class('form-horizontal')->id('form')->open() }}
@@ -28,7 +31,7 @@
                     <button type="submit" class="btn btn-primary">Submit</button>
                     {{ html()->form()->close() }}
                     </div>
-                </div>
+                @endcan
             	<div class="row">
             		<div class="col-sm-12">
             		<div class="table-responsive">
@@ -62,7 +65,9 @@
                                     <td>{{$row->created_at}}</td>
                                     <td>
                                         <div class="btn-group">
-                                            <a href="javascript:;" class="delete" data-id="{{ $row->id }}" data-url="{{ route('admin.'.$module.'.destroy',['featuredproduct'=>$row->id]) }}"><i class="fas fa-trash text-danger p-1"></i></a>
+                                            @can($module.'_delete')
+                                                <a href="javascript:;" class="delete" title="Remove featured product" aria-label="Remove featured product" data-id="{{ $row->id }}" data-url="{{ route('admin.'.$module.'.destroy',['featuredproduct'=>$row->id]) }}"><i class="fas fa-trash text-danger p-1" aria-hidden="true"></i></a>
+                                            @endcan
                                         </div>
                                     </td>
                                 </tr>

@@ -35,9 +35,9 @@ function addSlots()
     slotrow = '<tr id="slotrow-'+ slotrow_no +'">';
     slotrow += '<td>'+slotrow_no+'<input name="Slot[' + slotrow_no + '][id]" type="hidden"></td></td>';
     slotrow += '<td><input name="Slot[' + slotrow_no + '][timings]" class="form-control" type="text"></td>';
-    slotrow += '<td><select class="form-control" autocomplete="off" name="Slot[' + slotrow_no + '][status]"><option value="1">Enable</option><option value="2">Disable</option></select></td>';
+    slotrow += '<td><select class="form-control" autocomplete="off" name="Slot[' + slotrow_no + '][status]"><option value="1">Enable</option><option value="0">Disable</option></select></td>';
     slotrow += '<td></td>';
-    slotrow += '<td> <a onclick="$(\'#slotrow-' + slotrow_no + '\').remove();"  class="btn btn-danger" ><i class="fa fa-trash"></i></a> </td>';
+    slotrow += '<td> <a onclick="$(\'#slotrow-' + slotrow_no + '\').remove();"  class="btn btn-danger" title="Remove new slot row" aria-label="Remove new slot row"><i class="fa fa-trash" aria-hidden="true"></i></a> </td>';
     slotrow += '</tr>';
     $('#slottablecontents').append(slotrow);
     slotrow_no++;
@@ -50,9 +50,9 @@ function addGallery()
     row += '<td><input name="Gallery[' + row_no + '][image]" type="file" required></td>';
     //row += '<td><select class="form-control" autocomplete="off" name="Gallery[' + row_no + '][type]"><option value="1">Yes</option><option value="0">No</option></select></td>';
     row += '<td><input name="Gallery[' + row_no + '][priority]" class="form-control" type="text"></td>';
-    row += '<td><select class="form-control" autocomplete="off" name="Gallery[' + row_no + '][status]"><option value="1">Enable</option><option value="2">Disable</option></select></td>';
+    row += '<td><select class="form-control" autocomplete="off" name="Gallery[' + row_no + '][status]"><option value="1">Enable</option><option value="0">Disable</option></select></td>';
     row += '<td></td>';
-    row += '<td> <a onclick="$(\'#row-' + row_no + '\').remove();"  class="btn btn-danger" ><i class="fa fa-trash"></i></a> </td>';
+    row += '<td> <a onclick="$(\'#row-' + row_no + '\').remove();"  class="btn btn-danger" title="Remove new gallery row" aria-label="Remove new gallery row"><i class="fa fa-trash" aria-hidden="true"></i></a> </td>';
     row += '</tr>';
     $('#tablecontents').prepend(row);
     row_no++;

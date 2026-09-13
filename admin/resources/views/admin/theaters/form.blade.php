@@ -70,7 +70,7 @@
 <div class="form-group row">
     <label class="col-sm-3 col-form-label" for="status">Status</label>
     <div class="col-sm-2">
-    {!! html()->select('status',array('1' => 'Enable', '2' => 'Disable'))->id('status')->class('form-control') !!}
+    {!! html()->select('status',array('1' => 'Enable', '0' => 'Disable'))->id('status')->class('form-control') !!}
     </div>
 </div>
 
@@ -85,7 +85,7 @@
                     <th>Timings</th>
                     <th>Status</th>
                     <th>Created At</th>
-                    <th><a href="javascript:;" onclick="addSlots()"><i class="fa fa-plus-circle"></i></a></th>
+                    <th><a href="javascript:;" onclick="addSlots()" title="Add slot" aria-label="Add slot"><i class="fa fa-plus-circle" aria-hidden="true"></i></a></th>
                 </tr>
             </thead>
 
@@ -106,7 +106,7 @@
                     <td>{{$slot->created_at}}</td>
                     <td>
                         @can($module.'_delete')
-                            <a href="javascript:;" class="deleteslot btn btn-danger" data-id="{{ $slot->id }}" data-url="{{ route('admin.'.$module.'.slots.destroy',['id'=>$slot->id]) }}"><i class="fa fa-trash"></i></a>
+                            <a href="javascript:;" class="deleteslot btn btn-danger" title="Delete slot" aria-label="Delete slot" data-id="{{ $slot->id }}" data-url="{{ route('admin.'.$module.'.slots.destroy',['id'=>$slot->id]) }}"><i class="fa fa-trash" aria-hidden="true"></i></a>
                         @endcan
                     </td>
                 </tr>
@@ -130,7 +130,7 @@
                     <th>Priority</th>
                     <th>Status</th>
                     <th>Created At</th>
-                    <th><a href="javascript:;" onclick="addGallery()"><i class="fa fa-plus-circle"></i></a></th>
+                    <th><a href="javascript:;" onclick="addGallery()" title="Add gallery image" aria-label="Add gallery image"><i class="fa fa-plus-circle" aria-hidden="true"></i></a></th>
                 </tr>
             </thead>
 
@@ -163,7 +163,7 @@
                     <td>{{$image->created_at}}</td>
                     <td>
                         @can($module.'_delete')
-                            <a href="javascript:;" class="delete btn btn-danger" data-id="{{ $image->id }}" data-url="{{ route('admin.'.$module.'.gallery.destroy',['id'=>$image->id]) }}"><i class="fa fa-trash"></i></a>
+                            <a href="javascript:;" class="delete btn btn-danger" title="Delete gallery image" aria-label="Delete gallery image" data-id="{{ $image->id }}" data-url="{{ route('admin.'.$module.'.gallery.destroy',['id'=>$image->id]) }}"><i class="fa fa-trash" aria-hidden="true"></i></a>
                         @endcan
                     </td>
                 </tr>

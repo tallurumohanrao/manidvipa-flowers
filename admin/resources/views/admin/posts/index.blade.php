@@ -7,8 +7,12 @@
 		<ul class="list-inline mb-3 text-right">
 			<li class="list-inline-item">
 				<div class="btn-group">
-                  <a href="{{ route('admin.'.$module.'.create') }}" class="btn btn-primary">Create</a>
-                  <a class="btn btn-danger" href="javascript:;" id="delete_all" data-url="{{ route('admin.'.$module.'.massdestroy') }}" role="button">Delete</a>
+				  @can($module.'_create')
+                      <a href="{{ route('admin.'.$module.'.create') }}" class="btn btn-primary">Create</a>
+                  @endcan
+                  @can($module.'_delete')
+                      <a class="btn btn-danger" href="javascript:;" id="delete_all" data-url="{{ route('admin.'.$module.'.massdestroy') }}" role="button">Delete</a>
+                  @endcan
 				</div>
 			</li>
 		</ul>
@@ -50,16 +54,18 @@
                                         {{ html()->img(asset('storage/'.$module.'/'. @$row->image ), null)->attributes(array('title' => @$row->image ,'width' => '70px')) }}
                                     </td>
                                     <td>
+                                        @can($module.'_edit')
                                         <label class="switch">
-                                        {{ html()->checkbox('status', $row->status, null)->class('status')->id('status_'.$row->id)->attributes(['data-id'=>$row->id,'data-url'=>route('admin.'.$module.'.update.status',['id'=>$row->id])]) }}
+                                        {{ html()->checkbox('status', $row->status, null)->class('status')->id('status_'.$row->id)->attributes(['aria-label'=>'Toggle status for '.$row->title, 'data-id'=>$row->id,'data-url'=>route('admin.'.$module.'.update.status',['id'=>$row->id])]) }}
                                         <span class="slider round"></span>
                                         </label>
+                                        @else <span class="badge badge-{{ $row->status ? 'success' : 'secondary' }}">{{ $row->status ? 'Enabled' : 'Disabled' }}</span> @endcan
                                     </td>
                                     <td>{{$row->created_at }}</td>
                                     <td>
                                         <div class="btn-group">
-                                            <a href="{{ route('admin.'.$module.'.edit',$row) }}" class="text-primary fas fa-edit p-1 "><i class="ti-pencil-alt"></i></a>
-                                            <a href="javascript:;" class="delete text-danger fas fa-trash text-danger p-1" data-id="{{ $row->id }}" data-url="{{ route('admin.'.$module.'.destroy',$row) }}"><i class="ti-trash"></i></a>
+                                            <a href="{{ route('admin.'.$module.'.edit',$row) }}" class="text-primary fas fa-edit p-1" title="Edit post" aria-label="Edit post"><i class="ti-pencil-alt" aria-hidden="true"></i></a>
+                                            <a href="javascript:;" class="delete text-danger fas fa-trash text-danger p-1" title="Delete post" aria-label="Delete post" data-id="{{ $row->id }}" data-url="{{ route('admin.'.$module.'.destroy',$row) }}"><i class="ti-trash" aria-hidden="true"></i></a>
                                         </div>
                                     </td>
                                 </tr>

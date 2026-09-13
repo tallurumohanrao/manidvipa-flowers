@@ -2,14 +2,18 @@ import React from "react";
 import styles from "@/scss/pages/about.module.scss";
 import Banner from "@/components/banner";
 import { fetchListingData } from "../../../../hook/userCookie";
-import { buildMetadata } from "@/lib/seo";
+import { buildMetadataWithAdminSeo } from "@/lib/metadata";
 
-export const metadata = buildMetadata({
-  title: "Terms and Conditions | Manidvipa Flowers",
-  description:
-    "Read Manidvipa Flowers terms and conditions for orders, delivery, payments and website usage.",
-  path: "/terms-conditions",
-});
+export const dynamic = "force-dynamic";
+
+export async function generateMetadata() {
+  return buildMetadataWithAdminSeo({
+    title: "Terms and Conditions | Manidvipa Flowers",
+    description:
+      "Read Manidvipa Flowers terms and conditions for orders, delivery, payments and website usage.",
+    path: "/terms-conditions",
+  });
+}
 
 const fetchAboutData = async () => {
   try {

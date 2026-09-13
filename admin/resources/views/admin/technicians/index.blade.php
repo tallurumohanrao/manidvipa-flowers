@@ -73,7 +73,7 @@
                                             <a href="{{ route('admin.'.$module.'.edit',['technician'=>$row->id]) }}"><i class="fas fa-edit p-1"></i></a>
                                         @endcan
                                         @can($module.'_delete')
-                                            <a href="javascript:;" class="delete" data-id="{{ $row->id }}" data-url="{{ route('admin.'.$module.'.destroy',['technician'=>$row->id]) }}"><i class="fas fa-trash text-danger p-1"></i></a>
+                                            <a href="javascript:;" class="delete" title="Delete technician" aria-label="Delete technician" data-id="{{ $row->id }}" data-url="{{ route('admin.'.$module.'.destroy',['technician'=>$row->id]) }}"><i class="fas fa-trash text-danger p-1" aria-hidden="true"></i></a>
                                         @endcan
                                     </td>
                                 </tr>

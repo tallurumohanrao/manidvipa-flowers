@@ -8,8 +8,9 @@
         {{ html()->text('sku')->class('form-control') }}
     </div>
     <div class="col-md-2">
-        <label class="col-form-label" for="qty">Qty</label>
-        {{ html()->text('qty')->class('form-control') }}
+        <label class="col-form-label" for="qty">Display Quantity</label>
+        {{ html()->text('qty')->class('form-control')->placeholder('5 KG, 100 bunches, 100') }}
+        <small class="form-text text-muted">Shown in the admin product list. Order stock is managed under Weights &amp; stock.</small>
     </div>
     {{--<div class="col-md-2">
         <label class="col-form-label" for="sell_price">Sell Price</label>

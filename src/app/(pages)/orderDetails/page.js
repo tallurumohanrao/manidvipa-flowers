@@ -33,14 +33,26 @@ export default function OrderDetails({ id, handleBack, userData, userToken }) {
     }
   };
 
+  const isCancelledOrder = (order) =>
+    Number(order?.order_status_id) === 5 ||
+    order?.order_status_name?.toLowerCase() === "cancelled";
+
   const handleOrderCancel = async (id) => {
-    const response = await fetchListingData(
-      "POST",
-      `cancel-order?order_id=${id}`,
-      userToken
-    );
-    if (response.success) {
-      handleBack();
+    try {
+      const response = await fetchListingData(
+        "POST",
+        `cancel-order?order_id=${id}`,
+        userToken
+      );
+      if (response?.success) {
+        alert(response.message || "Your order is cancelled.");
+        handleBack();
+      } else {
+        alert(response?.message || "Unable to cancel this order.");
+      }
+    } catch (error) {
+      console.error("Error canceling order:", error);
+      alert("Unable to cancel this order.");
     }
   };
 
@@ -95,7 +107,7 @@ export default function OrderDetails({ id, handleBack, userData, userToken }) {
             </h6>
             <Modal
               buttonClass={
-                orderDetails?.order?.order_status_id === 5
+                isCancelledOrder(orderDetails?.order)
                   ? `${styles.custom_display}`
                   : `primary-but `
               }

@@ -157,13 +157,6 @@ function resolveProductImageSrc(imageName) {
   return `${IMG_URL}/${src}`;
 }
 
-function getPlainDescription(value) {
-  return String(value || "")
-    .replace(/<[^>]*>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 function normalizePhone(value) {
   return String(value || "").replace(/\D/g, "");
 }
@@ -262,9 +255,6 @@ export default function ProductDetails({
   const productDescription =
     productData?.description ||
     "Beautiful, fresh and fragrant red roses. Perfect for pooja, decoration, gifting and special occasions.";
-  const shortDescription =
-    getPlainDescription(productDescription) ||
-    "Freshly sourced flowers delivered with care.";
   const whatsappHref = buildWhatsAppHref(
     contactUs?.SITE_WHATSAPP || contactUs?.SITE_PHONE,
     productTitle
@@ -726,7 +716,6 @@ export default function ProductDetails({
                 <FaChevronDown />
               </summary>
               <div dangerouslySetInnerHTML={{ __html: productDescription }} />
-              <p>{shortDescription}</p>
             </details>
 
             <details className={styles.accordionItem}>

@@ -7,7 +7,7 @@ use App\Models\Admin\Page;
 use Illuminate\Http\Request;
 use App\Http\Requests\StorePageRequest;
 use Symfony\Component\HttpFoundation\Response;
-use Gate,View,DB,Str;
+use Gate,View,DB,Str,Cache;
 
 class PageController extends Controller
 {
@@ -50,8 +50,10 @@ class PageController extends Controller
         abort_if(Gate::denies($this->module.'_create'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         $input = $request->only('name','description','status');
         $input['slug'] = Str::slug($request->name);
-        if($id = DB::table('pages')->insertGetId($input))  
+        if($id = DB::table('pages')->insertGetId($input)) {
+            $this->clearPageCaches($input['slug']);
             return $this->redirectFormOnSubmit($request->FormButton,$id);
+        }
     }
 
     /**
@@ -87,10 +89,13 @@ class PageController extends Controller
     public function update(StorePageRequest $request, Page $page)
     {
         abort_if(Gate::denies($this->module.'_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
+        $oldSlug = $page->slug;
         $input = $request->only('name','description','status');
         $input['slug'] = Str::slug($request->name);
         DB::table('pages')->where('id',$page->id)->update($input);
-            return $this->redirectFormOnSubmit($request->FormButton,$page->id);
+        $this->clearPageCaches($oldSlug, $input['slug']);
+
+        return $this->redirectFormOnSubmit($request->FormButton,$page->id);
     }
 
     public function updateStatus(Request $request, $id)
@@ -99,9 +104,39 @@ class PageController extends Controller
         if($request->ajax() && $request->isMethod('PATCH')){
             $page = Page::findOrFail($id);
             if($page->update(['status'=>$request->status])){
+                $this->clearPageCaches($page->slug);
                 $status=$request->status==1?'enabled':'disabled';
                 return response()->json(['status'=>'success','message'=>"Status $status successfully."]);
             }
+        }
+    }
+
+    private function clearPageCaches(?string ...$slugs): void
+    {
+        $staticSlugs = [
+            'about-us',
+            'contact-us',
+            'privacy-policy',
+            'terms-conditions',
+            'refund-policy',
+            'refund-return-policy',
+        ];
+
+        $cacheKeys = [
+            'home',
+            'contact_page',
+            'about',
+            'terms',
+            'privacy',
+            'refund',
+        ];
+
+        foreach (array_filter(array_unique(array_merge($staticSlugs, $slugs))) as $slug) {
+            $cacheKeys[] = 'api_static_page_'.$slug;
+        }
+
+        foreach (array_unique($cacheKeys) as $cacheKey) {
+            Cache::forget($cacheKey);
         }
     }
     /**

@@ -240,6 +240,15 @@ const Navbar = ({
                     // style={{ width: "100%", height: "80px" }}
                     priority
                   />
+                  <Image
+                    src="/assets/images/mobile-logo1.svg"
+                    className={`${styles.logo} ${styles.mobileLogo}`}
+                    alt="Manidvipa Flowers"
+                    width={271}
+                    height={80}
+                    sizes="240px"
+                    priority
+                  />
                 </Link>
               </div>
               <Link href="/contact-us" className={styles.deliveryLocation}>

@@ -3,16 +3,18 @@
 <section class="content">
 	<div class="container-fluid">
 		<h4 class="heading text-capitalize">
-            <a href="{{ route('admin.'.$module.'.index',['developer'=>1]) }}">{{ $module }}</a>
+            <a href="{{ route('admin.'.$module.'.index') }}">{{ $module }}</a>
         </h4>
 		<hr>
 		<ul class="list-inline mb-3 text-right">
 			<li class="list-inline-item">
 				<div class="btn-group">
-                @if(request('developer') == 1)
-                    <a href="{{ route('admin.'.$module.'.create',['developer'=>1]) }}" class="btn btn-primary">Create</a>
+                @can($module.'_create')
+                    <a href="{{ route('admin.'.$module.'.create') }}" class="btn btn-primary">Create</a>
+                @endcan
+                @can($module.'_delete')
                     <a class="btn btn-danger" href="javascript:;" id="delete_all" data-url="{{ route('admin.'.$module.'.massdestroy') }}" role="button">Delete</a>
-                @endif
+                @endcan
 				</div>
 			</li>
 		</ul>
@@ -25,10 +27,12 @@
                             <thead>
                                 <tr role="row">
                                     <th>
+                                        @can($module.'_delete')
                                         <div class="custom-control custom-checkbox">
                                             {!! html()->checkbox('selectAll')->id('selectAll')->class('custom-control-input') !!}
-                                            <label class="custom-control-label" for="selectAll"></label>
+                                            <label class="custom-control-label" for="selectAll"><span class="sr-only">Select all permissions</span></label>
                                         </div>
+                                        @endcan
                                     </th>
                                     <th>ID</th>
                                     <th>Group</th>
@@ -39,6 +43,8 @@
                                     <th>Delete</th>
                                     <th>Group Sort Order</th>
                                     <th>Module Sort Order</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
 
@@ -46,17 +52,21 @@
                             @foreach($data as $row)
                                 <tr id="row-{{ $row->id }}">
                                     <td>
+                                        @can($module.'_delete')
                                         <div class="custom-control custom-checkbox sub_chk">
                                             {!! html()->checkbox('id[]', false, $row->id)->id($row->id)->class('custom-control-input') !!}
-                                            <label class="custom-control-label" for="{{ $row->id }}"></label>
+                                            <label class="custom-control-label" for="{{ $row->id }}"><span class="sr-only">Select {{ $row->module }}</span></label>
                                         </div>
+                                        @endcan
                                     </td>
                                     <td>{{ $row->id }}</td>
                                     <td>{{ $row->group_name }}</td>
                                     <td>
-                                        @if(request('developer') == 1)
-                                        <a href="{{ route('admin.'.$module.'.edit',$row,['developer'=>1]) }}">{{ $row->module }}</a>
-                                        @endif
+                                        @can($module.'_edit')
+                                            <a href="{{ route('admin.'.$module.'.edit',$row) }}">{{ $row->module }}</a>
+                                        @else
+                                            {{ $row->module }}
+                                        @endcan
                                     </td>
                                     <td>{{ $row->view }}</td>
                                     <td>{{ $row->create }}</td>
@@ -64,16 +74,28 @@
                                     <td>{{ $row->delete }}</td>
                                     <td>{{ $row->group_sort_order }}</td>
                                     <td>{{ $row->module_sort_order }}</td>
-                                    {{--<td>
+                                    <td>
+                                        @can($module.'_edit')
+                                            <label class="switch">
+                                                {{ html()->checkbox('status', $row->status, null)->class('status')->id('status_'.$row->id)->attributes(['aria-label'=>'Toggle '.$row->module.' permission status', 'data-id'=>$row->id, 'data-url'=>route('admin.permissions.update.status', ['id'=>$row->id])]) }}
+                                                <span class="slider round"></span>
+                                            </label>
+                                        @else
+                                            <span class="badge badge-{{ $row->status ? 'success' : 'secondary' }}">{{ $row->status ? 'Enabled' : 'Disabled' }}</span>
+                                        @endcan
+                                    </td>
+                                    <td>
                                         <div class="btn-group">
                                         @can($module.'_edit')
-                                            <a href="{{ route('admin.'.$module.'.edit',$row) }}"><i class="fas fa-edit p-1"></i></a>
+                                            <a href="{{ route('admin.'.$module.'.edit',$row) }}" title="Edit {{ $row->module }}" aria-label="Edit {{ $row->module }}"><i class="fas fa-edit p-1" aria-hidden="true"></i></a>
                                         @endcan
-                                        @can($module.'_delete')
-                                            <a href="javascript:;" class="delete" data-id="{{ $row->id }}" data-url="{{ route('admin.'.$module.'.destroy',$row) }}"><i class="fas fa-trash text-danger p-1"></i></a>
-                                        @endcan
+                                        @if($row->module !== 'Permissions')
+                                            @can($module.'_delete')
+                                                <a href="javascript:;" class="delete" title="Delete {{ $row->module }}" aria-label="Delete {{ $row->module }}" data-id="{{ $row->id }}" data-url="{{ route('admin.'.$module.'.destroy',$row) }}"><i class="fas fa-trash text-danger p-1" aria-hidden="true"></i></a>
+                                            @endcan
+                                        @endif
                                         </div>
-                                    </td>--}}
+                                    </td>
                                 </tr>
                             @endforeach
                             </tbody>

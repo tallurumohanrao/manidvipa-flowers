@@ -26,6 +26,8 @@ class StoreRoleRequest extends FormRequest
         $rules= [
             'name' => 'required|max:255',
             'status' => 'required|boolean',
+            'Permissions' => 'nullable|array',
+            'Permissions.*' => 'string|max:100',
         ];
         return $rules;
     }

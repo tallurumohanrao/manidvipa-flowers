@@ -6,8 +6,16 @@
     </li>
     <li class="list-inline-item">
         <div class="btn-group">
-        <a href="{{ route('admin.'.$module.'.create') }}" class="btn btn-primary">Create</a>
-          <a class="btn btn-danger" href="javascript:;" id="delete_all" data-url="{{ route('admin.'.$module.'.massdestroy') }}" role="button">Delete</a>
+        @can($module.'_create')
+            @if(Route::has('admin.'.$module.'.create'))
+                <a href="{{ route('admin.'.$module.'.create') }}" class="btn btn-primary">Create</a>
+            @endif
+        @endcan
+        @can($module.'_delete')
+            @if(Route::has('admin.'.$module.'.massdestroy'))
+                <a class="btn btn-danger" href="javascript:;" id="delete_all" data-url="{{ route('admin.'.$module.'.massdestroy') }}" role="button">Delete</a>
+            @endif
+        @endcan
         </div>
     </li>
 </ul><hr>

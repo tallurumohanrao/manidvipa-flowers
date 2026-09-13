@@ -8,6 +8,7 @@
   bottom: 0;
   width: 100%;
   border-top: $border-1 solid $color-white;
+  z-index: 1030;
 
   :global(.container-fluid),
   :global(.row) {
@@ -18,7 +19,7 @@
     align-items: center;
   }
 
-  :global(.col-6) {
+  :global(.col-4) {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -26,7 +27,7 @@
     padding-bottom: 0 !important;
   }
 
-  .faSearch {
+  .bottomPanelItem {
     border-right: $border-1 solid $color-white;
   }
 
@@ -38,6 +39,35 @@
   svg {
     width: 24px;
     height: 24px;
+  }
+
+  .mobileCartLink {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    min-height: 34px;
+    text-decoration: none;
+  }
+
+  .mobileCartCount {
+    position: absolute;
+    top: 0;
+    right: -8px;
+    min-width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+    border: $border-1 solid $color-white;
+    border-radius: 999px;
+    background-color: $bg-secondary;
+    color: $color-primary;
+    font-size: 11px;
+    font-weight: $fw-800;
+    line-height: 1;
   }
 }
 .scroll_top_btn {
@@ -57,6 +87,7 @@
 
   cursor: pointer;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  z-index: 1031;
 }
 @media (max-width: $sm) {
   .scroll_top_btn {

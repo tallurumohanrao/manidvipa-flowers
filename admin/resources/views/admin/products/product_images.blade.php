@@ -6,8 +6,12 @@
 @section('content')
 <div class="container mt-2">
     <div class="row">
-        <div class="col-md-12">
-        Add/Remove Product Images - {{ $product->title }}
+        <div class="col-md-12 d-flex align-items-center justify-content-between">
+            <h4 class="mb-0">Product images — {{ $product->title }}</h4>
+            <div class="btn-group">
+                <a href="{{ route('admin.products.edit', ['product' => $product->id]) }}" class="btn btn-outline-primary">Edit product</a>
+                <a href="{{ route('admin.products.index') }}" class="btn btn-outline-secondary">All products</a>
+            </div>
         </div>
     </div>
     <div class="row">
@@ -40,11 +44,11 @@
                             <td>{{ html()->img(asset('storage/'.$module.'/100X100/'. @$image->name ), null)->attributes(array('title' => @$image->name ,'width' => '70px')) }}</td>
                             <td>
                                 <label class="switch">
-                                {{ html()->checkbox('status', $image->status, null)->class('status')->id('status_'.$image->id)->attributes(['data-id'=>$image->id,'data-url'=>route('admin.products.images.update.status',['id'=>$image->id])]) }}
+                                {{ html()->checkbox('status', $image->status, null)->class('status')->id('status_'.$image->id)->attributes(['aria-label'=>'Toggle image status', 'data-id'=>$image->id,'data-url'=>route('admin.products.images.update.status',['id'=>$image->id])]) }}
                                 <span class="slider round"></span>
                                 </label>
                             </td>
-                            <td><a href="javascript:;" class="delete" data-id="{{ $image->id }}" data-url="{{ route('admin.products.images.destroy',['id'=>$image->id]) }}"><i class="fas fa-trash text-danger p-1"></i></a></td>
+                            <td><a href="javascript:;" class="delete" title="Delete image" aria-label="Delete image" data-id="{{ $image->id }}" data-url="{{ route('admin.products.images.destroy',['id'=>$image->id]) }}"><i class="fas fa-trash text-danger p-1" aria-hidden="true"></i></a></td>
                         </tr>
                     @endforeach
                     </tbody>

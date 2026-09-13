@@ -26,6 +26,8 @@ class StorePaymentStatusRequest extends FormRequest
         $id = request('paymentstatus');
         return [
             'name' => "required|max:190|unique:payment_statuses,name,$id",
+            'subject' => ['nullable', 'string', 'max:190'],
+            'body_html' => ['nullable', 'string', 'max:20000'],
         ];
     }
 

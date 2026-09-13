@@ -1,4 +1,4 @@
-import { SITE_URL } from "@/lib/seo";
+import { buildMetadata, SITE_URL } from "@/lib/seo";
 
 export const storefrontNavItems = [
   { key: "home", label: "Home", href: "/" },
@@ -225,40 +225,20 @@ export const menuLandingPageConfigs = {
   },
 };
 
-export function buildPageMetadata(config) {
+export function getPageMetadataOptions(config) {
   const title = config.metaTitle || `${config.title} | ${metadataSiteName}`;
   const description = config.metaDescription || config.description;
   const canonical = config.href || "/";
   const image = metadataAbsoluteUrl(config.heroImage || metadataDefaultImage);
 
   return {
-    metadataBase: new URL(metadataSiteUrl),
     title,
     description,
-    alternates: {
-      canonical,
-    },
-    openGraph: {
-      title,
-      description,
-      url: metadataAbsoluteUrl(canonical),
-      siteName: metadataSiteName,
-      locale: "en_IN",
-      type: "website",
-      images: [
-        {
-          url: image,
-          width: 1200,
-          height: 630,
-          alt: title,
-        },
-      ],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-      images: [image],
-    },
+    path: canonical,
+    image,
   };
+}
+
+export function buildPageMetadata(config) {
+  return buildMetadata(getPageMetadataOptions(config));
 }

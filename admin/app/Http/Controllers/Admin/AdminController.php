@@ -61,7 +61,7 @@ class AdminController extends Controller
     public function create()
     {
         abort_if(Gate::denies($this->module.'_create'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
-        return view('admin.'.$this->module.'.create');
+        return view('admin.'.$this->module.'.create', ['selected' => []]);
     }
 
     /**
@@ -73,8 +73,9 @@ class AdminController extends Controller
     public function store(StoreAdminRequest $request)
     {
         abort_if(Gate::denies($this->module.'_create'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
-        $create = $request->all();
+        $create = $request->only('name', 'email', 'status');
         $create['password'] = Hash::make($request->password);
+        $create['image'] = $this->verifyAndStoreImage($request, 'image', 'admins');
         $admin = Admin::create($create);
         if($request->filled('roles')) {
             $admin->roles()->sync($request->input('roles'));
@@ -116,7 +117,7 @@ class AdminController extends Controller
     public function update(StoreAdminRequest $request, Admin $admin)
     {
         abort_if(Gate::denies($this->module.'_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
-        $formInput = $request->filled('password') ? $request->all() : $request->except(['password','password_confirmation']);
+        $formInput = $request->only('name', 'email', 'status');
 
         $formInput['image'] = $this->verifyAndStoreImage($request, 'image', 'admins');
         if($request->password){
@@ -133,8 +134,12 @@ class AdminController extends Controller
     public function updateStatus(Request $request, $id)
     {
         abort_if(Gate::denies($this->module.'_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
+        $request->validate(['status' => ['required', 'boolean']]);
         if($request->ajax() && $request->isMethod('PATCH')){
             $admin = Admin::findOrFail($id);
+            if (! $request->boolean('status') && $admin->is(auth('admin')->user())) {
+                return response()->json(['status' => 'error', 'message' => 'You cannot disable your own account.'], 422);
+            }
             if($admin->update(['status'=>$request->status])){
                 $status=$request->status==1?'enabled':'disabled';
                 return response()->json(['status'=>'success','message'=>"Status $status successfully."]);
@@ -150,9 +155,39 @@ class AdminController extends Controller
     public function destroy(Admin $admin)
     {
         abort_if(Gate::denies($this->module.'_delete'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
-        if($admin->delete() == 1)
+        if ($admin->is(auth('admin')->user())) {
+            return response()->json(['success' => false, 'message' => 'You cannot delete your own account.'], 422);
+        }
+
+        $result = DB::transaction(function () use ($admin) {
+            DB::table('admin_role')->where('admin_id', $admin->id)->delete();
+            return $admin->delete();
+        });
+        if($result == 1)
         return response()->json(['success'=>true, 'message' => 'Deleted successfully.']);
         else
         return response()->json(['success'=>false, 'message' => 'An unexpected error has occurred.']);
+    }
+
+    public function massDestroy(Request $request)
+    {
+        abort_if(Gate::denies($this->module.'_delete'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
+
+        $ids = array_values(array_filter(array_map('intval', explode(',', (string) $request->ids))));
+        $currentAdminId = auth('admin')->id();
+
+        if (in_array($currentAdminId, $ids, true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Your own account was not deleted. Remove it from the selection and try again.',
+            ], 422);
+        }
+
+        DB::transaction(function () use ($ids) {
+            DB::table('admin_role')->whereIn('admin_id', $ids)->delete();
+            Admin::whereIn('id', $ids)->delete();
+        });
+
+        return response()->json(['success' => true, 'message' => 'Selected administrators deleted.']);
     }
 }

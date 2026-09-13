@@ -124,7 +124,7 @@
 
     <div class="col-md-2">
         {!! Form::label('status', 'Status*', ['class' => 'col-form-label']) !!}
-        {!! Form::select('status', array('1' => 'Enable', '2' => 'Disable'), NULL, [ 'class' => 'form-control', 'autocomplete' => 'off' ]) !!}
+        {!! Form::select('status', array('1' => 'Enable', '0' => 'Disable'), NULL, [ 'class' => 'form-control', 'autocomplete' => 'off' ]) !!}
     </div>
 
 </div>

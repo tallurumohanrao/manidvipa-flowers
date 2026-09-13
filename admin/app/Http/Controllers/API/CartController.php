@@ -8,10 +8,23 @@ use App\Http\Requests\StoreCartRequest;
 use Auth,Validator,DB;
 use App\Traits\GetCartTrait;
 use App\Traits\GoogleDistanceTrait;
+use App\Traits\ShippingChargeTrait;
 
 class CartController extends BaseController
 {
-    use GetCartTrait,GoogleDistanceTrait;
+    use GetCartTrait,GoogleDistanceTrait,ShippingChargeTrait;
+
+    private function cartOwnerScope(?string $cartSession, ?int $userId): \Closure
+    {
+        return function($query) use($cartSession,$userId){
+            if($userId){
+                $query->where('user_id',$userId);
+            }else{
+                $query->where('cart_session',$cartSession);
+            }
+        };
+    }
+
     public function getcart(Request $request){
         $user_id = null;
         $carts = [];
@@ -22,14 +35,7 @@ class CartController extends BaseController
         
         $cart_session = $request->cart_session ?? null;
         if($cart_session OR $user_id){
-            $carts = DB::table('carts')->where(function($cwq) use($cart_session,$user_id){
-                if($user_id){
-                    $cwq->where('user_id',$user_id);
-                }
-                if($cart_session){
-                    $cwq->orWhere('cart_session',$cart_session);
-                }
-            })->get();
+            $carts = DB::table('carts')->where($this->cartOwnerScope($cart_session,$user_id))->get();
         }
         
         
@@ -37,23 +43,24 @@ class CartController extends BaseController
         $subTotal = 0;
         $vat = config('VAT_AMOUNT');
         foreach($carts as $value) :
-            $product = DB::table('products')->where('id',$value->product_id)->first(); 
+            $product = DB::table('products')->where('id',$value->product_id)->where('status', 1)->first();
             if(!$product){
                 continue;
             }
             #$size = DB::table('sizes')->where('id',$value->size_id)->first(); 
-            $weight = DB::table('product_weights')->where(['id'=>$value->weight_id,'product_id'=>$product->id])->first(); 
+            $weight = DB::table('product_weights')->where(['id'=>$value->weight_id,'product_id'=>$product->id])->where('status', 1)->first();
             if(!$weight){
                 continue;
             }
             $availableWeights = DB::table('product_weights')
                 ->select('id','name','sell_price','list_price','stock','qty')
                 ->where('product_id',$product->id)
+                ->where('status', 1)
                 ->orderByRaw('CAST(sell_price AS DECIMAL(10,2)) ASC')
                 ->orderBy('id')
                 ->get();
             $image = null;
-            $productImage = DB::table('product_images')->where('product_id',$value->product_id)->orderBy('priority')->first(); 
+            $productImage = DB::table('product_images')->where('product_id',$value->product_id)->where('status', 1)->orderBy('priority')->first();
             if($productImage){ 
                 $image = $productImage->name;
             }
@@ -68,11 +75,15 @@ class CartController extends BaseController
         
         $shipping = null;
         $distance = null;
+        $shippingResult = null;
         if($request->filled('address_id')){
             $distance_response = $this->getDistance($request->address_id);
             if($distance_response['status'] =='success'){
                 $distance = $distance_response['distance'];
-                $shipping = DB::table('shipping_prices')->select('title','shipping_amount')->where('from_km','<=',$distance)->where('to_km','>=',$distance)->whereStatus(1)->first();
+                $shippingResult = $this->calculateShippingCharge($distance, (float) $subTotal);
+                $shipping = $shippingResult['available'] ? $shippingResult : null;
+            }else{
+                $shippingResult = $this->shippingUnavailable('Unable to calculate delivery charges for the selected address.', null);
             }
         }
         
@@ -93,8 +104,8 @@ class CartController extends BaseController
             $totals['gst'] = ['title' => 'GST', 'amount' => floor(($subTotal * $vat)/100)];
         }
 
-        if(@$shipping){
-            $totals['shipping'] = ['title' => @$shipping->title, 'amount' => @$shipping->shipping_amount];
+        if($shipping){
+            $totals['shipping'] = ['title' => $shipping['title'], 'amount' => $shipping['amount']];
         }
         $totalAmount = 0;
         foreach($totals as $total){
@@ -107,7 +118,9 @@ class CartController extends BaseController
             'data'=> $products,
             'cart_count' => count($products),
             'totals'=> $totals,
-            'distance'=>$distance
+            'distance'=>$distance,
+            'shipping_available' => $shippingResult['available'] ?? null,
+            'shipping_message' => $shippingResult['message'] ?? null,
         ], 200);
     }
     
@@ -121,41 +134,47 @@ class CartController extends BaseController
         
         $input = $request->all();
         $validator = Validator::make($input, [
-            'product_id' => 'required',
-            'quantity' => 'required',
-            'weight_id' => 'required'
+            'product_id' => 'required|integer',
+            'quantity' => 'required|integer|min:1|max:99',
+            'weight_id' => 'required|integer',
+            'cart_session' => 'nullable|string|max:50',
         ],['product_id.required'=>'Product is required.','quantity.required'=>'Quantity is required.','weight_id.required'=>'Weight is required.']);
    
         if($validator->fails()){
             return $this->sendError('Validation Error.', $validator->errors());     
         }
         $cart_session = $request->cart_session ?? null;
+        if (! $user_id && ! $cart_session) {
+            return response()->json(['success' => false, 'message' => 'Cart session is required.'], 422);
+        }
         
         $message = null;
-        $request->request->add(['user_id' => $user_id,'cart_session'=>$cart_session]);
-
-        $data = $request->all();
-        if(empty($data['quantity'])){
-            $data['quantity'] = 1;
-        }
+        $data = [
+            'user_id' => $user_id,
+            'cart_session' => $cart_session,
+            'product_id' => (int) $request->product_id,
+            'weight_id' => (int) $request->weight_id,
+            'quantity' => (int) $request->quantity,
+        ];
         
         $weight = null;
         if($data['product_id']){
-            $weight = DB::table('product_weights')->where(['id'=>$data['weight_id'],'product_id'=>$data['product_id']])->first();
-            if(empty($weight)){
+            $productIsActive = DB::table('products')->where('id', $data['product_id'])->where('status', 1)->exists();
+            $weight = DB::table('product_weights')
+                ->where(['id'=>$data['weight_id'],'product_id'=>$data['product_id']])
+                ->where('status', 1)
+                ->first();
+            if(! $productIsActive || empty($weight)){
                 return response()->json(['success'=>false,'message'=>'Product not available.'],422);exit;
             }
         }
         //'session'=>$cart_session
         $criteria = ['product_id'=>$request->product_id,'weight_id'=>$request->weight_id];
-        $cart_row = DB::table('carts')->where(function($cwq) use($cart_session,$user_id){
-                                if($user_id){
-                                    $cwq->where('user_id',$user_id);
-                                }
-                                if($cart_session){
-                                    $cwq->orWhere('cart_session',$cart_session);
-                                }
-                            })->where($criteria)->first();
+        $cart_row = DB::table('carts')
+            ->when($user_id, fn ($query) => $query->where('user_id', $user_id))
+            ->when(! $user_id, fn ($query) => $query->where('cart_session', $cart_session))
+            ->where($criteria)
+            ->first();
         if($cart_row){
             $incomingQuantity = max(1, (int) $data['quantity']);
             $data['quantity'] = max(0, (int) $cart_row->quantity) + $incomingQuantity;
@@ -198,14 +217,7 @@ class CartController extends BaseController
             return response()->json(['success'=>false,'message'=>'Cart session missing. Please refresh and try again.'],422);
         }
 
-        $ownerScope = function($cwq) use($cart_session,$user_id){
-            if($user_id){
-                $cwq->where('user_id',$user_id);
-            }
-            if($cart_session){
-                $cwq->orWhere('cart_session',$cart_session);
-            }
-        };
+        $ownerScope = $this->cartOwnerScope($cart_session,$user_id);
 
         $mergedCartIdsToSkip = [];
         foreach(($request->products ?: []) as $product) :
@@ -225,7 +237,7 @@ class CartController extends BaseController
                     }
 
                     $targetWeightId = !empty($product['weight_id']) ? $product['weight_id'] : $cart->weight_id;
-                    $weight = DB::table('product_weights')->where(['id'=>$targetWeightId,'product_id'=>$cart->product_id])->first();
+                    $weight = DB::table('product_weights')->where(['id'=>$targetWeightId,'product_id'=>$cart->product_id])->where('status', 1)->first();
                     if(!$weight){
                         $product_title = $product['product_title'] ?? 'Product';
                         $errors[$cart->id][] = $product_title.' selected weight is not available.';
@@ -307,23 +319,22 @@ class CartController extends BaseController
         
         $input = $request->all();
         $validator = Validator::make($input, [
-            'cart_id' => 'required',
-            'cart_session' => 'required'
+            'cart_id' => 'required|integer',
+            'cart_session' => 'nullable|string|max:50'
         ]);
    
         if($validator->fails()){
             return $this->sendError('Validation Error.', $validator->errors());     
         }
         $cart_session = $request->cart_session ?? null;
+        if(empty($cart_session) && empty($user_id)){
+            return response()->json(['success'=>false,'message'=>'Cart session missing. Please refresh and try again.'],422);
+        }
         if($cart_session OR $user_id){
-            $result = DB::table('carts')->where('id',$request->cart_id)->where(function($cwq) use($cart_session,$user_id){
-                                if($user_id){
-                                    $cwq->where('user_id',$user_id);
-                                }
-                                if($cart_session){
-                                    $cwq->orWhere('cart_session',$cart_session);
-                                }
-                            })->delete();
+            $result = DB::table('carts')
+                ->where('id',$request->cart_id)
+                ->where($this->cartOwnerScope($cart_session,$user_id))
+                ->delete();
             if($result){
                 return response()->json(['success'=>true,'message'=>"Product deleted from cart."],200);
             }else{
@@ -391,17 +402,16 @@ class CartController extends BaseController
         $subTotal = 0;
         if($coupon->minimum_purchage_amount){
             #$carts = DB::table('carts')->where('cart_session',$cart_session)->get();
-            $carts = DB::table('carts')->where(function($cwq) use($cart_session,$user_id){
-                if($user_id){
-                    $cwq->where('user_id',$user_id);
-                }
-                if($cart_session){
-                    $cwq->orWhere('cart_session',$cart_session);
-                }
-            })->get();
+            $carts = DB::table('carts')->where($this->cartOwnerScope($cart_session,$user_id))->get();
             foreach($carts as $value) :
                 $product = DB::table('products')->where('id',$value->product_id)->first();
-                $weight = DB::table('product_weights')->where(['id'=>$value->weight_id,'product_id'=>$product->id])->first(); 
+                if(!$product){
+                    continue;
+                }
+                $weight = DB::table('product_weights')->where(['id'=>$value->weight_id,'product_id'=>$product->id])->first();
+                if(!$weight){
+                    continue;
+                }
                 $subTotal += ( $weight->sell_price * $value->quantity );
             endforeach;
             

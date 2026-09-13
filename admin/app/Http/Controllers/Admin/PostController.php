@@ -29,6 +29,7 @@ class PostController extends Controller
      */
     public function index(Request $request)
     {
+        abort_if(Gate::denies($this->module.'_view'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         $perPage = $request->input('perPage') ?: config('perPage');
         $search = $this->model::query();
         $data = $search->orderByDesc('id')->paginate($perPage)->withQueryString();
@@ -42,6 +43,7 @@ class PostController extends Controller
      */
     public function create()
     {
+        abort_if(Gate::denies($this->module.'_create'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         return view('admin.posts.create', [ 'row' => []]);
     }
 
@@ -53,12 +55,13 @@ class PostController extends Controller
      */
     public function store(StorePostRequest $request)
     {
+        abort_if(Gate::denies($this->module.'_create'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         $request->request->add(['added_by']);
         $formInput = $request->all();
         $formInput['slug'] = Str::slug($formInput['title']);
         #$formInput['banner'] = $this->verifyAndStoreImage($request, 'banner', 'posts');
         $formInput['image'] = $this->verifyAndStoreImage($request, 'image', 'posts');
-        $formInput['added_by'] = Auth::user()->name;
+        $formInput['added_by'] = Auth::guard('admin')->user()->name;
         $model = $this->model::create($formInput);
         return $this->redirectAfterSave($request->FormButton, $model->id);
     }
@@ -82,6 +85,7 @@ class PostController extends Controller
      */
     public function edit(Post $post)
     {
+        abort_if(Gate::denies($this->module.'_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         return view('admin.posts.edit', ['row' => $post]);
     }
 
@@ -94,12 +98,13 @@ class PostController extends Controller
      */
     public function update(StorePostRequest $request, Post $post)
     {
+        abort_if(Gate::denies($this->module.'_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         $request->request->add(['added_by']);
         $formInput = $request->all();
         $formInput['slug'] = Str::slug($formInput['title']);
         #$formInput['banner'] = $this->verifyAndStoreImage($request, 'banner', 'posts');
         $formInput['image'] = $this->verifyAndStoreImage($request, 'image', 'posts');
-        $formInput['added_by'] = Auth::user()->name;
+        $formInput['added_by'] = Auth::guard('admin')->user()->name;
         if($post->update($formInput))
         return $this->redirectAfterSave($request->FormButton, $post->id);
     }
@@ -117,6 +122,7 @@ class PostController extends Controller
 
     public function updateSort(Request $request)
     {
+        abort_if(Gate::denies($this->module.'_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         foreach ($request->order as $order) {
             $result = $this->model::find($order['id'])->update(['priority' => $order['position']]);
         }
@@ -134,6 +140,7 @@ class PostController extends Controller
      */
     public function destroy(Post $post)
     {
+        abort_if(Gate::denies($this->module.'_delete'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         $images[] = 'public/posts/'.$post->banner;
         $images[] = 'public/posts/'.$post->image;
         Storage::delete($images);
@@ -146,6 +153,7 @@ class PostController extends Controller
     }
     public function massDestroy(Request $request)
     {
+        abort_if(Gate::denies($this->module.'_delete'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         $ids = explode(',',$request->ids);
         foreach($ids as $id) :
             $model = $this->model::find($id);
@@ -163,6 +171,7 @@ class PostController extends Controller
 
     public function commentsDestroy($id)
     {
+        abort_if(Gate::denies($this->module.'_delete'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         $result = Comment::find($id)->delete();
         if($result == 1)
         return response()->json(['success'=>true, 'message' => 'Deleted successfully.']);
@@ -172,6 +181,7 @@ class PostController extends Controller
 
     public function updateCommentStatus(Request $request, $id)
     {
+        abort_if(Gate::denies($this->module.'_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         if($request->ajax() && $request->isMethod('PATCH')){
             $comment = Comment::find($id);
             if($comment->update(['is_visable'=>$request->status])){

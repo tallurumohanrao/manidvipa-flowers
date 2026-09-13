@@ -478,14 +478,20 @@ class ProductController extends BaseController
         if($user_id){
             $search->addSelect(DB::raw("(SELECT id FROM wishlist WHERE wishlist.product_id  = products.id and user_id = $user_id) as wishlist_id"));
         }
-        $search->where('slug',$request->product_slug);
+        $search->where('slug',$request->product_slug)->where('status', 1);
         $product = $search->first();
         if($product == null){
             return response()->json(['success'=>false,'message'=>'Page not found.'],404);
         }
-        $images = DB::table('product_images')->select('name')->where('product_id',$product->id)->get();
+        $images = DB::table('product_images')->select('name')->where('product_id',$product->id)->where('status', 1)->orderBy('priority')->get();
         #$sizes = DB::table('product_sizes')->select('id','name','sell_price','list_price')->where('product_id',$product->id)->get();DB::raw('CONCAT("' . config('app.url') . '/storage/products/", name) AS url')
-        $weights = DB::table('product_weights')->select('id','name','sell_price','list_price')->where('product_id',$product->id)->get();
+        $weights = DB::table('product_weights')
+            ->select('id','name','sell_price','list_price','stock','qty')
+            ->where('product_id',$product->id)
+            ->where('status', 1)
+            ->orderByRaw('CASE WHEN stock = 1 AND qty <= 0 THEN 1 ELSE 0 END')
+            ->orderBy('id')
+            ->get();
         return response()->json(['success'=>true,'data'=>$product,'images'=>$images,'weights'=>$weights],200);
     }
     

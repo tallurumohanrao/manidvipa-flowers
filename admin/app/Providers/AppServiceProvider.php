@@ -34,6 +34,8 @@ class AppServiceProvider extends ServiceProvider
 
         Paginator::useBootstrap();
         Schema::defaultStringLength(191);
+        Config::set('PER_PAGE', (int) config('PER_PAGE') ?: 10);
+        Config::set('ADMIN_PER_PAGE', (int) config('ADMIN_PER_PAGE') ?: 10);
 
         if ($this->app->runningInConsole()) {
             return;

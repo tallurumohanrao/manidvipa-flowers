@@ -4,7 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use DB,View;
+use DB,View,Gate;
+use Symfony\Component\HttpFoundation\Response;
 
 class FeaturedProductController extends Controller
 {
@@ -20,6 +21,7 @@ class FeaturedProductController extends Controller
      */
     public function index()
     {
+        abort_if(Gate::denies($this->module.'_view'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         $products = DB::table('products')->where('status',1)->orderBy('title')->get()->pluck('title','id');
         $data = DB::table('featured_products')->selectRaw('featured_products.id,featured_products.created_at,products.title')->join('products','featured_products.product_id', '=', 'products.id')->orderByDesc('id')->paginate(config('PER_PAGE'));
         return view('admin.'.$this->module.'.index', compact('products','data'));
@@ -43,6 +45,8 @@ class FeaturedProductController extends Controller
      */
     public function store(Request $request)
     {
+        abort_if(Gate::denies($this->module.'_create'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
+        $request->validate(['products' => ['required', 'array', 'min:1'], 'products.*' => ['integer', 'exists:products,id']]);
         foreach($request->products as $id){
             $result = DB::table('featured_products')->where('product_id',$id)->first();
             if($result == NULL){
@@ -94,6 +98,7 @@ class FeaturedProductController extends Controller
      */
     public function destroy($id)
     {
+        abort_if(Gate::denies($this->module.'_delete'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         $result = DB::table('featured_products')->where('id',$id)->delete();
         if ($result==1){
             $data = [ 'success' => true, 'message' => 'Deleted successfully.' ];
@@ -105,6 +110,7 @@ class FeaturedProductController extends Controller
 
     public function massDestroy(Request $request)
     {
+        abort_if(Gate::denies($this->module.'_delete'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         $ids = explode(',',$request->ids);
         foreach($ids as $id) :
             $result = DB::table('featured_products')->where('id',$id)->delete();

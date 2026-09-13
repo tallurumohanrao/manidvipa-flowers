@@ -51,23 +51,21 @@ trait StoreImageTrait {
         if( $request->hasFile( $fieldname ) ) {
             $file = $request->file($fieldname);
             if (!$request->file($fieldname)->isValid()) {
-                return redirect()->back()->withInput();
+                throw ValidationException::withMessages([$fieldname => 'The uploaded image is invalid.']);
             }
             $exp = explode('.',$file->getClientOriginalName());
             $extension = strtolower($request->file($fieldname)->getClientOriginalExtension());
             $mimeType = $request->file($fieldname)->getMimeType();
 
-            if (!Str::is('image/*', $mimeType) || !in_array($extension, $this->allowedImageExtensions, true)) {
+            if (!Str::is('image/*', $mimeType) || !in_array($extension, $this->allowedImageExtensions, true) || $file->getSize() > 8 * 1024 * 1024) {
                 throw ValidationException::withMessages([
-                    $fieldname => 'Only JPG, JPEG, PNG and WEBP images are allowed.',
+                    $fieldname => 'Only JPG, JPEG, PNG and WEBP images up to 8MB are allowed.',
                 ]);
             }
 
-            if($extension == 'png'){
-                $name = preg_replace("/[^a-zA-Z0-9]+/", "-",$exp['0']).time().'.jpg';
-            }else{
-                $name = preg_replace("/[^a-zA-Z0-9]+/", "-",$exp['0']) . time() .'.'. $extension;
-            }
+            $storedExtension = $extension === 'png' ? 'jpg' : $extension;
+            $baseName = preg_replace("/[^a-zA-Z0-9]+/", "-", $exp['0']).time();
+            $name = $this->getNewFileName($baseName, $storedExtension, $directory);
             if(Str::is('image/*',$mimeType)){
                 //$name = $exp['0'].time().'.'.$file->getClientOriginalExtension();
                 //$name = $exp['0'].time().'.jpg';
@@ -122,17 +120,21 @@ trait StoreImageTrait {
     }
 
     public function verifyAndStoreMultipleImage( $file, $fieldname = 'image', $directory = 'unknown' ) {
-        $exp = explode('.',$file->getClientOriginalName());
+        if (!$file->isValid()) {
+            throw ValidationException::withMessages([$fieldname => 'The uploaded image is invalid.']);
+        }
+
         $extension = strtolower($file->getClientOriginalExtension());
         $mimeType = $file->getMimeType();
 
-        if (!Str::is('image/*', $mimeType) || !in_array($extension, $this->allowedImageExtensions, true)) {
+        if (!Str::is('image/*', $mimeType) || !in_array($extension, $this->allowedImageExtensions, true) || $file->getSize() > 8 * 1024 * 1024) {
             throw ValidationException::withMessages([
-                $fieldname => 'Only JPG, JPEG, PNG and WEBP images are allowed.',
+                $fieldname => 'Only JPG, JPEG, PNG and WEBP images up to 8MB are allowed.',
             ]);
         }
 
-        $name = $this->getNewFileName($exp['0'], $extension, $directory);
+        $baseName = preg_replace("/[^a-zA-Z0-9]+/", "-", pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) ?: 'image';
+        $name = $this->getNewFileName($baseName.time(), $extension, $directory);
         if($file->storeAs( $directory , $name , 'public' )){
             return $name;
         }
@@ -142,7 +144,7 @@ trait StoreImageTrait {
     {
         $i = 1;
         $new_filename = $filename . '.' . $extension;
-        while (File::exists(public_path('storage/'.$path.'/'.$new_filename))){
+        while (File::exists(public_path('storage/'.$path.'/'.$new_filename)) || File::exists(storage_path('app/public/'.$path.'/'.$new_filename))){
             $new_filename = $filename . $i++ . '.' . $extension;
         }
         return $new_filename;

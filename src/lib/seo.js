@@ -236,28 +236,28 @@ function getLowestWeight(weights = []) {
     .sort((a, b) => a.sellPrice - b.sellPrice)[0] || null;
 }
 
-export function buildProductMetadata(productDetails, slug) {
+export function buildProductMetadata(productDetails, slug, seoData = null) {
   const product = productDetails?.data;
   const path = `/product-details/${slug}`;
 
   if (!product) {
-    return buildMetadata({
+    return buildMetadata(applyDirectSeoMetadata({
       title: `${titleFromSlug(slug)} | ${SITE_NAME}`,
       description: "This product is not currently available.",
       path,
       robots: noIndexRobots,
-    });
+    }, seoData, { preserveRobots: true }));
   }
 
-  const title = `${product.title || titleFromSlug(slug)} Online in Hyderabad | ${SITE_NAME}`;
-  const description =
+  const fallbackTitle = `${product.title || titleFromSlug(slug)} Online in Hyderabad | ${SITE_NAME}`;
+  const fallbackDescription =
     truncateText(product.description) ||
     `Order ${product.title || titleFromSlug(slug)} fresh flowers online in Hyderabad from ${SITE_NAME}.`;
   const image = resolveProductImageUrl(productDetails?.images?.[0]?.name);
 
-  return buildMetadata({
-    title,
-    description,
+  return buildMetadata(applyDirectSeoMetadata({
+    title: fallbackTitle,
+    description: fallbackDescription,
     path,
     image,
     type: "website",
@@ -269,7 +269,7 @@ export function buildProductMetadata(productDetails, slug) {
     ]
       .filter(Boolean)
       .join(", "),
-  });
+  }, seoData));
 }
 
 export function findCategoryBySlug(categories = [], slug) {
@@ -294,7 +294,7 @@ export function normalizeCategorySlug(value) {
     .replace(/^-+|-+$/g, "");
 }
 
-export function buildCategoryMetadata(slug, category) {
+export function buildCategoryMetadata(slug, category, seoData = null) {
   const normalizedSlug = normalizeCategorySlug(slug || "all-flowers");
   const title =
     category?.title ||
@@ -306,17 +306,58 @@ export function buildCategoryMetadata(slug, category) {
     `Shop ${title.toLowerCase()} online in Hyderabad for puja, home, temple, decorations and gifting.`;
   const image = category?.image_url || DEFAULT_OG_IMAGE;
 
-  return buildMetadata({
+  return buildMetadata(applyDirectSeoMetadata({
     title: `${title} Online in Hyderabad | ${SITE_NAME}`,
     description,
     path: `/products/${normalizedSlug || "all-flowers"}`,
     image,
     keywords: `${title}, fresh flowers Hyderabad, puja flowers, ${SITE_NAME}`,
-  });
+  }, seoData));
+}
+
+function applyDirectSeoMetadata(options, seoData, { preserveRobots = false } = {}) {
+  if (!seoData) return options;
+
+  return {
+    ...options,
+    title: seoData.page_title || options.title,
+    description: seoData.meta_description || options.description,
+    keywords: seoData.meta_keywords || options.keywords,
+    robots: preserveRobots ? options.robots : seoData.robots || options.robots,
+  };
 }
 
 export function jsonLdScriptContent(schema) {
   return JSON.stringify(schema).replace(/</g, "\\u003c");
+}
+
+export function parseAdminSchemaMarkup(schemaMarkup) {
+  if (!schemaMarkup || typeof schemaMarkup !== "string") return [];
+
+  let markup = schemaMarkup.trim();
+  const scriptMatch = markup.match(/<script\b[^>]*>([\s\S]*?)<\/script>/i);
+
+  if (scriptMatch?.[1]) {
+    markup = scriptMatch[1].trim();
+  }
+
+  if (!markup) return [];
+
+  try {
+    const parsed = JSON.parse(markup);
+    const schemas = Array.isArray(parsed) ? parsed : [parsed];
+
+    return schemas.filter(
+      (schema) =>
+        schema &&
+        typeof schema === "object" &&
+        !Array.isArray(schema) &&
+        (schema["@context"] || schema["@type"] || schema["@graph"])
+    );
+  } catch (error) {
+    console.error("Invalid admin schema markup:", error);
+    return [];
+  }
 }
 
 export function buildLocalBusinessSchema() {
@@ -388,6 +429,15 @@ export function buildProductSchema(productDetails, slug) {
   const lowestWeight = getLowestWeight(productDetails?.weights);
   const price = lowestWeight?.sellPrice || parsePrice(product.sell_price);
   const image = resolveProductImageUrl(productDetails?.images?.[0]?.name);
+  const weights = Array.isArray(productDetails?.weights) ? productDetails.weights : [];
+  const hasTrackedWeights = weights.some((weight) => Number(weight?.stock) === 1);
+  const hasAvailableWeight = weights.some((weight) => {
+    if (Number(weight?.stock) !== 1) return false;
+    return parsePrice(weight?.qty) > 0;
+  });
+  const availability = hasTrackedWeights && !hasAvailableWeight
+    ? "https://schema.org/OutOfStock"
+    : "https://schema.org/InStock";
 
   return {
     "@context": "https://schema.org",
@@ -408,10 +458,38 @@ export function buildProductSchema(productDetails, slug) {
           url: canonicalUrl(`/product-details/${slug}`),
           priceCurrency: "INR",
           price,
-          availability: "https://schema.org/InStock",
+          availability,
           itemCondition: "https://schema.org/NewCondition",
         }
       : undefined,
+  };
+}
+
+export function buildFaqPageSchema(faqs = [], path = "/") {
+  const items = Array.isArray(faqs)
+    ? faqs
+        .map((faq) => ({
+          question: stripHtml(faq?.question),
+          answer: stripHtml(faq?.answer),
+        }))
+        .filter((faq) => faq.question && faq.answer)
+        .slice(0, 12)
+    : [];
+
+  if (!items.length) return null;
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "@id": `${canonicalUrl(path)}#faqs`,
+    mainEntity: items.map((faq) => ({
+      "@type": "Question",
+      name: faq.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: faq.answer,
+      },
+    })),
   };
 }
 

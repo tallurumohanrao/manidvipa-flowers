@@ -2,14 +2,18 @@ import React from "react";
 import styles from "@/scss/pages/about.module.scss";
 import Banner from "@/components/banner";
 import { fetchListingData } from "../../../../hook/userCookie";
-import { buildMetadata } from "@/lib/seo";
+import { buildMetadataWithAdminSeo } from "@/lib/metadata";
 
-export const metadata = buildMetadata({
-  title: "Privacy Policy | Manidvipa Flowers",
-  description:
-    "Read the Manidvipa Flowers privacy policy for customer data, communication and website usage information.",
-  path: "/privacy-policy",
-});
+export const dynamic = "force-dynamic";
+
+export async function generateMetadata() {
+  return buildMetadataWithAdminSeo({
+    title: "Privacy Policy | Manidvipa Flowers",
+    description:
+      "Read the Manidvipa Flowers privacy policy for customer data, communication and website usage information.",
+    path: "/privacy-policy",
+  });
+}
 
 const fetchAboutData = async () => {
   try {

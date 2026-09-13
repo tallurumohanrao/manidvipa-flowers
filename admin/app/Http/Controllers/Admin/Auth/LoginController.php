@@ -64,8 +64,13 @@ class LoginController extends Controller
         }
 
         //attempt login.
-        if($this->guard()->attempt($request->only('email','password'),$request->filled('remember'))){ 
-            //Authenticated
+        $credentials = $request->only('email', 'password');
+        $credentials['status'] = 1;
+
+        if ($this->guard()->attempt($credentials, $request->filled('remember'))) {
+            $request->session()->regenerate();
+            $this->clearLoginAttempts($request);
+
             return redirect()
                 ->intended(route('admin.index'))
                 ->with('status','You are Logged in as Admin!');
@@ -79,16 +84,11 @@ class LoginController extends Controller
     }
     public function logout( Request $request )
     {
-        if(Auth::guard('admin')->check()) // this means that the admin was logged in.
-        {
-            Auth::guard('admin')->logout();
-            return redirect()->route('admin.login');
-        }
-
-        $this->guard()->logout();
+        Auth::guard('admin')->logout();
         $request->session()->invalidate();
+        $request->session()->regenerateToken();
 
-        return $this->loggedOut($request) ?: redirect('/admin/login');
+        return $this->loggedOut($request) ?: redirect()->route('admin.login');
     }
     /*public function logout(Request $request)
     {

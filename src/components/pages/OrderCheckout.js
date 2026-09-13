@@ -76,6 +76,8 @@ export default function OrderCheckout({
   const [data, setData] = useState({
     data: [],
     totals: [],
+    shipping_available: null,
+    shipping_message: "",
   });
 
   const dataArrayTotals = Object.values(data?.totals);
@@ -89,8 +91,16 @@ export default function OrderCheckout({
 
   const fetchData = useCallback(async () => {
     try {
+      const cartParams = new URLSearchParams({
+        cart_session: guestSession,
+      });
+
+      if (selectedAddress) {
+        cartParams.set("address_id", selectedAddress);
+      }
+
       const result = await fetchCartSessionData(
-        `get-cart?cart_session=${guestSession}`,
+        `get-cart?${cartParams.toString()}`,
         userToken ? userToken : undefined
       );
 
@@ -107,6 +117,8 @@ export default function OrderCheckout({
         const updatedState = {
           data: updatedData,
           totals: result.totals,
+          shipping_available: result.shipping_available,
+          shipping_message: result.shipping_message || "",
         };
 
         setData(updatedState);
@@ -114,7 +126,7 @@ export default function OrderCheckout({
     } catch (error) {
       console.error("Error fetching cart data:", error);
     }
-  }, [guestSession, userToken]);
+  }, [guestSession, selectedAddress, userToken]);
 
   const handleAddressSelection = (addressId) => {
     setSelectedAddress(addressId);
@@ -402,6 +414,11 @@ export default function OrderCheckout({
                   </span>
                 </p>
               ))}
+              {selectedAddress && data.shipping_message && (
+                <p className={`${styles.error} mt-2 mb-0`}>
+                  {data.shipping_message}
+                </p>
+              )}
             </div>
             <form onSubmit={handleCheckoutSubmit}>
               {submitError && (

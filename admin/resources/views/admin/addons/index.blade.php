@@ -81,10 +81,10 @@
                                     <td>{{$row->created_at}}</td>
                                     <td>
                                     @can($module.'_edit')
-                                            <a href="{{ route('admin.'.$module.'.edit',$row) }}"><i class="fas fa-edit p-1"></i></a>
+                                            <a href="{{ route('admin.'.$module.'.edit',$row) }}" title="Edit item" aria-label="Edit item"><i class="fas fa-edit p-1" aria-hidden="true"></i></a>
                                         @endcan
                                         @can($module.'_delete')
-                                            <a href="javascript:;" class="delete" data-id="{{ $row->id }}" data-url="{{ route('admin.'.$module.'.destroy',$row) }}"><i class="fas fa-trash text-danger p-1"></i></a>
+                                            <a href="javascript:;" class="delete" title="Delete item" aria-label="Delete item" data-id="{{ $row->id }}" data-url="{{ route('admin.'.$module.'.destroy',$row) }}"><i class="fas fa-trash text-danger p-1" aria-hidden="true"></i></a>
                                         @endcan
                                     </td>
                                 </tr>

@@ -23,7 +23,8 @@ class StoreUserRequest extends FormRequest
      */
     public function rules()
     {
-        $id = $this->user->id ?? '';
+        $user = $this->route('user');
+        $id = is_object($user) ? $user->id : $user;
         // return [
         //     'name' => 'required|unique:admins|max:255',
         //     'email' => "required|max:191|unique:users,email,{$id}",
@@ -31,14 +32,15 @@ class StoreUserRequest extends FormRequest
 
         $rules= [
             'name' => 'required|max:255',
-            'email' => "required|max:191|unique:users,email,{$id}",
+            'email' => "required|email|max:191|unique:users,email,{$id}",
+            'status' => 'required|in:0,1',
             //'image' => 'required_without:old_image|mimes:jpeg,jpg,png,gif,svg|max:8000',
         ];
         if($this->method()=="POST"){
-            $rules['password'] = 'required|string|min:6|confirmed';
+            $rules['password'] = 'required|string|min:8|confirmed';
         }
         if($this->method()=="PATCH"){
-            $rules['password'] = 'nullable|string|min:6|confirmed';
+            $rules['password'] = 'nullable|string|min:8|confirmed';
         }
         return $rules;
     }

@@ -68,18 +68,20 @@
                                     <td>{{$row->start_date}}</td>
                                     <td>{{$row->end_date}}</td>
                                     <td>
+                                        @can($module.'_edit')
                                         <label class="switch">
-                                        {{ html()->checkbox('status', $row->status, null)->class('status')->id('status_'.$row->id)->attributes(['data-id'=>$row->id,'data-url'=>route('admin.'.$module.'.update.status',$row->id)]) }}
+                                        {{ html()->checkbox('status', $row->status, null)->class('status')->id('status_'.$row->id)->attributes(['aria-label'=>'Toggle coupon status', 'data-id'=>$row->id,'data-url'=>route('admin.'.$module.'.update.status',$row->id)]) }}
                                         <span class="slider round"></span>
                                         </label>
+                                        @else <span class="badge badge-{{ $row->status ? 'success' : 'secondary' }}">{{ $row->status ? 'Enabled' : 'Disabled' }}</span> @endcan
                                     </td>
                                     <td>{{$row->created_at}}</td>
                                     <td>
                                     @can($module.'_edit')
-                                            <a href="{{ route('admin.'.$module.'.edit',['coupon'=>$row->id]) }}"><i class="fas fa-edit p-1"></i></a>
+                                            <a href="{{ route('admin.'.$module.'.edit',['coupon'=>$row->id]) }}" title="Edit coupon" aria-label="Edit coupon"><i class="fas fa-edit p-1" aria-hidden="true"></i></a>
                                         @endcan
                                         @can($module.'_delete')
-                                            <a href="javascript:;" class="delete" data-id="{{ $row->id }}" data-url="{{ route('admin.'.$module.'.destroy',['coupon'=>$row->id]) }}"><i class="fas fa-trash text-danger p-1"></i></a>
+                                            <a href="javascript:;" class="delete" title="Delete coupon" aria-label="Delete coupon" data-id="{{ $row->id }}" data-url="{{ route('admin.'.$module.'.destroy',['coupon'=>$row->id]) }}"><i class="fas fa-trash text-danger p-1" aria-hidden="true"></i></a>
                                         @endcan
                                     </td>
                                 </tr>

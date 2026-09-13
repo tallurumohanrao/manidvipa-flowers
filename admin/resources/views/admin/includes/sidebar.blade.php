@@ -1,9 +1,14 @@
 @php
-$route = explode('.',request()->route()->getName())[1];
-$result = DB::table('permissions')->whereMenuStatus(1)->orderBy('group_sort_order')->get();
+$routeName = request()->route()?->getName() ?? 'admin.index';
+$route = explode('.', $routeName)[1] ?? 'index';
+$result = DB::table('permissions')->where('menu_status', 1)->where('status', 1)->orderBy('group_sort_order')->get();
 $all = [];
+$modules = [];
 $icon_class = '';
 foreach($result->sortBy('module_sort_order') as $row){
+    if (!$row->view || !\Illuminate\Support\Facades\Gate::allows($row->view)) {
+        continue;
+    }
     $all[$row->group_name][] = $row->route_name;
     // if($row->icon_class == ''){
     //     $icon_class == '';
@@ -20,19 +25,25 @@ foreach($result->sortBy('module_sort_order') as $row){
 <!-- Divider -->
 <hr class="sidebar-divider my-0">
 <!-- Nav Item - Dashboard -->
-<li class="nav-item active">
+<li class="nav-item @if($route === 'index') active @endif">
     <a class="nav-link" href="{{ route('admin.index') }}">
         <i class="fas fa-fw fa-tachometer-alt"></i>
         <span>Dashboard</span></a>
 </li>
 <hr class="sidebar-divider">
+@if(!empty($modules))
+<li class="nav-item px-3 pb-2">
+    <label for="admin-menu-search" class="sr-only">Filter admin menu</label>
+    <input id="admin-menu-search" type="search" class="form-control form-control-sm" placeholder="Find a section…" autocomplete="off">
+</li>
 @foreach($modules as $group=>$menus)
 @php $all_modules = end($menus)['all']; @endphp
 @if(count($all_modules) > 1)
-<li class="nav-item">
-    <a class="nav-link @if(in_array($route,$all_modules)) collapsed @endif" href="#" data-toggle="collapse" data-target="#collapse{{ $group }}" aria-expanded="true" aria-controls="collapse{{ $group }}">
+@php $groupId = 'collapse-'.Str::slug($group); $groupActive = in_array($route, $all_modules); @endphp
+<li class="nav-item admin-menu-entry admin-menu-group @if($groupActive) active @endif">
+    <a class="nav-link @if(!$groupActive) collapsed @endif" href="#" data-toggle="collapse" data-target="#{{ $groupId }}" aria-expanded="{{ $groupActive ? 'true' : 'false' }}" aria-controls="{{ $groupId }}">
     <i class="{{ $menus[0]['icon_class'] }}"></i><span>{{ ucwords($group) }}</span></a>
-        <div id="collapse{{ $group }}" class="collapse @if(in_array($route,$all_modules)) show @endif" aria-labelledby="heading{{ $loop->iteration }}" data-parent="#accordionSidebar">
+        <div id="{{ $groupId }}" class="collapse @if($groupActive) show @endif" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 @foreach($menus as $module=>$menu)
                 @if(Route::has('admin.'.$menu['route'].'.index'))
@@ -44,7 +55,7 @@ foreach($result->sortBy('module_sort_order') as $row){
     </li>
 @else
 @if(Route::has('admin.'.$menus[0]['route'].'.index'))
-    <li class="nav-item @if(in_array($route,$all_modules)) active @endif">
+    <li class="nav-item admin-menu-entry @if(in_array($route,$all_modules)) active @endif">
         <a class="nav-link" href="{{ route('admin.'.$menus[0]['route'].'.index') }}">
         <i class="{{ $menus[0]['icon_class'] }}"></i>
             <span>{{ ucwords(preg_replace("/[^a-zA-Z0-9]/", " ", $menus[0]['module'])) }}</span></a>
@@ -52,6 +63,7 @@ foreach($result->sortBy('module_sort_order') as $row){
     @endif
 @endif
 @endforeach
+@endif
 <hr class="sidebar-divider">
 <!-- Divider -->
 <hr class="sidebar-divider d-none d-md-block">
@@ -60,4 +72,22 @@ foreach($result->sortBy('module_sort_order') as $row){
     <button class="rounded-circle border-0" id="sidebarToggle"></button>
 </div>
 </ul>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const search = document.getElementById('admin-menu-search');
+    if (!search) return;
+
+    search.addEventListener('input', function () {
+        const term = this.value.trim().toLowerCase();
+        document.querySelectorAll('.admin-menu-entry').forEach(function (entry) {
+            const matches = !term || entry.textContent.toLowerCase().includes(term);
+            entry.classList.toggle('d-none', !matches);
+            if (term && matches) {
+                const submenu = entry.querySelector('.collapse');
+                if (submenu) submenu.classList.add('show');
+            }
+        });
+    });
+});
+</script>
 <!-- End of Sidebar -->

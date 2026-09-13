@@ -705,8 +705,22 @@ function getInstagramHandle(value) {
 function cleanPlainText(value) {
   return String(value || "")
     .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function normalizeHomeFaqs(faqs = []) {
+  const source = Array.isArray(faqs) ? faqs : [];
+
+  return source
+    .map((faq) => ({
+      question: cleanPlainText(faq?.question),
+      answer: cleanPlainText(faq?.answer),
+    }))
+    .filter((faq) => faq.question && faq.answer)
+    .slice(0, 8);
 }
 
 function getImageFileName(value) {
@@ -1016,10 +1030,11 @@ function buildFreshWeightOptions(product) {
         sellPrice,
         listPrice,
         weightId: getWeightId(weight, product),
+        isOutOfStock: Number(weight?.stock) > 0 && Number(weight?.qty) <= 0,
       };
     });
 
-    return normalizedWeights;
+    return normalizedWeights.sort((left, right) => Number(left.isOutOfStock) - Number(right.isOutOfStock));
   }
 
   const baseSellPrice = parsePriceValue(product?.sell_price || product?.list_price);
@@ -1068,6 +1083,7 @@ function FreshArrivalCard({ product, userToken }) {
   }, [product, resolvedProductDetails]);
   const weightOptions = useMemo(() => buildFreshWeightOptions(cartProduct), [cartProduct]);
   const selectedWeight = weightOptions[selectedWeightIndex] || weightOptions[0];
+  const isOutOfStock = selectedWeight?.isOutOfStock === true;
   const displayQuantity = quantity > 0 ? quantity : 1;
   const totalSellPrice = (selectedWeight?.sellPrice || 0) * displayQuantity;
   const totalListPrice = (selectedWeight?.listPrice || 0) * displayQuantity;
@@ -1196,6 +1212,11 @@ function FreshArrivalCard({ product, userToken }) {
   const handleAddToCart = async (event) => {
     event.preventDefault();
 
+    if (isOutOfStock) {
+      showToast("This weight is out of stock. Please choose another option.", "error");
+      return;
+    }
+
     if (!guestSession) {
       showToast("Please wait while your cart is getting ready.", "error");
       return;
@@ -1284,7 +1305,7 @@ function FreshArrivalCard({ product, userToken }) {
         >
           {weightOptions.map((weight, index) => (
             <option key={weight.key} value={index}>
-              {weight.label}
+              {weight.label}{weight.isOutOfStock ? " — Out of stock" : ""}
             </option>
           ))}
         </select>
@@ -1325,10 +1346,10 @@ function FreshArrivalCard({ product, userToken }) {
           type="button"
           className={`${styles.freshAddButton} ${wasAdded ? styles.freshAddedButton : ""}`}
           onClick={handleAddToCart}
-          disabled={isAdding || isResolvingWeights}
+          disabled={isAdding || isResolvingWeights || isOutOfStock}
         >
           <FaShoppingBasket aria-hidden="true" />
-          {isAdding ? "Adding..." : isResolvingWeights ? "Loading..." : wasAdded ? "Added" : "Add"}
+          {isAdding ? "Adding..." : isResolvingWeights ? "Loading..." : isOutOfStock ? "Out of stock" : wasAdded ? "Added" : "Add"}
         </button>
       </div>
     </article>
@@ -1357,7 +1378,9 @@ function PremiumProductCard({ product }) {
           Starting <strong>{formatPrice(product?.sell_price || product?.list_price)}</strong>
         </p>
         <Link href={href} className={styles.premiumExploreLink}>
-          Explore Premium Flowers <span aria-hidden="true">&rarr;</span>
+          <span className={styles.premiumExploreFullText}>Explore Premium Flowers</span>
+          <span className={styles.premiumExploreShortText}>Explore</span>
+          <span aria-hidden="true">&rarr;</span>
         </Link>
       </div>
     </article>
@@ -1402,6 +1425,7 @@ export default function HomePage({
   initialPremiumProducts = [],
   initialRareProducts = [],
   initialSubscriptionPlans = [],
+  faqs = [],
   siteSettings,
 }) {
   const [homeProducts, setHomeProducts] = useState(initialHomeProducts || []);
@@ -1409,6 +1433,7 @@ export default function HomePage({
     () => normalizeHomeSubscriptionPlans(initialSubscriptionPlans),
     [initialSubscriptionPlans]
   );
+  const visibleFaqs = useMemo(() => normalizeHomeFaqs(faqs), [faqs]);
   const [pujaBoxSelection, setPujaBoxSelection] = useState({
     flowers: pujaBoxOptions.flowers[0],
     leaves: pujaBoxOptions.leaves[0],
@@ -2061,6 +2086,25 @@ export default function HomePage({
           </div>
         </div>
       </section>
+
+      {visibleFaqs.length ? (
+        <section className={styles.sectionSoft} id="faqs">
+          <div className={styles.homeContainer}>
+            <SectionTitle
+              title="Frequently Asked Questions"
+              subtitle="Quick answers from Manidvipa Flowers for ordering, delivery and flower freshness."
+            />
+            <div className={styles.faqGrid}>
+              {visibleFaqs.map((faq, index) => (
+                <details className={styles.faqItem} key={`${faq.question}-${index}`}>
+                  <summary>{faq.question}</summary>
+                  <p>{faq.answer}</p>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <section className={styles.finalCta} aria-label="Next morning flower delivery">
         <div className={styles.homeContainer}>

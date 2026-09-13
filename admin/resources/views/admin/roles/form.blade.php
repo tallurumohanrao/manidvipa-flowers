@@ -27,31 +27,39 @@
     <tr>
         <td>{{ ucwords(str_replace('_',' ',$permission->module)) }}</td>
         <td>
+            @if($permission->view)
             <div class="custom-control custom-checkbox">
             {!! html()->checkbox("Permissions[]", $role ? in_array($permission->view, $role->permissions->pluck('permission')->toArray()) : false, $permission->view)->id('Permissions_'.$permission->view)->class('custom-control-input') !!}
             {!! html()->label('View')->class('custom-control-label')->for('Permissions_'.$permission->view) !!}
             </div>
+            @endif
         </td>
 
         <td>
+            @if($permission->create)
             <div class="custom-control custom-checkbox">
             {!! html()->checkbox("Permissions[]", $role ? in_array($permission->create, $role->permissions->pluck('permission')->toArray()) : false, $permission->create)->id('Permissions_'.$permission->create)->class('custom-control-input') !!}
             {!! html()->label('Create')->class('custom-control-label')->for('Permissions_'.$permission->create) !!}
             </div>
+            @endif
         </td>
 
         <td>
+            @if($permission->edit)
             <div class="custom-control custom-checkbox">
             {!! html()->checkbox("Permissions[]", $role ? in_array($permission->edit, $role->permissions->pluck('permission')->toArray()) : false, $permission->edit)->id('Permissions_'.$permission->edit)->class('custom-control-input') !!}
             {!! html()->label('Edit')->class('custom-control-label')->for('Permissions_'.$permission->edit) !!}
             </div>
+            @endif
         </td>
 
         <td>
+            @if($permission->delete)
             <div class="custom-control custom-checkbox">
             {!! html()->checkbox("Permissions[]", $role ? in_array($permission->delete, $role->permissions->pluck('permission')->toArray()) : false, $permission->delete)->id('Permissions_'.$permission->delete)->class('custom-control-input') !!}
             {!! html()->label('Delete')->class('custom-control-label')->for('Permissions_'.$permission->delete) !!}
             </div>
+            @endif
         </td>
     </tr>
     @endforeach

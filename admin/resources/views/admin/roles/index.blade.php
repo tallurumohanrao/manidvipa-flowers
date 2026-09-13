@@ -50,20 +50,28 @@
                                         </div>
                                     </td>
                                     <td>{{$role->id}}</td>
-                                    <td><a href="{{ route('admin.roles.edit',$role) }}">{{ $role->name }}</td>
                                     <td>
+                                        @can($module.'_edit')
+                                        <a href="{{ route('admin.roles.edit',$role) }}">{{ $role->name }}</a>
+                                        @else
+                                        {{ $role->name }}
+                                        @endcan
+                                    </td>
+                                    <td>
+                                        @can($module.'_edit')
                                         <label class="switch">
-                                        {{ html()->checkbox('status', $role->status, null)->class('status')->id('status_'.$role->id)->attributes(['data-id'=>$role->id,'data-url'=>route('admin.roles.update.status',$role)]) }}
+                                        {{ html()->checkbox('status', $role->status, null)->class('status')->id('status_'.$role->id)->attributes(['aria-label'=>'Toggle status for '.$role->name, 'data-id'=>$role->id,'data-url'=>route('admin.roles.update.status',$role)]) }}
                                         <span class="slider round"></span>
                                         </label>
+                                        @else <span class="badge badge-{{ $role->status ? 'success' : 'secondary' }}">{{ $role->status ? 'Enabled' : 'Disabled' }}</span> @endcan
                                     </td>
                                     <td>{{$role->created_at}}</td>
                                     <td>
                                     @can($module.'_edit')
-                                            <a href="{{ route('admin.'.$module.'.edit',$role) }}"><i class="fas fa-edit p-1"></i></a>
+                                            <a href="{{ route('admin.'.$module.'.edit',$role) }}" title="Edit {{ $role->name }}" aria-label="Edit {{ $role->name }}"><i class="fas fa-edit p-1" aria-hidden="true"></i></a>
                                         @endcan
                                         @can($module.'_delete')
-                                            <a href="javascript:;" class="delete" data-id="{{ $role->id }}" data-url="{{ route('admin.'.$module.'.destroy',$role) }}"><i class="fas fa-trash text-danger p-1"></i></a>
+                                            <a href="javascript:;" class="delete" title="Delete {{ $role->name }}" aria-label="Delete {{ $role->name }}" data-id="{{ $role->id }}" data-url="{{ route('admin.'.$module.'.destroy',$role) }}"><i class="fas fa-trash text-danger p-1" aria-hidden="true"></i></a>
                                         @endcan
                                     </td>
                                 </tr>

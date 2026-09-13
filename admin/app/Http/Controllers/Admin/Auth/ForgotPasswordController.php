@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin\Auth;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\SendsPasswordResetEmails;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Password;
 
 class ForgotPasswordController extends Controller
@@ -28,5 +29,13 @@ class ForgotPasswordController extends Controller
     protected function broker()
     {
         return Password::broker('admins');
+    }
+
+    protected function credentials(Request $request)
+    {
+        return [
+            'email' => $request->input('email'),
+            'status' => 1,
+        ];
     }
 }

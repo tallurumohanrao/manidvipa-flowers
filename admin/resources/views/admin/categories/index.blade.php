@@ -236,19 +236,21 @@
                                         @endif
                                     </td>
                                     <td>
+                                        @can($module.'_edit')
                                         <label class="switch">
-                                        {{ html()->checkbox('status', $row->status, null)->class('status')->id('status_'.$row->id)->attributes(['data-id'=>$row->id,'data-url'=>route('admin.'.$module.'.update.status',['id'=>$row->id])]) }}
+                                        {{ html()->checkbox('status', $row->status, null)->class('status')->id('status_'.$row->id)->attributes(['aria-label'=>'Toggle status for '.$row->title, 'data-id'=>$row->id,'data-url'=>route('admin.'.$module.'.update.status',['id'=>$row->id])]) }}
                                         <span class="slider round"></span>
                                         </label>
+                                        @else <span class="badge badge-{{ $row->status ? 'success' : 'secondary' }}">{{ $row->status ? 'Enabled' : 'Disabled' }}</span> @endcan
                                     </td>
                                     <td>{{$row->created_at}}</td>
                                     <td>
                                         <div class="btn-group">
                                         @can($module.'_edit')
-                                            <a href="{{ route('admin.'.$module.'.edit',['category'=>$row->id]) }}"><i class="fas fa-edit p-1"></i></a>
+                                            <a href="{{ route('admin.'.$module.'.edit',['category'=>$row->id]) }}" title="Edit {{ $row->title }}" aria-label="Edit {{ $row->title }}"><i class="fas fa-edit p-1" aria-hidden="true"></i></a>
                                         @endcan
                                         @can($module.'_delete')
-                                            <a href="javascript:;" class="delete" data-id="{{ $row->id }}" data-url="{{ route('admin.'.$module.'.destroy',['category'=>$row->id]) }}"><i class="fas fa-trash text-danger p-1"></i></a>
+                                            <a href="javascript:;" class="delete" title="Delete {{ $row->title }}" aria-label="Delete {{ $row->title }}" data-id="{{ $row->id }}" data-url="{{ route('admin.'.$module.'.destroy',['category'=>$row->id]) }}"><i class="fas fa-trash text-danger p-1" aria-hidden="true"></i></a>
                                         @endcan
                                         </div>
                                     </td>

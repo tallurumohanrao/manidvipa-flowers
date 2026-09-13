@@ -16,6 +16,7 @@ export default function Page() {
   const { showToast } = useToast();
   const router = useRouter();
   const [message, setMessage] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const params = useParams();
   const searchParams = useSearchParams();
   const slug = Array.isArray(params.slug)
@@ -28,8 +29,16 @@ export default function Page() {
       setMessage("Password Fields should not be Empty");
       return false;
     }
+    if (formData.new_password.length < 8) {
+      setMessage("New password must be at least 8 characters long");
+      return false;
+    }
     if (formData.new_password !== formData.confirmation_password) {
       setMessage("Passwords are not Matching");
+      return false;
+    }
+    if (!slug || !email) {
+      setMessage("Password reset link is invalid. Please request a new link.");
       return false;
     }
     return true;
@@ -43,6 +52,7 @@ export default function Page() {
     e.preventDefault();
 
     if (!validateForm()) return;
+    setIsSubmitting(true);
     try {
       const response = await fetch(`${url}/password/update`, {
         method: "POST",
@@ -56,17 +66,24 @@ export default function Page() {
           password_confirmation: formData.confirmation_password,
         }),
       });
+      const result = await response.json();
+      const nextMessage = result.message || "Failed to change password.";
 
-      if (response.ok) {
-        showToast("Successfully Changed !");
+      if (response.ok && result.success) {
+        showToast(nextMessage);
+        setMessage(nextMessage);
         setTimeout(() => {
-          router.push("/");
+          router.push("/login");
         }, 400);
       } else {
-        showToast("Failed to Change", "error");
+        showToast(nextMessage, "error");
+        setMessage(nextMessage);
       }
     } catch (error) {
       showToast(error.message, "error");
+      setMessage(error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
   return (
@@ -90,6 +107,9 @@ export default function Page() {
                     className={`form-input ${styles.form_input}`}
                     onChange={handleChange}
                     name="new_password"
+                    value={formData.new_password}
+                    autoComplete="new-password"
+                    required
                   />
                 </div>
                 <div className={styles.form_group}>
@@ -102,12 +122,15 @@ export default function Page() {
                     className={`form-input ${styles.form_input}`}
                     onChange={handleChange}
                     name="confirmation_password"
+                    value={formData.confirmation_password}
+                    autoComplete="new-password"
+                    required
                   />
                 </div>
                 {message && <p className={`${styles.message}`}>{message}</p>}
                 <div className="form-button">
-                  <button type="submit" className="blue-but">
-                    Update
+                  <button type="submit" className="blue-but" disabled={isSubmitting}>
+                    {isSubmitting ? "Updating..." : "Update"}
                   </button>
                 </div>
               </form>

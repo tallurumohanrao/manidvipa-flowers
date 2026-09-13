@@ -1,6 +1,6 @@
 import ProductDetails from "@/components/pages/ProductDetails";
 import { cookies } from "next/headers";
-import React from "react";
+import React, { cache } from "react";
 import {
   fetchListingData,
   fetchSiteSettingsData,
@@ -10,7 +10,9 @@ import {
   buildProductMetadata,
   buildProductSchema,
   jsonLdScriptContent,
+  unpackPaginatedProducts,
 } from "@/lib/seo";
+import { fetchFirstSeoMetadata } from "@/lib/metadata";
 
 const fetchAboutData = async (query, userToken) => {
   try {
@@ -83,17 +85,140 @@ function buildFallbackProductDetails(slug) {
   };
 }
 
-export async function generateMetadata({ params }) {
-  const { id } = await params;
-  let productDetails = await fetchAboutData(
-    `product-details?product_slug=${encodeURIComponent(id)}`
-  );
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
-  if (!productDetails?.data) {
-    productDetails = buildFallbackProductDetails(id);
+function getApiBaseUrl() {
+  return String(
+    process.env.NEXT_PUBLIC_MANIDVIPA_URL ||
+      "https://admin.manidvipastore.com/api"
+  ).replace(/\/+$/, "");
+}
+
+function buildProductDetailsFromListingProduct(product, slug) {
+  if (!product) return null;
+
+  const productTitle = product.title || titleFromSlug(slug);
+  const images = Array.isArray(product.images) && product.images.length
+    ? product.images
+    : product.image_name
+      ? [{ name: product.image_name }]
+      : [];
+  const weights = Array.isArray(product.weights) && product.weights.length
+    ? product.weights
+    : product.weight_id
+      ? [
+          {
+            id: product.weight_id,
+            name: product.weight_name,
+            sell_price: product.sell_price,
+            list_price: product.list_price,
+            stock: product.stock,
+            qty: product.qty,
+          },
+        ]
+      : [];
+
+  return {
+    success: true,
+    data: {
+      id: product.product_id || product.id,
+      title: productTitle,
+      slug: product.slug || slug,
+      sku: product.sku,
+      description:
+        product.description ||
+        `Order ${productTitle} fresh flowers online in Hyderabad from Manidvipa Flowers.`,
+      sell_price: product.sell_price,
+      list_price: product.list_price,
+      unit: product.weight_name,
+    },
+    images,
+    weights,
+  };
+}
+
+async function fetchSeoProductListing() {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const response = await fetch(
+        `${getApiBaseUrl()}/products-by-category?category_slug=all-flowers&per_page=200`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          next: { revalidate: 60 },
+        }
+      );
+
+      if (response.ok) {
+        return unpackPaginatedProducts(await response.json());
+      }
+    } catch (error) {
+      console.error("Error fetching product listing fallback:", error);
+    }
+
+    if (attempt < 2) {
+      await wait(250);
+    }
   }
 
-  return buildProductMetadata(productDetails, id);
+  return [];
+}
+
+async function fetchProductDetailsFromListing(slug) {
+  let product = null;
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const products = await fetchSeoProductListing();
+    product = products.find((item) => item?.slug === slug);
+
+    if (product) {
+      break;
+    }
+
+    if (attempt < 2) {
+      await wait(150);
+    }
+  }
+
+  return buildProductDetailsFromListingProduct(product, slug);
+}
+
+const resolveProductDetails = cache(async (slug, userToken = "") => {
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const productDetails = await fetchAboutData(
+      `product-details?product_slug=${encodeURIComponent(slug)}`,
+      userToken
+    );
+
+    if (productDetails?.data) {
+      return productDetails;
+    }
+
+    if (attempt < 3) {
+      await wait(150);
+    }
+  }
+
+  return (
+    (await fetchProductDetailsFromListing(slug)) ||
+    buildFallbackProductDetails(slug)
+  );
+});
+
+export async function generateMetadata({ params }) {
+  const { id } = await params;
+  const productDetails = await resolveProductDetails(id, "");
+  const seoData = await fetchFirstSeoMetadata([
+    `/product-details/${id}`,
+    `/productDetails/${id}`,
+    `/${id}`,
+  ]);
+
+  return buildProductMetadata(productDetails, id, seoData);
 }
 
 export default async function Page({ params }) {
@@ -114,14 +239,7 @@ export default async function Page({ params }) {
     }
   }
 
-  let produtsDetails = await fetchAboutData(
-    `product-details?product_slug=${encodeURIComponent(id)}`,
-    userToken
-  );
-
-  if (!produtsDetails?.data) {
-    produtsDetails = buildFallbackProductDetails(id);
-  }
+  const produtsDetails = await resolveProductDetails(id, userToken || "");
 
   const produtsReviews = produtsDetails?.data?.id
     ? await fetchAboutData(`reviews?product_id=${produtsDetails.data.id}`, userToken)

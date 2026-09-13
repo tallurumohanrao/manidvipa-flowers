@@ -44,7 +44,7 @@
                                     <th>ID</th>
                                     <th>Title</th>
                                     <th>SKU</th>
-                                    <th>Qty</th>
+                                    <th>Quantity</th>
                                     <th>Categories</th>
                                     <th>Status</th>
                                     <th>Created At</th>
@@ -53,10 +53,6 @@
                             </thead>
                             <tbody>
                             @foreach($data as $row)
-                                @php
-                                    $categories = DB::table('categories')
-                                    ->join('category_product','categories.id','=','category_product.category_id')->where('category_product.product_id',$row->id)->get()->implode('title',', ');
-                                @endphp
                                 <tr id="row-{{ $row->id }}">
                                     <td>
                                         <div class="custom-control custom-checkbox sub_chk">
@@ -67,23 +63,28 @@
                                     <td>{{ $row->id }}</td>
                                     <td>{{ $row->title }}</td>
                                     <td>{{ $row->sku }}</td>
-                                    <td>{{ $row->qty }}</td>
-                                    <td>{{ $categories }}</td>
+                                    <td>{{ $row->display_quantity ?? '-' }}</td>
+                                    <td>{{ $row->category_titles ?: '-' }}</td>
                                     <td>
+                                        @can($module.'_edit')
                                         <label class="switch">
-                                        {{ html()->checkbox('status', $row->status, null)->class('status')->id('status_'.$row->id)->attributes(['data-id'=>$row->id,'data-url'=>route('admin.'.$module.'.update.status',['id'=>$row->id])]) }}
+                                        {{ html()->checkbox('status', $row->status, null)->class('status')->id('status_'.$row->id)->attributes(['aria-label'=>'Toggle status for '.$row->title, 'data-id'=>$row->id,'data-url'=>route('admin.'.$module.'.update.status',['id'=>$row->id])]) }}
                                         <span class="slider round"></span>
                                         </label>
+                                        @else
+                                            <span class="badge badge-{{ $row->status ? 'success' : 'secondary' }}">{{ $row->status ? 'Enabled' : 'Disabled' }}</span>
+                                        @endcan
                                     </td>
                                     <td>{{$row->created_at}}</td>
                                     <td>
                                         <div class="btn-group">
                                         @can($module.'_edit')
-                                            <a href="{{ route('admin.'.$module.'.edit',['product'=>$row->id]) }}"><i class="fas fa-edit p-1"></i></a>
-                                            <a target="_blank" href="{{ route('admin.'.$module.'.images',['id'=>$row->id]) }}"><i class="fas fa-image p-1"></i></a>
+                                            <a href="{{ route('admin.'.$module.'.edit',['product'=>$row->id]) }}" title="Edit {{ $row->title }}" aria-label="Edit {{ $row->title }}"><i class="fas fa-edit p-1" aria-hidden="true"></i></a>
+                                            <a href="{{ route('admin.'.$module.'.images',['id'=>$row->id]) }}" title="Manage images for {{ $row->title }}" aria-label="Manage images for {{ $row->title }}"><i class="fas fa-image p-1" aria-hidden="true"></i></a>
+                                            <a href="{{ route('admin.'.$module.'.weights',['id'=>$row->id]) }}" title="Manage weights for {{ $row->title }}" aria-label="Manage weights for {{ $row->title }}"><i class="fas fa-balance-scale p-1" aria-hidden="true"></i></a>
                                         @endcan
                                         @can($module.'_delete')
-                                            <a href="javascript:;" class="delete" data-id="{{ $row->id }}" data-url="{{ route('admin.'.$module.'.destroy',['product'=>$row->id]) }}"><i class="fas fa-trash text-danger p-1"></i></a>
+                                            <a href="javascript:;" class="delete" title="Delete {{ $row->title }}" aria-label="Delete {{ $row->title }}" data-id="{{ $row->id }}" data-url="{{ route('admin.'.$module.'.destroy',['product'=>$row->id]) }}"><i class="fas fa-trash text-danger p-1" aria-hidden="true"></i></a>
                                         @endcan
                                         </div>
                                     </td>

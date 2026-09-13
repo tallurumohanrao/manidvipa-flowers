@@ -111,7 +111,7 @@ class SeoController extends Controller
         abort_if(Gate::denies($this->module.'_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         if($request->ajax() && $request->isMethod('PATCH')){
             $seo = $this->model::find($id);
-            $value = $request->status == 1 ?:2;
+            $value = $request->boolean('status') ? 1 : 0;
             if($seo->update(['status'=> $value])){
                 $this->clearStorefrontCache();
                 $status= $value == 1 ?'enabled':'disabled';

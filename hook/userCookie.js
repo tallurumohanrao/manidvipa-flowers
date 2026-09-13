@@ -46,6 +46,8 @@ export async function fetchListingData(
       "products-by-category",
       "product-details",
       "search",
+      "static-page",
+      "faqs",
     ]);
     const shouldUseNoStore = noStoreEndpointPaths.has(endpointPath);
     const fetchOptions =

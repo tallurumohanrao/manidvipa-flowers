@@ -49,7 +49,7 @@ class OrderStatusController extends Controller
     public function store(StoreOrderStatusRequest $request)
     {
         abort_if(Gate::denies($this->module.'_create'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
-        $formInput = $request->except('_token','FormButton');
+        $formInput = $request->only('name','subject','body_html');
         $formInput['created_at'] = date('Y-m-d H:i:s');
         $id = DB::table('order_statuses')->insertGetId($formInput);
         return $this->redirectAfterSave($request->FormButton, $id);
@@ -76,6 +76,7 @@ class OrderStatusController extends Controller
     {
         abort_if(Gate::denies($this->module.'_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         $row = DB::table('order_statuses')->where('id',$id)->first();
+        abort_if(!$row, 404);
         return view('admin.'.$this->module.'.edit', compact('row'));
     }
 
@@ -89,7 +90,7 @@ class OrderStatusController extends Controller
     public function update(StoreOrderStatusRequest $request, $id)
     {
         abort_if(Gate::denies($this->module.'_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
-        $formInput = $request->except('_method','_token','FormButton');
+        $formInput = $request->only('name','subject','body_html');
         $formInput['updated_at'] = date('Y-m-d H:i:s');
         DB::table('order_statuses')->where('id',$id)->update($formInput);
         return $this->redirectAfterSave($request->FormButton, $id);
@@ -104,6 +105,9 @@ class OrderStatusController extends Controller
     public function destroy($id)
     {
         abort_if(Gate::denies($this->module.'_delete'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
+        if(DB::table('orders')->where('order_status_id',$id)->exists()){
+            return response()->json(['success'=>false, 'message' => 'This order status is used by existing orders and cannot be deleted.'], 422);
+        }
         if(DB::table('order_statuses')->where('id',$id)->delete() == 1)
         return response()->json(['success'=>true, 'message' => 'Deleted successfully.']);
         else
@@ -113,7 +117,11 @@ class OrderStatusController extends Controller
     {
         abort_if(Gate::denies($this->module.'_delete'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         $ids = explode(',',$request->ids);
+        $result = 0;
         foreach($ids as $id) :
+            if(DB::table('orders')->where('order_status_id',$id)->exists()){
+                continue;
+            }
             $result = DB::table('order_statuses')->where('id',$id)->delete();
         endforeach;
 

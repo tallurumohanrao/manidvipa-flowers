@@ -29,7 +29,7 @@
                             {!! Form::text('profileId', request('profileId') ,['class' => 'form-control', 'placeholder' => 'profile Id', 'autocomplete' => 'off']) !!}
                             </li>
                             <li class="list-inline-item">
-                            {!! Form::select('status', array(''=>'Status','1' => 'Enable', '2' => 'Disable'), request('status'), [ 'class' => 'form-control', 'autocomplete' => 'off' ]); !!}
+                            {!! Form::select('status', array(''=>'Status','1' => 'Enable', '0' => 'Disable'), request('status'), [ 'class' => 'form-control', 'autocomplete' => 'off' ]); !!}
                             </li>
                             <li class="list-inline-item">
                             {!! Form::button('Search', ['type'=>'submit', 'class'=>'btn btn-primary']) !!}
@@ -82,10 +82,10 @@
                                         <td>{{$row->created_at}}</td>
                                         <td>
                                             @can($module.'_edit')
-                                                <a href="{{ route('admin.'.$module.'.edit',$row) }}"><i class="fas fa-edit p-1"></i></a>
+                                                <a href="{{ route('admin.'.$module.'.edit',$row) }}" title="Edit item" aria-label="Edit item"><i class="fas fa-edit p-1" aria-hidden="true"></i></a>
                                             @endcan
                                             @can($module.'_delete')
-                                                <a href="javascript:;" class="delete" data-id="{{ $row->id }}" data-url="{{ route('admin.'.$module.'.destroy',$row) }}"><i class="fas fa-trash text-danger p-1"></i></a>
+                                                <a href="javascript:;" class="delete" title="Delete item" aria-label="Delete item" data-id="{{ $row->id }}" data-url="{{ route('admin.'.$module.'.destroy',$row) }}"><i class="fas fa-trash text-danger p-1" aria-hidden="true"></i></a>
                                             @endcan
                                         </td>
                                     </tr>
