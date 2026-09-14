@@ -180,8 +180,9 @@ export function buildMetadata({
       canonical: finalPath,
     },
     icons: {
-      icon: "/faviicon-1.ico",
-      shortcut: "/faviicon-1.ico",
+      icon: "/favicon.ico",
+      shortcut: "/favicon.ico",
+      apple: "/favicon.ico",
     },
     openGraph: {
       title: finalTitle,
