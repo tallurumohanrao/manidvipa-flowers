@@ -118,10 +118,6 @@
       object-fit: contain;
     }
 
-    .mobileLogo {
-      display: none;
-    }
-
     .search_input {
       flex: 1 1 520px;
       min-width: 260px;
@@ -823,11 +819,7 @@
       min-height: 78px;
       padding-right: 52px;
 
-      .top_logo > .logo:not(.mobileLogo) {
-        display: none;
-      }
-
-      .mobileLogo {
+      .top_logo > .logo {
         display: block;
         width: min(232px, calc(100vw - 116px));
         max-height: 68px;

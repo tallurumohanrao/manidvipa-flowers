@@ -275,27 +275,15 @@ const Navbar = ({
               <div className="logo">
                 <Link href="/" className={styles.top_logo}>
                   <Image
-                    // src="/assets/images/mobile-logo1.svg"
                     src={
                       siteSettings?.data?.SITE_LOGO ||
                       "/assets/images/manidvpa-flowers-2.png"
                     }
-                    // src="/assets/images/manidvpa-flowers-2.png"
                     className={styles.logo}
-                    alt="logo"
+                    alt="Manidvipa Flowers"
                     width={0}
                     height={0}
                     sizes="100vw"
-                    // style={{ width: "100%", height: "80px" }}
-                    priority
-                  />
-                  <Image
-                    src="/assets/images/mobile-logo1.svg"
-                    className={`${styles.logo} ${styles.mobileLogo}`}
-                    alt="Manidvipa Flowers"
-                    width={271}
-                    height={80}
-                    sizes="240px"
                     priority
                   />
                 </Link>

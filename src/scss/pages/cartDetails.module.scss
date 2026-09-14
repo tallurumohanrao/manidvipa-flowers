@@ -677,8 +677,11 @@
   .couponForm {
     flex-direction: column;
 
+    input,
     button {
       width: 100%;
+      height: 52px;
+      font-size: 14px;
     }
   }
 
