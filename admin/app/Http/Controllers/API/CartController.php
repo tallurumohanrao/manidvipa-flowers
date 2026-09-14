@@ -75,15 +75,18 @@ class CartController extends BaseController
         
         $shipping = null;
         $distance = null;
+        $distanceSource = null;
         $shippingResult = null;
         if($request->filled('address_id')){
             $distance_response = $this->getDistance($request->address_id);
             if($distance_response['status'] =='success'){
                 $distance = $distance_response['distance'];
+                $distanceSource = $distance_response['source'] ?? null;
                 $shippingResult = $this->calculateShippingCharge($distance, (float) $subTotal);
                 $shipping = $shippingResult['available'] ? $shippingResult : null;
             }else{
-                $shippingResult = $this->shippingUnavailable('Unable to calculate delivery charges for the selected address.', null);
+                $shippingResult = $this->shippingUnavailable($distance_response['message'] ?? 'Unable to calculate delivery charges for the selected address.', null);
+                $distanceSource = $distance_response['source'] ?? null;
             }
         }
         
@@ -119,6 +122,7 @@ class CartController extends BaseController
             'cart_count' => count($products),
             'totals'=> $totals,
             'distance'=>$distance,
+            'distance_source'=>$distanceSource,
             'shipping_available' => $shippingResult['available'] ?? null,
             'shipping_message' => $shippingResult['message'] ?? null,
         ], 200);

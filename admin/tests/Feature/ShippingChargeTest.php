@@ -146,6 +146,68 @@ class ShippingChargeTest extends TestCase
         ]);
     }
 
+    public function test_checkout_uses_hyderabad_fallback_distance_when_google_is_unavailable_locally(): void
+    {
+        Config::set('VAT_AMOUNT', 0);
+        $this->seedShippingPrices();
+
+        $suffix = Str::lower(Str::random(10));
+        $cartSession = 'shipping-local-fallback-'.$suffix;
+        $user = User::create([
+            'name' => 'Local Distance User',
+            'email' => 'local-distance-'.$suffix.'@example.test',
+            'mobile' => '98'.str_pad((string) random_int(0, 99999999), 8, '0', STR_PAD_LEFT),
+            'password' => Hash::make('UserPassword123!'),
+            'status' => 1,
+        ]);
+        $addressId = $this->createAddress($user->id, $suffix, [
+            'address_line1' => 'Suraram',
+            'address_line2' => 'Suraram',
+            'city' => 'Hyderabad',
+            'state' => 'Telangana',
+            'pincode' => '500055',
+        ]);
+        $product = $this->createCartProduct($cartSession, $user->id, 754, $suffix);
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/get-cart?cart_session='.$cartSession.'&address_id='.$addressId)
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('distance', 18)
+            ->assertJsonPath('distance_source', 'hyderabad_estimate')
+            ->assertJsonPath('totals.shipping.title', '15 to 20 KM')
+            ->assertJsonPath('totals.shipping.amount', 120)
+            ->assertJsonPath('totals.total.amount', 874);
+
+        $response = $this->postJson('/api/store-order?'.http_build_query([
+            'address_id' => $addressId,
+            'cart_session' => $cartSession,
+            'payment_method' => 'cod',
+            'serve_date' => now()->addDay()->toDateString(),
+            'serve_time_slot' => '6-9',
+            'serve_time_slot_label' => '6 AM - 9 AM',
+        ]))
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $response->json('data.order_id'),
+            'sub_total' => 754,
+            'amount' => 874,
+        ]);
+        $this->assertDatabaseHas('order_lineitems', [
+            'order_id' => $response->json('data.order_id'),
+            'title' => '15 to 20 KM',
+            'amount' => 120,
+            'weight' => 3,
+        ]);
+        $this->assertDatabaseHas('product_weights', [
+            'id' => $product['weight_id'],
+            'qty' => 4,
+        ]);
+    }
+
     private function seedShippingPrices(): void
     {
         DB::table('shipping_prices')->delete();
@@ -184,6 +246,18 @@ class ShippingChargeTest extends TestCase
                 'min_order_amount' => 1,
                 'max_order_amount' => 100000,
                 'shipping_amount' => 60,
+                'status' => 1,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+            [
+                'name' => '15to20km',
+                'title' => '15 to 20 KM',
+                'from_km' => 15,
+                'to_km' => 20,
+                'min_order_amount' => 1,
+                'max_order_amount' => 100000,
+                'shipping_amount' => 120,
                 'status' => 1,
                 'created_at' => $now,
                 'updated_at' => $now,
@@ -228,9 +302,9 @@ class ShippingChargeTest extends TestCase
         });
     }
 
-    private function createAddress(int $userId, string $suffix): int
+    private function createAddress(int $userId, string $suffix, array $overrides = []): int
     {
-        return DB::table('addresses')->insertGetId([
+        return DB::table('addresses')->insertGetId(array_merge([
             'user_id' => $userId,
             'full_name' => 'Shipping User',
             'email' => 'shipping-address-'.$suffix.'@example.test',
@@ -246,7 +320,7 @@ class ShippingChargeTest extends TestCase
             'is_default' => 1,
             'created_at' => now(),
             'updated_at' => now(),
-        ]);
+        ], $overrides));
     }
 
     private function createCartProduct(string $cartSession, int $userId, int $sellPrice, string $suffix): array

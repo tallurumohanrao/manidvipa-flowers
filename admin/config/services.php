@@ -31,4 +31,19 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'google_maps' => [
+        'key' => env('GOOGLE_MAPS_API_KEY'),
+        'referer' => env('GOOGLE_MAPS_REFERER'),
+    ],
+
+    'store_origin' => [
+        'address' => env(
+            'STORE_ORIGIN_ADDRESS',
+            '8-3-241/21, Srinivasa Colony, Vengal Rao Nagar, SR Nagar, Hyderabad, Telangana 500038, India'
+        ),
+        'latitude' => env('STORE_ORIGIN_LATITUDE', 17.4356),
+        'longitude' => env('STORE_ORIGIN_LONGITUDE', 78.4467),
+        'default_hyderabad_distance_km' => env('DEFAULT_HYDERABAD_DELIVERY_DISTANCE_KM', 12),
+    ],
+
 ];

@@ -284,16 +284,19 @@ class OrderController extends BaseController
         $vat = config('VAT_AMOUNT');
         $shipping = null;
         $distance = null;
+        $distanceSource = null;
         $shippingResult = null;
         $shipping_amount = 0;
         if($request->filled('address_id')){
             $distance_response = $this->getDistance($address_id);
             if($distance_response['status'] =='success'){
                 $distance = $distance_response['distance'];
+                $distanceSource = $distance_response['source'] ?? null;
             }else{
                 return response()->json([
                     'success'=>false,
-                    'message'=>'Unable to calculate delivery charges for the selected address. Please check the address or contact support.',
+                    'message'=>$distance_response['message'] ?? 'Unable to calculate delivery charges for the selected address. Please check the address or contact support.',
+                    'distance_source'=>$distance_response['source'] ?? null,
                 ], 422);
             }
         }
@@ -373,6 +376,7 @@ class OrderController extends BaseController
                     'success'=>false,
                     'message'=>$shippingResult['message'],
                     'distance'=>$distance,
+                    'distance_source'=>$distanceSource,
                 ], 422);
             }
             $shipping_amount = $shippingResult['amount'];
