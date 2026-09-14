@@ -6,6 +6,7 @@ import { fetchListingData, formatPrice } from "../../../../hook/userCookie";
 import Image from "next/image";
 import Link from "next/link";
 import Modal from "@/components/modal";
+import { formatDisplayDateTime } from "@/lib/date";
 
 const IMG_URL = process.env.NEXT_PUBLIC_IMG_URL;
 
@@ -120,7 +121,7 @@ export default function OrderDetails({ id, handleBack, userData, userToken }) {
           <p className="mb-3">
             Order Id # {orderDetails?.order?.id}
             <br></br>
-            Ordered on {orderDetails?.order?.created_at}
+            Ordered on {formatDisplayDateTime(orderDetails?.order?.created_at)}
           </p>
           <div className={`row mb-3 ${styles.order_info}`}>
             <div className="col-sm-6">
@@ -155,7 +156,10 @@ export default function OrderDetails({ id, handleBack, userData, userToken }) {
               </p>
               <p>Payment Method : {orderDetails?.payment?.payment_method}</p>
               <p>Amount Paid : {orderDetails?.payment?.payment_amount}</p>
-              <p>Last Updated Date : {orderDetails?.payment?.updated_at}</p>
+              <p>
+                Last Updated Date :{" "}
+                {formatDisplayDateTime(orderDetails?.payment?.updated_at)}
+              </p>
             </div>
             <div className="col-sm-6">
               <h6 className="">Delivery Information</h6>
@@ -178,7 +182,10 @@ export default function OrderDetails({ id, handleBack, userData, userToken }) {
               <p>
                 Delivery Charges : <span>₹ {ordershipping?.amount}</span>
               </p>
-              <p>Last Updated Date : {ordershipping?.updated_at}</p>
+              <p>
+                Last Updated Date :{" "}
+                {formatDisplayDateTime(ordershipping?.updated_at)}
+              </p>
             </div>
           </div>
           <div className={styles.table_wrapper}>

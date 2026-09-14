@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API;
 use Illuminate\Http\Request;
 use App\Http\Controllers\API\BaseController as BaseController;
 use Cache,DB,Validator;
+use Illuminate\Support\Facades\Schema;
    
 class HomeController extends BaseController
 {
@@ -151,6 +152,44 @@ class HomeController extends BaseController
         });
 
         return response()->json(['success' => true,'data' => $data], 200);
+    }
+
+    public function dailyPriceStatus()
+    {
+        $latestLog = Schema::hasTable('price_update_logs')
+            ? DB::table('price_update_logs')->orderByDesc('created_at')->orderByDesc('id')->first()
+            : null;
+
+        $now = now(config('app.timezone'));
+        $lastUpdatedAt = $latestLog?->created_at
+            ? \Carbon\Carbon::parse($latestLog->created_at)->timezone(config('app.timezone'))
+            : null;
+        $isUpdatedToday = $lastUpdatedAt?->isSameDay($now) ?? false;
+
+        $data = [
+            'is_updated_today' => $isUpdatedToday,
+            'status_text' => $isUpdatedToday ? 'Prices Updated Today' : 'Prices Not Updated Today',
+            'status_type' => $isUpdatedToday ? 'updated' : 'not_updated',
+            'updated_time' => $isUpdatedToday ? $lastUpdatedAt->format('h:i A') : null,
+            'last_updated_relative' => $lastUpdatedAt ? $this->relativePriceUpdateTime($lastUpdatedAt, $now) : null,
+        ];
+
+        return response()->json(['success' => true, 'data' => $data], 200);
+    }
+
+    private function relativePriceUpdateTime(\Carbon\Carbon $lastUpdatedAt, \Carbon\Carbon $now): string
+    {
+        $diffInDays = (int) $lastUpdatedAt->copy()->startOfDay()->diffInDays($now->copy()->startOfDay());
+
+        if ($diffInDays === 0) {
+            return 'today';
+        }
+
+        if ($diffInDays === 1) {
+            return '1 day ago';
+        }
+
+        return '2 days ago';
     }
     
     public function brands()

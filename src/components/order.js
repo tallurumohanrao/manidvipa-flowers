@@ -3,6 +3,7 @@ import styles from "@/scss/components/orders.module.scss";
 import { formatPrice, fetchListingData } from "../../hook/userCookie";
 import Image from "next/image";
 import Modal from "./modal";
+import { formatDisplayDateTime } from "@/lib/date";
 
 const IMG_URL = process.env.NEXT_PUBLIC_IMG_URL;
 
@@ -62,7 +63,7 @@ const Orders = ({ handleOrderActive, userToken }) => {
                         <p>
                           <strong>Order Placed:</strong>
                         </p>
-                        <p>{order.order_created_at || "N/A"}</p>
+                        <p>{formatDisplayDateTime(order.order_created_at)}</p>
                       </div>
                       <div>
                         <p>

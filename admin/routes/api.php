@@ -34,6 +34,7 @@ Route::get('settings', [HomeController::class, 'settings']);
 Route::post('contact-us', [HomeController::class, 'contactStore']);
 Route::get('static-page', [HomeController::class, 'staticPage']);
 Route::get('faqs', [HomeController::class, 'faqs']);
+Route::get('daily-price-status', [HomeController::class, 'dailyPriceStatus']);
 Route::post('register', [RegisterController::class, 'register']);
 Route::post('login', [RegisterController::class, 'login']);
 Route::post('logout', [RegisterController::class, 'logout']);

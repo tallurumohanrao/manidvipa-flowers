@@ -10,7 +10,7 @@ import styles from "@/scss/components/navbar.module.scss";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useUser } from "@/context/UserContext";
-import { FaPhoneAlt, FaStar } from "react-icons/fa";
+import { FaPhoneAlt } from "react-icons/fa";
 import { BsCart } from "react-icons/bs";
 import { BsWhatsapp } from "react-icons/bs";
 import { useCartCount } from "@/context/UserContext";
@@ -101,6 +101,25 @@ const fetchWatchlist = async (userToken, setWatchlistCount) => {
   }
 };
 
+const fetchDailyPriceStatus = async (setDailyPriceStatus) => {
+  try {
+    const res = await fetch(`${url}/daily-price-status`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      cache: "no-store",
+    });
+
+    if (!res.ok) return;
+
+    const result = await res.json();
+    setDailyPriceStatus(result?.data || null);
+  } catch (error) {
+    console.error("Error fetching daily price status:", error);
+  }
+};
+
 const Navbar = ({
   siteSettings,
   guestSession,
@@ -124,10 +143,12 @@ const Navbar = ({
   const [allsuggestions, setAllSuggestions] = useState([]);
   const [inputSuggestions, setInputSuggestions] = useState([]);
   const [isSuggestionVisible, setIsSuggestionVisible] = useState(false);
+  const [dailyPriceStatus, setDailyPriceStatus] = useState(null);
   const inputRef = useRef(null);
 
   const debouncedFetchData = useCallback(fetchData, []);
   const debouncedFetchWatchlist = useCallback(fetchWatchlist, []);
+  const debouncedFetchDailyPriceStatus = useCallback(fetchDailyPriceStatus, []);
 
   useEffect(() => {
     debouncedFetchData(activeGuestSession, userToken, setCartCount);
@@ -136,6 +157,15 @@ const Navbar = ({
   useEffect(() => {
     debouncedFetchWatchlist(userToken, setWatchlistCount);
   }, [userToken, setWatchlistCount, debouncedFetchWatchlist]);
+
+  useEffect(() => {
+    debouncedFetchDailyPriceStatus(setDailyPriceStatus);
+    const intervalId = window.setInterval(() => {
+      debouncedFetchDailyPriceStatus(setDailyPriceStatus);
+    }, 300000);
+
+    return () => window.clearInterval(intervalId);
+  }, [debouncedFetchDailyPriceStatus]);
 
   const handleFocus = () => {
     setIsSuggestionVisible(true);
@@ -202,8 +232,27 @@ const Navbar = ({
       <section className={styles.sec_Top_nav}>
         <div className={styles.topStripInner}>
           <div className={styles.topStripText}>
-            <FaStar aria-hidden="true" />
-            <span>Fresh Flower Prices Updated Daily at 8AM</span>
+            <span
+              className={`${styles.priceStatusBadge} ${
+                dailyPriceStatus?.is_updated_today
+                  ? styles.priceStatusUpdated
+                  : styles.priceStatusPending
+              }`}
+            >
+              <span aria-hidden="true">
+                {dailyPriceStatus?.is_updated_today ? "✅" : "⚠"}
+              </span>
+              <span>
+                {dailyPriceStatus?.is_updated_today
+                  ? `${dailyPriceStatus.status_text} at ${dailyPriceStatus.updated_time}`
+                  : [
+                      dailyPriceStatus?.status_text || "Prices Not Updated Today",
+                      dailyPriceStatus?.last_updated_relative,
+                    ]
+                      .filter(Boolean)
+                      .join(" • ")}
+              </span>
+            </span>
             <span className={styles.topStripDivider}>|</span>
             <span>Same-Day Delivery in Hyderabad</span>
             <span className={styles.topStripDivider}>|</span>

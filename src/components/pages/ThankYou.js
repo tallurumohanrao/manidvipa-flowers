@@ -4,6 +4,7 @@ import React from "react";
 import { FaCircleCheck } from "react-icons/fa6";
 import Image from "next/image";
 import { formatPrice } from "../../../hook/userCookie";
+import { formatDisplayDate, formatDisplayDateTime } from "@/lib/date";
 
 const IMG_URL = process.env.NEXT_PUBLIC_IMG_URL;
 
@@ -57,14 +58,14 @@ export default function ThankYou({ orderData }) {
           <p>
             Date:{" "}
             <span className={styles.text_danger}>
-              {shippingAddress?.created_at}
+              {formatDisplayDateTime(shippingAddress?.created_at)}
             </span>
           </p>
           {orderSucces?.order?.serve_date ? (
             <p>
               Preferred Delivery Date:{" "}
               <span className={styles.text_danger}>
-                {orderSucces.order.serve_date}
+                {formatDisplayDate(orderSucces.order.serve_date)}
               </span>
             </p>
           ) : null}

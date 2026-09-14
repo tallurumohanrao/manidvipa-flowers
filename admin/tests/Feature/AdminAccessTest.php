@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Admin\Admin;
 use App\Models\Admin\Role;
 use App\Notifications\Admin\ResetAdminPassword;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -746,6 +747,96 @@ class AdminAccessTest extends TestCase
             ->assertJsonPath('rows.0.weight_id', $weightId)
             ->assertJsonPath('rows.0.new_sell_price', '95.00')
             ->assertJsonPath('rows.0.new_list_price', '142.50');
+    }
+
+    public function test_daily_price_status_api_reports_updated_today(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-09-14 09:15:00', config('app.timezone')));
+        $updatedAt = Carbon::parse('2026-09-14 08:30:00', config('app.timezone'));
+
+        DB::table('price_update_logs')->insert([
+            'product_title' => 'Status Test Flower',
+            'weight_name' => '1 KG',
+            'old_sell_price' => 100,
+            'new_sell_price' => 120,
+            'old_list_price' => 130,
+            'new_list_price' => 150,
+            'update_source' => 'manual',
+            'notes' => 'Status API test',
+            'created_at' => $updatedAt,
+            'updated_at' => $updatedAt,
+        ]);
+
+        $this->getJson('/api/daily-price-status')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.is_updated_today', true)
+            ->assertJsonPath('data.status_text', 'Prices Updated Today')
+            ->assertJsonPath('data.status_type', 'updated')
+            ->assertJsonPath('data.updated_time', '08:30 AM')
+            ->assertJsonPath('data.last_updated_relative', 'today');
+
+        Carbon::setTestNow();
+    }
+
+    public function test_daily_price_status_api_reports_not_updated_today_with_relative_time(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-09-14 09:15:00', config('app.timezone')));
+        $updatedAt = Carbon::parse('2026-09-10 08:30:00', config('app.timezone'));
+
+        DB::table('price_update_logs')->insert([
+            'product_title' => 'Old Status Test Flower',
+            'weight_name' => '1 KG',
+            'old_sell_price' => 100,
+            'new_sell_price' => 120,
+            'old_list_price' => 130,
+            'new_list_price' => 150,
+            'update_source' => 'manual',
+            'notes' => 'Old status API test',
+            'created_at' => $updatedAt,
+            'updated_at' => $updatedAt,
+        ]);
+
+        $this->getJson('/api/daily-price-status')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.is_updated_today', false)
+            ->assertJsonPath('data.status_text', 'Prices Not Updated Today')
+            ->assertJsonPath('data.status_type', 'not_updated')
+            ->assertJsonPath('data.updated_time', null)
+            ->assertJsonPath('data.last_updated_relative', '2 days ago');
+
+        Carbon::setTestNow();
+    }
+
+    public function test_daily_price_status_api_reports_yesterday_relative_time(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-09-14 09:15:00', config('app.timezone')));
+        $updatedAt = Carbon::parse('2026-09-13 08:30:00', config('app.timezone'));
+
+        DB::table('price_update_logs')->insert([
+            'product_title' => 'Yesterday Status Test Flower',
+            'weight_name' => '1 KG',
+            'old_sell_price' => 100,
+            'new_sell_price' => 120,
+            'old_list_price' => 130,
+            'new_list_price' => 150,
+            'update_source' => 'manual',
+            'notes' => 'Yesterday status API test',
+            'created_at' => $updatedAt,
+            'updated_at' => $updatedAt,
+        ]);
+
+        $this->getJson('/api/daily-price-status')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.is_updated_today', false)
+            ->assertJsonPath('data.status_text', 'Prices Not Updated Today')
+            ->assertJsonPath('data.status_type', 'not_updated')
+            ->assertJsonPath('data.updated_time', null)
+            ->assertJsonPath('data.last_updated_relative', '1 day ago');
+
+        Carbon::setTestNow();
     }
 
     private function createAdminWithAbilities(array $abilities): Admin
