@@ -54,7 +54,19 @@ class HomeController extends BaseController
     public function settings()
     {
         $data = Cache::rememberForever('settings', function () {
-            $result = DB::table('settings')->select('label','key','value')->where('status',1)->whereIn('type',['Site','Contact','Social Media'])->get();
+            $publicDeveloperKeys = [
+                'GOOGLE_ANALYTICS_ID',
+                'GOOGLE_SEARCH_CONSOLE_VERIFICATION',
+            ];
+
+            $result = DB::table('settings')
+                ->select('label','key','value')
+                ->where('status',1)
+                ->where(function ($query) use ($publicDeveloperKeys) {
+                    $query->whereIn('type',['Site','Contact','Social Media'])
+                        ->orWhereIn('key', $publicDeveloperKeys);
+                })
+                ->get();
             foreach($result as $v){
                 if(in_array($v->key,['SITE_LOGO','SITE_LOGO2','SITE_FAVICON'])){
                     $data[$v->key] = config('app.url') . '/storage/website/'.$v->value;

@@ -23,6 +23,17 @@ import { storefrontNavItems } from "@/data/storefrontNavigation";
 
 const url = process.env.NEXT_PUBLIC_MANIDVIPA_URL;
 
+const buildSearchPath = (value) => {
+  const slug = String(value || "")
+    .toLowerCase()
+    .trim()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return slug ? `/search/${slug}` : "/search/all";
+};
+
 const debouncedHandleSearch = async (searchInput, router) => {
   if (!searchInput) return;
 
@@ -32,9 +43,9 @@ const debouncedHandleSearch = async (searchInput, router) => {
     const result = await res.json();
 
     if (result?.data?.data?.length === 1) {
-      router.push(`/product-details/${result.data.data[0].slug}`);
+      router.push(`/flowers/${result.data.data[0].slug}`);
     } else if (result?.data?.data?.length > 1) {
-      router.push(`/search/${searchInput}`);
+      router.push(buildSearchPath(searchInput));
     } else {
       router.push(`/search/all`);
     }
@@ -567,3 +578,4 @@ const Navbar = ({
 };
 
 export default Navbar;
+

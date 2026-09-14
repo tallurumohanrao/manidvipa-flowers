@@ -41,7 +41,7 @@ const categoryCards = [
     title: "Patri & Leaves",
     description: "Tulasi, Bilva, Mango leaves & more",
     image: "/assets/images/home-v2/custom-puja-flower-box.jpg",
-    href: "/products/patri-leaves",
+    href: "/patri-leaves",
     terms: ["patri", "leaves", "leaf"],
   },
   {
@@ -752,6 +752,14 @@ function getHomepageCategoryImage(category, index) {
 
 function getHomepageCategoryHref(category) {
   const slug = String(category?.route_slug || category?.slug || "").trim();
+  const parentSlug = String(
+    category?.parent_route_slug || category?.parent_slug || category?.parent_title || ""
+  )
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
   const routeBySlug = {
     "puja-flowers": "/puja-flowers",
     "daily-puja-flowers": "/puja-flowers",
@@ -763,7 +771,11 @@ function getHomepageCategoryHref(category) {
     "bouquets-gifting": "/gifts",
   };
 
-  return routeBySlug[slug] || (slug ? `/products/${slug}` : "/flowers");
+  if (parentSlug && parentSlug !== slug) {
+    return `/${parentSlug}/${slug}`;
+  }
+
+  return routeBySlug[slug] || (slug ? `/${slug}` : "/flowers");
 }
 
 function buildHomepageCategoryCards(categories = []) {
@@ -818,7 +830,7 @@ function getProductImage(product) {
 function getProductHref(product) {
   if (product?.href) return product.href;
   if (product?.localImage && !product?.product_id) return "/flowers";
-  return product?.slug ? `/product-details/${product.slug}` : "/flowers";
+  return product?.slug ? `/flowers/${product.slug}` : "/flowers";
 }
 
 function formatPrice(value) {
@@ -876,7 +888,7 @@ function normalizeHomeProduct(product, fallback = {}, fallbackUnit = "kg") {
     image_url: product?.image_url || fallback.image_url,
     image_name: product?.image_name || fallback.image_name,
     image: product?.image || fallback.image,
-    href: productSlug ? `/product-details/${productSlug}` : fallback.href || "/flowers",
+    href: productSlug ? `/flowers/${productSlug}` : fallback.href || "/flowers",
     unit: getProductUnit(product, fallback.unit || fallbackUnit),
     tag: product?.tag || fallback.tag,
   };
@@ -1505,7 +1517,7 @@ export default function HomePage({
       const fallback = categories[fallbackIndex];
       const target = match || fallback;
       const targetSlug = target?.route_slug || target?.slug;
-      return targetSlug ? `/products/${targetSlug}` : "/flowers";
+      return targetSlug ? `/${targetSlug}` : "/flowers";
     },
     [categories]
   );
@@ -2141,3 +2153,4 @@ export default function HomePage({
     </main>
   );
 }
+

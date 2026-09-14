@@ -202,7 +202,7 @@ const WatchlistCard = React.memo(({ item, onDelete, onCart, isAdding, wasAdded }
         height: "160px",
       }}
     >
-      <Link href={`/product-details/${item.product_slug}`}>
+      <Link href={`/flowers/${item.product_slug}`}>
         <Image
           src={
             item.image_name === null
@@ -219,7 +219,7 @@ const WatchlistCard = React.memo(({ item, onDelete, onCart, isAdding, wasAdded }
     </div>
     <div className={`col-sm-5 ${styles.title_price}`}>
       <ul className={styles.list}>
-        <Link href={`/product-details/${item.product_slug}`}>
+        <Link href={`/flowers/${item.product_slug}`}>
           <li>
             <h5>{item.product_title}</h5>
           </li>
@@ -262,3 +262,4 @@ const WatchlistCard = React.memo(({ item, onDelete, onCart, isAdding, wasAdded }
 WatchlistCard.displayName = "WatchlistCard";
 
 export default Watchlist;
+

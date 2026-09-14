@@ -73,10 +73,34 @@ function normalizeSitemapPath(value) {
   path = normalizePath(path);
 
   if (path.startsWith("/categories/")) {
-    return normalizePath(path.replace(/^\/categories\//, "/products/"));
+    return normalizePath(path.replace(/^\/categories\//, "/"));
+  }
+
+  if (path.startsWith("/products/")) {
+    return normalizePath(path.replace(/^\/products\//, "/"));
+  }
+
+  if (path.startsWith("/flower-category/")) {
+    return normalizePath(path.replace(/^\/flower-category\//, "/"));
+  }
+
+  if (path.startsWith("/product-details/")) {
+    return normalizePath(path.replace(/^\/product-details\//, "/flowers/"));
   }
 
   return path;
+}
+
+function buildCategorySitemapPath(category, categories = []) {
+  const slug = normalizePath(`/${category.route_slug || category.slug || ""}`).replace(/^\//, "");
+  if (!slug || slug === "all-flowers") return "/flowers";
+
+  const parent = categories.find((candidate) => String(candidate?.id) === String(category?.parent_id));
+  const parentSlug = normalizePath(
+    `/${category.parent_route_slug || category.parent_slug || parent?.route_slug || parent?.slug || ""}`
+  ).replace(/^\//, "");
+
+  return parentSlug && parentSlug !== slug ? `/${parentSlug}/${slug}` : `/${slug}`;
 }
 
 function addEntry(entries, pathOrUrl, options = {}) {
@@ -119,10 +143,12 @@ export default async function sitemap() {
     });
   });
 
-  categoriesResponse?.data?.forEach((category) => {
+  const categories = Array.isArray(categoriesResponse?.data) ? categoriesResponse.data : [];
+
+  categories.forEach((category) => {
     const slug = category.route_slug || category.slug;
     if (!slug) return;
-    addEntry(entries, `/products/${slug}`, {
+    addEntry(entries, buildCategorySitemapPath(category, categories), {
       lastModified: category.updated_at || category.created_at,
       changeFrequency: "daily",
       priority: category.parent_id ? 0.75 : 0.8,
@@ -131,7 +157,7 @@ export default async function sitemap() {
 
   extractProducts(productsResponse).forEach((product) => {
     if (!product?.slug) return;
-    addEntry(entries, `/product-details/${product.slug}`, {
+    addEntry(entries, `/flowers/${product.slug}`, {
       lastModified: product.updated_at || product.created_at,
       changeFrequency: "daily",
       priority: 0.72,
@@ -140,3 +166,4 @@ export default async function sitemap() {
 
   return Array.from(entries.values());
 }
+

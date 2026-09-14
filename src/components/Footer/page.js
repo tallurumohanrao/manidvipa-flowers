@@ -12,6 +12,25 @@ import {
 import Link from "next/link";
 import Image from "next/image";
 
+function cleanCategorySlug(value) {
+  return String(value || "")
+    .toLowerCase()
+    .trim()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function buildCategoryHref(category) {
+  const slug = cleanCategorySlug(category?.route_slug || category?.slug || category?.title);
+  const parentSlug = cleanCategorySlug(
+    category?.parent_route_slug || category?.parent_slug || category?.parent_title
+  );
+
+  if (!slug || slug === "all-flowers") return "/flowers";
+  return parentSlug && parentSlug !== slug ? `/${parentSlug}/${slug}` : `/${slug}`;
+}
+
 const Footer = ({ categories, siteSettings }) => {
   const categoriesData = categories;
   const footerCategories = Array.isArray(categoriesData)
@@ -101,7 +120,7 @@ const Footer = ({ categories, siteSettings }) => {
               <ul>
                 {footerCategories.map((item, index) => (
                   <li key={index}>
-                    <Link href={`/products/${item.slug}`}>{item.title}</Link>
+                    <Link href={buildCategoryHref(item)}>{item.title}</Link>
                   </li>
                 ))}
                 <li>
@@ -160,3 +179,4 @@ const Footer = ({ categories, siteSettings }) => {
 };
 
 export default Footer;
+

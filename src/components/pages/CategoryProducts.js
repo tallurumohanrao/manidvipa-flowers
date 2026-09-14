@@ -74,14 +74,14 @@ const fallbackCategoryOptions = [
     collections: ["seasonal"],
     flags: ["isSeasonal", "is_seasonal"],
   },
-  { value: "chamanthi", label: "Chamanthi", keywords: ["chamanthi", "sevanthi", "chrysanthemum"] },
-  { value: "roses", label: "Roses", keywords: ["rose", "roses"] },
-  { value: "banthi", label: "Banthi", keywords: ["banthi", "marigold"] },
-  { value: "kanakambaram", label: "Kanakambaram", keywords: ["kanakambaram", "crossandra"] },
-  { value: "jasmine-malli", label: "Jasmine / Malli", keywords: ["jasmine", "malli", "mogra"] },
-  { value: "lotus", label: "Lotus", keywords: ["lotus"] },
-  { value: "lilies", label: "Lilies", keywords: ["lily", "lilies"] },
-  { value: "orchids", label: "Orchids", keywords: ["orchid", "orchids"] },
+  { value: "chamanthi", label: "Chamanthi", parentValue: "puja-flowers", keywords: ["chamanthi", "sevanthi", "chrysanthemum"] },
+  { value: "roses", label: "Roses", parentValue: "puja-flowers", keywords: ["rose", "roses"] },
+  { value: "banthi", label: "Banthi", parentValue: "puja-flowers", keywords: ["banthi", "marigold"] },
+  { value: "kanakambaram", label: "Kanakambaram", parentValue: "puja-flowers", keywords: ["kanakambaram", "crossandra"] },
+  { value: "jasmine-malli", label: "Jasmine / Malli", parentValue: "rare-flowers", keywords: ["jasmine", "malli", "mogra"] },
+  { value: "lotus", label: "Lotus", parentValue: "puja-flowers", keywords: ["lotus"] },
+  { value: "lilies", label: "Lilies", parentValue: "premium-flowers", keywords: ["lily", "lilies"] },
+  { value: "orchids", label: "Orchids", parentValue: "premium-flowers", keywords: ["orchid", "orchids"] },
   { value: "gerbera", label: "Gerbera", keywords: ["gerbera"] },
   { value: "other-flowers", label: "Other Flowers", keywords: ["mixed", "assorted", "other"] },
   { value: "patri-leaves", label: "Patri & Leaves", keywords: ["patri", "leaves", "leaf", "tulasi", "bilva", "mango leaves", "betel"] },
@@ -176,6 +176,27 @@ function normalizeParamValue(value) {
 function normalizeCategoryValue(value) {
   const normalizedValue = normalizeParamValue(value);
   return categorySlugAliasMap[normalizedValue] || normalizedValue;
+}
+
+function buildCategoryPath(categoryValue, fallbackPath = "/flowers", options = []) {
+  const normalizedCategory = normalizeCategoryValue(categoryValue || DEFAULT_CATEGORY);
+
+  if (!normalizedCategory || normalizedCategory === DEFAULT_CATEGORY) {
+    return "/flowers";
+  }
+
+  const categoryOption = options.find((option) => option.value === normalizedCategory);
+  const parentValue = normalizeCategoryValue(categoryOption?.parentValue);
+
+  if (parentValue && parentValue !== normalizedCategory) {
+    return `/${parentValue}/${normalizedCategory}`;
+  }
+
+  if (normalizedCategory === normalizeCategoryValue(fallbackPath.replace(/^\/+/, ""))) {
+    return fallbackPath;
+  }
+
+  return `/${normalizedCategory}`;
 }
 
 function parseListParam(searchParams, key) {
@@ -637,7 +658,7 @@ function CategoryProductCard({ product, userToken }) {
   const productPrice = selectedWeight?.sellPrice || getProductPrice(cartProduct);
   const productOriginalPrice = selectedWeight?.listPrice || getProductOriginalPrice(cartProduct);
   const productUnit = selectedWeight?.label || getProductUnit(cartProduct);
-  const productHref = product?.slug ? `/product-details/${product.slug}` : "#";
+  const productHref = product?.slug ? `/flowers/${product.slug}` : "#";
   const canAttemptCart = Boolean(productId || product?.slug);
   const rating = getRatingValue(product);
   const badges = getProductBadges(product);
@@ -917,7 +938,7 @@ export default function CategoryProducts({
   );
   const [currentPage, setCurrentPage] = useState(Math.max(1, Number(searchParams.get("page")) || 1));
   const [activeCategory, setActiveCategory] = useState(
-    normalizeCategoryValue(searchParams.get("category") || initialCategoryValue || DEFAULT_CATEGORY)
+    normalizeCategoryValue(initialCategoryValue || DEFAULT_CATEGORY)
   );
   const [selectedPrices, setSelectedPrices] = useState(() => parseListParam(searchParams, "price"));
   const [selectedCollections, setSelectedCollections] = useState(() => parseListParam(searchParams, "collection"));
@@ -1030,10 +1051,6 @@ export default function CategoryProducts({
   useEffect(() => {
     const nextParams = new URLSearchParams();
 
-    if (activeCategory && activeCategory !== DEFAULT_CATEGORY && activeCategory !== initialCategoryValue) {
-      nextParams.set("category", activeCategory);
-    }
-
     if (selectedCollections.length) nextParams.set("collection", selectedCollections.join(","));
     if (selectedPrices.length) nextParams.set("price", selectedPrices.join(","));
     if (selectedColor) nextParams.set("color", selectedColor);
@@ -1043,8 +1060,11 @@ export default function CategoryProducts({
     if (pageSize !== DEFAULT_PAGE_SIZE) nextParams.set("show", String(pageSize));
     if (currentPage > 1) nextParams.set("page", String(currentPage));
 
+    const nextPath = activeCategory === initialCategoryValue
+      ? pathname
+      : buildCategoryPath(activeCategory, pathname, categoryFilterOptions);
     const nextQuery = nextParams.toString();
-    const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
+    const nextUrl = nextQuery ? `${nextPath}?${nextQuery}` : nextPath;
     const currentQuery = searchParams.toString();
     const currentUrl = currentQuery ? `${pathname}?${currentQuery}` : pathname;
 
@@ -1055,6 +1075,7 @@ export default function CategoryProducts({
     activeCategory,
     currentPage,
     initialCategoryValue,
+    categoryFilterOptions,
     pageSize,
     pathname,
     router,
@@ -1518,3 +1539,4 @@ export default function CategoryProducts({
     </>
   );
 }
+

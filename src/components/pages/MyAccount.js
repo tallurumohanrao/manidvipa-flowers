@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 import Orders from "@/components/order";
 import ChangePassword from "@/components/ChangePassword";
 import Modal from "@/components/modal";
-import OrderDetails from "@/app/(pages)/orderDetails/page";
+import OrderDetails from "@/components/pages/OrderDetails";
 
 export default function MyAccount({ userData, userToken, guestSession }) {
   const router = useRouter();
@@ -131,3 +131,4 @@ export default function MyAccount({ userData, userToken, guestSession }) {
     </>
   );
 }
+

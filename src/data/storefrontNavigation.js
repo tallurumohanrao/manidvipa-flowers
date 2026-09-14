@@ -242,3 +242,4 @@ export function getPageMetadataOptions(config) {
 export function buildPageMetadata(config) {
   return buildMetadata(getPageMetadataOptions(config));
 }
+

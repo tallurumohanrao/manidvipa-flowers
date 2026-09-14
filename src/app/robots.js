@@ -14,6 +14,7 @@ export default function robots() {
         "/my-account",
         "/address",
         "/orderDetails",
+        "/order-details",
         "/forgot-password",
         "/password-reset",
         "/thank-you",
@@ -25,3 +26,4 @@ export default function robots() {
     sitemap: `${SITE_URL}/sitemap.xml`,
   };
 }
+

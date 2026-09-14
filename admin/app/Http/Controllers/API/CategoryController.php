@@ -43,6 +43,9 @@ class CategoryController extends BaseController
                 ];
 
                 $category->route_slug = $routeSlugs[$category->slug] ?? $category->slug;
+                $category->parent_route_slug = $category->parent_slug
+                    ? ($routeSlugs[$category->parent_slug] ?? $category->parent_slug)
+                    : null;
                 return $category;
             });
         return response()->json(['success' => true,'data' => $data], 200);

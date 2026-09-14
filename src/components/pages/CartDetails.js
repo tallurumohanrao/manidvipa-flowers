@@ -753,7 +753,7 @@ export default function CartDetails({
         productDetails?.data?.default_weight_id;
 
       if (!productId || !weightId) {
-        router.push(`/product-details/${product.slug}`);
+        router.push(`/flowers/${product.slug}`);
         return;
       }
 
@@ -827,7 +827,7 @@ export default function CartDetails({
                 return (
                   <div className={styles.cartRow} key={item.cart_id || `${item.product_title}-${index}`}>
                     <div className={styles.productCell}>
-                      <Link href={`/product-details/${itemSlug}`} className={styles.productImage}>
+                      <Link href={`/flowers/${itemSlug}`} className={styles.productImage}>
                         <Image
                           src={getProductImage(item)}
                           alt={item.product_title || "Fresh flowers"}
@@ -836,7 +836,7 @@ export default function CartDetails({
                         />
                       </Link>
                       <div>
-                        <Link href={`/product-details/${itemSlug}`} className={styles.productName}>
+                        <Link href={`/flowers/${itemSlug}`} className={styles.productName}>
                           {item.product_title}
                         </Link>
                         {item.available_weights?.length > 1 ? (
@@ -1009,7 +1009,7 @@ export default function CartDetails({
                 <div className={styles.recommendGrid}>
                   {recommendationProducts.map((product) => (
                     <article className={styles.recommendProduct} key={product.slug}>
-                      <Link href={`/product-details/${product.slug}`} className={styles.recommendImage}>
+                      <Link href={`/flowers/${product.slug}`} className={styles.recommendImage}>
                         <Image src={product.image} alt={product.title} width={150} height={120} />
                       </Link>
                       <h3>{product.title}</h3>
@@ -1043,3 +1043,4 @@ export default function CartDetails({
     </>
   );
 }
+

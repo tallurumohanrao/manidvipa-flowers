@@ -100,7 +100,7 @@ const HoverCard = ({
         fetchData();
         // ✅ Ensure the revalidate API is called with the correct path
         // const revalidateResponse = await fetch(
-        //   `/api/revalidate?path=/products/${category_slug}`,
+        //   `/api/revalidate?path=/flower-category/${category_slug}`,
         //   { method: "GET" }
         // );
 
@@ -143,7 +143,7 @@ const HoverCard = ({
   //         addWatchlistCount();
   //       }
   //       const respon = await fetch(
-  //         `/api/revalidate?path=/products/${category_slug}`,
+  //         `/api/revalidate?path=/flower-category/${category_slug}`,
   //         {
   //           method: "GET",
   //         }
@@ -169,7 +169,7 @@ const HoverCard = ({
   return (
     <div className={styles.store_hover_card}>
       <div className={styles.store_hover_image}>
-        <Link href={`/product-details/${slug}`}>
+        <Link href={`/flowers/${slug}`}>
           <Image
             src={imageSrc === null ? "/assets/images/no-image.png" : imageSrc}
             alt={title}
@@ -239,7 +239,7 @@ const HoverCard = ({
           <p>Rs {salePrice} </p>
         </div>
         <div className={styles.besides_btn}>
-          <Link href={`/product-details/${slug}`}>
+          <Link href={`/flowers/${slug}`}>
             <button className="primary-but" onClick={handleClick}>
               View Details
             </button>
@@ -252,3 +252,4 @@ const HoverCard = ({
 };
 
 export default HoverCard;
+

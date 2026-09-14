@@ -40,6 +40,7 @@ const NOINDEX_PREFIXES = [
   "/my-account",
   "/address",
   "/orderDetails",
+  "/order-details",
   "/forgot-password",
   "/password-reset",
   "/thank-you",
@@ -239,7 +240,7 @@ function getLowestWeight(weights = []) {
 
 export function buildProductMetadata(productDetails, slug, seoData = null) {
   const product = productDetails?.data;
-  const path = `/product-details/${slug}`;
+  const path = `/flowers/${slug}`;
 
   if (!product) {
     return buildMetadata(applyDirectSeoMetadata({
@@ -295,7 +296,7 @@ export function normalizeCategorySlug(value) {
     .replace(/^-+|-+$/g, "");
 }
 
-export function buildCategoryMetadata(slug, category, seoData = null) {
+export function buildCategoryMetadata(slug, category, seoData = null, categoryPath = null) {
   const normalizedSlug = normalizeCategorySlug(slug || "all-flowers");
   const title =
     category?.title ||
@@ -310,7 +311,7 @@ export function buildCategoryMetadata(slug, category, seoData = null) {
   return buildMetadata(applyDirectSeoMetadata({
     title: `${title} Online in Hyderabad | ${SITE_NAME}`,
     description,
-    path: `/products/${normalizedSlug || "all-flowers"}`,
+    path: categoryPath || `/${normalizedSlug || "all-flowers"}`,
     image,
     keywords: `${title}, fresh flowers Hyderabad, puja flowers, ${SITE_NAME}`,
   }, seoData));
@@ -456,7 +457,7 @@ export function buildProductSchema(productDetails, slug) {
     offers: price
       ? {
           "@type": "Offer",
-          url: canonicalUrl(`/product-details/${slug}`),
+          url: canonicalUrl(`/flowers/${slug}`),
           priceCurrency: "INR",
           price,
           availability,
@@ -505,7 +506,7 @@ export function buildItemListSchema(products = [], path = "/flowers") {
       .map((product, index) => ({
         "@type": "ListItem",
         position: index + 1,
-        url: canonicalUrl(`/product-details/${product.slug}`),
+        url: canonicalUrl(`/flowers/${product.slug}`),
         name: product.title,
       })),
     url: canonicalUrl(path),
@@ -518,3 +519,4 @@ export function unpackPaginatedProducts(source) {
   if (Array.isArray(source)) return source;
   return [];
 }
+

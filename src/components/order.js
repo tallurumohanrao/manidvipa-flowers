@@ -147,7 +147,7 @@ const Orders = ({ handleOrderActive, userToken }) => {
                           <p className={styles.product_mobile_amount}>
                             {formatPrice(item.amount)}
                           </p>
-                          {/* <Link href={`/orderDetails/${order.order_encrypt_key}`}>
+                          {/* <Link href={`/order-details/${order.order_encrypt_key}`}>
                           <button
                             className={`primary-outlined-but ${styles.view_item_button}`}
                           >
@@ -201,3 +201,4 @@ const ShipToDropdown = ({ shipTo }) => {
 };
 
 export default Orders;
+
