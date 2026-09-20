@@ -17,4 +17,4 @@ Disallow: /public
 Disallow: /public/*
 Disallow: *.pdf
 
-Sitemap: https://manidvipaflowers.com/sitemap.xml
+Sitemap: https://www.manidvipaflowers.com/sitemap.xml

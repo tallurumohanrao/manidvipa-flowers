@@ -1,8 +1,30 @@
 export const SITE_NAME = "Manidvipa Flowers";
-export const SITE_URL = cleanUrl(
+export const CANONICAL_SITE_URL = "https://www.manidvipaflowers.com";
+
+function resolveSiteUrl(value) {
+  const configuredUrl = cleanUrl(value);
+
+  try {
+    const url = new URL(configuredUrl);
+    const hostname = url.hostname.toLowerCase();
+
+    if (
+      hostname === "manidvipaflowers.com" ||
+      hostname === "www.manidvipaflowers.com"
+    ) {
+      return CANONICAL_SITE_URL;
+    }
+
+    return configuredUrl;
+  } catch {
+    return CANONICAL_SITE_URL;
+  }
+}
+
+export const SITE_URL = resolveSiteUrl(
   process.env.NEXT_PUBLIC_SITE_URL ||
     process.env.FRONTEND_URL ||
-    "https://manidvipaflowers.com"
+    CANONICAL_SITE_URL
 );
 export const DEFAULT_SEO_DESCRIPTION =
   "Order fresh flowers, puja flowers, garlands, premium blooms and flower subscriptions in Hyderabad from Manidvipa Flowers.";

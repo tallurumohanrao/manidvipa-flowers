@@ -30,7 +30,7 @@ const HoverCard = ({
   fetchData = () => {},
 }) => {
   const pathname = usePathname();
-  const fullUrl = `https://manidvipaflowers.com${pathname}`;
+  const fullUrl = `https://www.manidvipaflowers.com${pathname}`;
   const { showToast } = useToast();
   const { addWatchlistCount, decreaseWatchlistCount } = useWatchlistCount();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);

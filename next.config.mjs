@@ -1,5 +1,20 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [
+          {
+            type: "host",
+            value: "manidvipaflowers.com",
+          },
+        ],
+        destination: "https://www.manidvipaflowers.com/:path*",
+        permanent: true,
+      },
+    ];
+  },
   images: {
     dangerouslyAllowLocalIP: process.env.NODE_ENV !== "production",
     remotePatterns: [

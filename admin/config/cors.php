@@ -19,7 +19,10 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => array_values(array_filter(array_map('trim', explode(',', env('CORS_ALLOWED_ORIGINS', env('FRONTEND_URL', 'https://manidvipaflowers.com')))))),
+    'allowed_origins' => array_values(array_unique(array_filter([
+        ...array_map('trim', explode(',', env('CORS_ALLOWED_ORIGINS', env('FRONTEND_URL', 'https://www.manidvipaflowers.com')))),
+        'https://www.manidvipaflowers.com',
+    ]))),
 
     'allowed_origins_patterns' => [],
 
