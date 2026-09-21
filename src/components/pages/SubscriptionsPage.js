@@ -18,6 +18,7 @@ import Toast from "@/components/Toast";
 import { useToast } from "@/context/UserContext";
 import { fetchListingData } from "../../../hook/userCookie";
 import styles from "@/scss/pages/subscriptions.module.scss";
+import { getPriceVisibility } from "@/lib/priceVisibility";
 
 const fallbackImages = [
   "/assets/images/home-v2/premium-collection/premium-lilies.jpg",
@@ -225,6 +226,8 @@ function getPlanFallbackImage(plan, index) {
 }
 
 function normalizePlan(plan, index) {
+  const priceVisibility = getPriceVisibility(plan, "listing", "enquiry_only");
+
   return {
     id: plan?.id || `fallback-${index}`,
     title: plan?.title || "Business Flower Subscription",
@@ -234,8 +237,11 @@ function normalizePlan(plan, index) {
     short_description:
       plan?.short_description || plan?.description || "Fresh flowers delivered on a fixed schedule.",
     description: plan?.description || plan?.short_description || "",
-    price_label: plan?.price_label || "Custom Quote",
-    price_suffix: plan?.price_suffix || "",
+    price_label: priceVisibility.showPrice ? plan?.price_label || "Custom Quote" : priceVisibility.message,
+    price_suffix: priceVisibility.showPrice ? plan?.price_suffix || "" : "",
+    show_price: priceVisibility.showPrice,
+    price_visibility: priceVisibility.mode,
+    price_message: priceVisibility.message,
     delivery_frequency: plan?.delivery_frequency || "Custom delivery schedule",
     included_quantity_text: plan?.included_quantity_text || "",
     included_arrangement_count: plan?.included_arrangement_count || "",
@@ -247,7 +253,7 @@ function normalizePlan(plan, index) {
     included_items: normalizeList(plan?.included_items),
     features: normalizeList(plan?.features),
     ideal_for: normalizeList(plan?.ideal_for),
-    cta_label: plan?.cta_label || "Request Plan",
+    cta_label: plan?.price_cta_label || plan?.cta_label || "Request Plan",
     image_url: plan?.image_url || getPlanFallbackImage(plan, index),
   };
 }
@@ -451,7 +457,10 @@ export default function SubscriptionsPage({ initialPlans = [], siteSettings }) {
                       <span>{plan.flower_grade}</span>
                     </div>
                     <h3>{plan.title}</h3>
-                    <p>{plan.short_description}</p>
+                    <div
+                      className={styles.planDescription}
+                      dangerouslySetInnerHTML={{ __html: plan.short_description }}
+                    />
                     <div className={styles.planPrice}>
                       <strong>{plan.price_label}</strong>
                       <span>{plan.price_suffix}</span>

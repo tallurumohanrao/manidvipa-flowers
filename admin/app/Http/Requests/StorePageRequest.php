@@ -2,10 +2,18 @@
 
 namespace App\Http\Requests;
 
+use App\Support\SeoRouteManager;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StorePageRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'url' => SeoRouteManager::normalizePath($this->input('url'), '/'.SeoRouteManager::slugFromPath($this->input('name'))),
+        ]);
+    }
+
     /**
      * Determine if the user is authorized to make this request.
      *
@@ -25,6 +33,7 @@ class StorePageRequest extends FormRequest
     {
         $rules= [
             'name' => 'required|max:255',
+            'url' => 'required|string|max:190',
             //'description' => 'required',
             'status' => 'required|boolean',
         ];
@@ -35,6 +44,7 @@ class StorePageRequest extends FormRequest
     {
         return [
             'name.required' => 'Name is required.',
+            'url.required' => 'Public page URL is required.',
             'description.required' => 'Description is required.',
             'status.required' => 'Status is required.',
         ];

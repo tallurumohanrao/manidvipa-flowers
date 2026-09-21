@@ -238,6 +238,13 @@
       border-color: #9b1436;
       color: #9b1436;
     }
+
+    &:disabled {
+      background: #f4f1f1;
+      border-color: #e4dddd;
+      color: #9a8d90;
+      cursor: not-allowed;
+    }
   }
 }
 
@@ -252,6 +259,56 @@
   color: #b00020;
   font-size: 14px;
   margin: 0;
+}
+
+.customQuantityBox {
+  background: #fff8f0;
+  border: 1px solid #f0d7bd;
+  border-radius: 10px;
+  margin-top: 12px;
+  padding: 14px;
+
+  label {
+    color: #2b1519;
+    display: block;
+    font-size: 14px;
+    font-weight: 800;
+    margin-bottom: 8px;
+  }
+
+  small {
+    color: #735b5f;
+    display: block;
+    font-size: 12px;
+    line-height: 1.45;
+    margin-top: 7px;
+  }
+}
+
+.customQuantityInput {
+  display: flex;
+
+  input {
+    background: #fff;
+    border: 1px solid #d8bcc2;
+    border-radius: 8px 0 0 8px;
+    color: #201114;
+    min-height: 44px;
+    min-width: 0;
+    padding: 0 12px;
+    width: 180px;
+  }
+
+  span {
+    align-items: center;
+    background: #9b1436;
+    border-radius: 0 8px 8px 0;
+    color: #fff;
+    display: inline-flex;
+    font-size: 13px;
+    font-weight: 800;
+    padding: 0 14px;
+  }
 }
 
 .addonList {

@@ -1,3 +1,8 @@
+<div class="alert alert-info mb-4">
+    <strong>Permission definitions</strong>
+    <div>Roles grant these actions to administrators. <strong>Status</strong> controls whether the actions can be used. <strong>Show in Menu</strong> only controls whether the module appears in the sidebar; it does not grant access.</div>
+</div>
+
 <div class="row">
     <div class="col-md-6">
         <label class="col-form-label" for="group_name">Group Name</label>

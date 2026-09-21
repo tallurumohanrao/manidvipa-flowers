@@ -74,7 +74,13 @@
                                     <td>{{ $row->email }}</td>
                                     <td>{{ $row->subject }}</td>
                                     <td>{{ $row->message }}</td>
-                                    <td>{{ $row->created_at }}</td>
+                                    <td>
+                                        @if($row->created_at)
+                                            {{ date('d-m-Y h:i A', strtotime($row->created_at)) }}
+                                        @else
+                                            <span class="text-muted">Not recorded</span>
+                                        @endif
+                                    </td>
                                 </tr>
                             @endforeach
                             </tbody>

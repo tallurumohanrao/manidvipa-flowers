@@ -13,13 +13,6 @@
             </a>
         </div>
 
-        @if(session('success'))
-            <div class="alert alert-success">{{ session('success') }}</div>
-        @endif
-        @if(session('fail'))
-            <div class="alert alert-danger">{{ session('fail') }}</div>
-        @endif
-
         <div class="card shadow mb-4 border-left-success">
             <div class="card-header bg-white d-flex align-items-center justify-content-between">
                 <div>
@@ -100,13 +93,16 @@
                             <button type="button" class="btn btn-primary" id="voice-price-preview">
                                 <i class="fas fa-eye mr-1"></i> Preview
                             </button>
+                            <button type="button" class="btn btn-success" id="voice-price-apply" disabled>
+                                <i class="fas fa-save mr-1"></i> Save Price Changes
+                            </button>
                             <button type="button" class="btn btn-outline-secondary" id="voice-price-clear">Clear</button>
                         </div>
                         <div class="custom-control custom-checkbox">
                             <input type="checkbox" class="custom-control-input" id="voice-apply-list-price">
                             <label class="custom-control-label" for="voice-apply-list-price">Apply the same change to list price also</label>
                         </div>
-                        <div class="small mt-2 text-muted">Only active products and active weights are included.</div>
+                        <div class="small mt-2 text-muted">Speaking creates the preview automatically. Check the affected rows, then click Save Price Changes. Only active products and active weights are included.</div>
                     </div>
                 </div>
 
@@ -118,9 +114,7 @@
                             <strong>Preview</strong>
                             <div class="text-muted small" id="voice-price-summary"></div>
                         </div>
-                        <button type="button" class="btn btn-success" id="voice-price-apply">
-                            <i class="fas fa-check mr-1"></i> Confirm & Update Prices
-                        </button>
+                        <span class="badge badge-success">Ready to save</span>
                     </div>
                     <div class="table-responsive voice-preview-table-wrap">
                         <table class="table table-sm table-bordered mb-0">
@@ -204,7 +198,7 @@
                         <div class="col-md-1 mb-3">
                             <label class="small font-weight-bold">Show</label>
                             <select name="per_page" class="form-control">
-                                @foreach([25, 50, 100] as $option)
+                                @foreach([10, 25, 50, 100] as $option)
                                     <option value="{{ $option }}" @selected((int) $perPage === $option)>{{ $option }}</option>
                                 @endforeach
                             </select>
@@ -277,24 +271,44 @@
             @endcan
 
             <div class="card shadow mb-4">
-                <div class="card-header bg-white d-flex align-items-center justify-content-between">
-                    <div>
-                        <strong>{{ $data->total() }} price rows found</strong>
-                        <span class="text-muted small ml-2">Showing {{ $data->firstItem() ?? 0 }} to {{ $data->lastItem() ?? 0 }}</span>
+                <div class="card-header bg-white daily-price-results-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:nowrap;gap:1rem;">
+                    <div class="daily-price-results-summary" style="display:flex;align-items:center;flex:0 0 auto;gap:.5rem;white-space:nowrap;">
+                        <label for="daily-price-page-size" class="mb-0 text-muted small">Rows</label>
+                        <select id="daily-price-page-size" class="custom-select custom-select-sm daily-price-page-size" style="width:68px;min-width:68px;flex:0 0 68px;" aria-label="Rows per page">
+                            @foreach([10, 25, 50, 100] as $option)
+                                <option value="{{ $option }}" @selected((int) $perPage === $option)>{{ $option }}</option>
+                            @endforeach
+                        </select>
                     </div>
-                    <div>
-                        @can('dailyprices_edit')
-                            <button type="button" class="btn btn-sm btn-outline-secondary mr-2" id="select-visible">Select visible</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary mr-2" id="clear-selected">Clear selected</button>
-                            <button type="submit" class="btn btn-success">
-                                <i class="fas fa-save mr-1"></i> Save Price Updates
-                            </button>
-                        @endcan
+                    <div class="daily-price-results-right" style="display:flex;align-items:center;justify-content:flex-end;flex:0 0 auto;gap:1rem;">
+                        <div class="daily-price-results-search" style="margin-left:0;flex:0 0 260px;width:260px;min-width:220px;">
+                            <input type="search" id="daily-price-header-search" class="form-control form-control-sm" value="{{ request('search') }}" placeholder="Search products" aria-label="Search products">
+                        </div>
+                        <div class="daily-price-results-actions" style="display:flex;align-items:center;flex:0 0 auto;gap:.5rem;white-space:nowrap;">
+                            @can('dailyprices_edit')
+                                <button type="button" class="btn btn-sm btn-outline-secondary mr-2" id="select-visible">Select visible</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary mr-2" id="clear-selected">Clear selected</button>
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-save mr-1"></i> Save Price Updates
+                                </button>
+                            @endcan
+                        </div>
                     </div>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive daily-price-table-wrap">
-                        <table class="table table-bordered table-hover mb-0 daily-price-table">
+                        <table class="table table-bordered table-hover mb-0 daily-price-table" data-admin-table="off" style="table-layout:fixed!important;min-width:1100px;width:100%!important;">
+                            <colgroup>
+                                <col style="width:42px;">
+                                <col style="width:72px;">
+                                <col style="width:220px;">
+                                <col style="width:170px;">
+                                <col style="width:120px;">
+                                <col style="width:145px;">
+                                <col style="width:145px;">
+                                <col style="width:90px;">
+                                <col style="width:150px;">
+                            </colgroup>
                             <thead class="thead-light">
                                 <tr>
                                     <th style="width: 42px;">
@@ -318,9 +332,9 @@
                                         </td>
                                         <td class="align-middle">
                                             @if($row->image_name)
-                                                <img src="{{ asset('storage/products/'.$row->image_name) }}" alt="{{ $row->product_title }}" class="daily-price-image">
+                                                <img src="{{ asset('storage/products/'.$row->image_name) }}" alt="{{ $row->product_title }}" class="daily-price-image" style="display:block;width:56px!important;height:56px!important;max-width:56px!important;min-width:56px;object-fit:cover;">
                                             @else
-                                                <div class="daily-price-placeholder">
+                                                <div class="daily-price-placeholder" style="width:56px!important;height:56px!important;max-width:56px!important;min-width:56px;">
                                                     <i class="fas fa-seedling"></i>
                                                 </div>
                                             @endif
@@ -388,10 +402,7 @@
                 </div>
                 <div class="card-footer bg-white">
                     <div class="row align-items-center">
-                        <div class="col-md-5">
-                            <div class="dataTables_info">Showing {{ $data->firstItem() ?? 0 }} to {{ $data->lastItem() ?? 0 }} of {{ $data->total() }} price rows</div>
-                        </div>
-                        <div class="col-md-7">
+                        <div class="col-12">
                             <div class="float-right">{{ $data->links() }}</div>
                         </div>
                     </div>
@@ -399,13 +410,22 @@
             </div>
         </form>
 
-        <div class="card shadow mb-4">
+        <div class="card shadow mb-4 daily-price-log-card">
             <div class="card-header bg-white">
                 <strong>Recent Price Updates</strong>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-sm table-bordered mb-0">
+                    <table class="table table-sm table-bordered mb-0 daily-price-log-table">
+                        <colgroup>
+                            <col style="width:15%;">
+                            <col style="width:25%;">
+                            <col style="width:11%;">
+                            <col style="width:16%;">
+                            <col style="width:16%;">
+                            <col style="width:9%;">
+                            <col style="width:8%;">
+                        </colgroup>
                         <thead class="thead-light">
                             <tr>
                                 <th>Updated At</th>
@@ -460,7 +480,87 @@
 <style>
     .daily-price-table-wrap {
         max-height: 68vh;
+        overflow-x: auto;
+        overflow-y: auto;
     }
+
+    .daily-price-results-header {
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        gap: .75rem 1rem;
+        justify-content: space-between !important;
+    }
+
+    .daily-price-results-summary,
+    .daily-price-results-actions {
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        gap: .5rem;
+    }
+
+    .daily-price-results-summary {
+        order: 1;
+    }
+
+    .daily-price-results-search {
+        margin-left: 0 !important;
+        order: 2;
+    }
+
+    .daily-price-results-actions {
+        order: 3;
+    }
+
+    .daily-price-results-right {
+        margin-left: auto;
+    }
+
+    .daily-price-results-summary strong {
+        margin-left: .35rem;
+    }
+
+    .daily-price-page-size {
+        min-width: 68px;
+        width: 68px;
+    }
+
+    .daily-price-results-search {
+        min-width: 220px;
+        width: 260px;
+    }
+
+    .daily-price-table {
+        table-layout: fixed !important;
+        min-width: 1100px;
+        width: 100% !important;
+    }
+
+    .daily-price-table th,
+    .daily-price-table td {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .daily-price-table th:nth-child(1),
+    .daily-price-table td:nth-child(1) { width: 42px; }
+    .daily-price-table th:nth-child(2),
+    .daily-price-table td:nth-child(2) { width: 72px; }
+    .daily-price-table th:nth-child(3),
+    .daily-price-table td:nth-child(3) { width: 220px; }
+    .daily-price-table th:nth-child(4),
+    .daily-price-table td:nth-child(4) { width: 170px; }
+    .daily-price-table th:nth-child(5),
+    .daily-price-table td:nth-child(5) { width: 120px; }
+    .daily-price-table th:nth-child(6),
+    .daily-price-table td:nth-child(6),
+    .daily-price-table th:nth-child(7),
+    .daily-price-table td:nth-child(7) { width: 145px; }
+    .daily-price-table th:nth-child(8),
+    .daily-price-table td:nth-child(8) { width: 90px; }
+    .daily-price-table th:nth-child(9),
+    .daily-price-table td:nth-child(9) { width: 150px; }
 
     .daily-price-table thead th {
         position: sticky;
@@ -469,10 +569,39 @@
         background: #f8f9fc;
     }
 
+    .daily-price-log-table {
+        table-layout: fixed;
+        width: 100%;
+    }
+
+    .daily-price-log-card .admin-table-toolbar {
+        align-items: center;
+        border-bottom: 1px solid #e3e6f0;
+        margin: 0;
+        min-height: 58px;
+        padding: .75rem 1rem;
+    }
+
+    .daily-price-log-card .admin-table-options {
+        margin-right: 0;
+    }
+
+    .daily-price-log-table th,
+    .daily-price-log-table td {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        vertical-align: middle;
+    }
+
     .daily-price-image,
     .daily-price-placeholder {
-        width: 56px;
-        height: 56px;
+        display: block;
+        width: 56px !important;
+        min-width: 56px;
+        max-width: 56px !important;
+        height: 56px !important;
+        min-height: 56px;
+        max-height: 56px !important;
         border-radius: 8px;
         object-fit: cover;
         border: 1px solid #eadfe4;
@@ -530,6 +659,26 @@
         font-weight: 700;
         color: #1b8f5a;
     }
+
+    @media (max-width: 991.98px) {
+        .daily-price-results-header {
+            flex-wrap: wrap !important;
+        }
+
+        .daily-price-results-right {
+            flex: 1 1 100% !important;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            margin-left: 0;
+        }
+
+        .daily-price-results-search {
+            flex: 1 1 100% !important;
+            margin-left: 0 !important;
+            min-width: 100% !important;
+            width: 100% !important;
+        }
+    }
 </style>
 @endpush
 
@@ -539,6 +688,8 @@
         const selectAll = document.getElementById('select-all-prices');
         const selectVisible = document.getElementById('select-visible');
         const clearSelected = document.getElementById('clear-selected');
+        const pageSizeSelect = document.getElementById('daily-price-page-size');
+        const headerSearch = document.getElementById('daily-price-header-search');
         const checks = () => Array.from(document.querySelectorAll('.price-row-check'));
         const priceInputs = Array.from(document.querySelectorAll('.price-input'));
         const ajaxButtons = Array.from(document.querySelectorAll('.ajax-price-save'));
@@ -557,6 +708,22 @@
         const voicePreviewUrl = @json(route('admin.dailyprices.voice.preview'));
         const voiceApplyUrl = @json(route('admin.dailyprices.voice.apply'));
         let lastVoicePreview = null;
+
+        function applyDailyPriceHeaderFilters() {
+            const url = new URL(window.location.href);
+            const search = headerSearch?.value.trim() || '';
+            const pageSize = pageSizeSelect?.value || '10';
+
+            if (search) {
+                url.searchParams.set('search', search);
+            } else {
+                url.searchParams.delete('search');
+            }
+
+            url.searchParams.set('per_page', pageSize);
+            url.searchParams.delete('page');
+            window.location.assign(url.toString());
+        }
 
         function setChecks(value) {
             checks().forEach((input) => {
@@ -579,6 +746,10 @@
 
         function resetVoicePreview() {
             lastVoicePreview = null;
+            if (voiceApplyButton) {
+                voiceApplyButton.disabled = true;
+                voiceApplyButton.innerHTML = '<i class="fas fa-save mr-1"></i> Save Price Changes';
+            }
             if (voicePreviewPanel) {
                 voicePreviewPanel.classList.add('d-none');
             }
@@ -645,6 +816,9 @@
             if (voicePreviewPanel) {
                 voicePreviewPanel.classList.remove('d-none');
             }
+            if (voiceApplyButton) {
+                voiceApplyButton.disabled = rows.length === 0;
+            }
         }
 
         async function postVoiceCommand(url, payload) {
@@ -658,7 +832,26 @@
                 body: JSON.stringify(payload),
             });
 
-            const data = await response.json();
+            const responseText = await response.text();
+            let data = {};
+
+            try {
+                data = responseText ? JSON.parse(responseText) : {};
+            } catch (error) {
+                if (response.status === 419) {
+                    throw new Error('Your admin session expired. Refresh the page, sign in again, and retry.');
+                }
+
+                throw new Error('The server returned an invalid response. Refresh the page and retry.');
+            }
+
+            if (response.status === 419) {
+                throw new Error('Your admin session expired. Refresh the page, sign in again, and retry.');
+            }
+
+            if (response.status === 401 || response.status === 403) {
+                throw new Error('You do not have permission to update daily prices. Ask a Super Admin for Daily Price Edit access.');
+            }
 
             if (!response.ok || !data.success) {
                 const examples = Array.isArray(data.examples) && data.examples.length
@@ -714,7 +907,7 @@
             }
 
             voiceApplyButton.disabled = true;
-            voiceApplyButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Updating';
+            voiceApplyButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Saving';
             setVoiceStatus('Updating prices...', 'info');
 
             try {
@@ -729,7 +922,7 @@
             } catch (error) {
                 setVoiceStatus(error.message || 'Unable to update prices.', 'danger');
                 voiceApplyButton.disabled = false;
-                voiceApplyButton.innerHTML = '<i class="fas fa-check mr-1"></i> Confirm & Update Prices';
+                voiceApplyButton.innerHTML = '<i class="fas fa-save mr-1"></i> Save Price Changes';
             }
         }
 
@@ -749,6 +942,20 @@
             clearSelected.addEventListener('click', function () {
                 setChecks(false);
             });
+        }
+
+        if (pageSizeSelect) {
+            pageSizeSelect.addEventListener('change', applyDailyPriceHeaderFilters);
+        }
+
+        if (headerSearch) {
+            headerSearch.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    applyDailyPriceHeaderFilters();
+                }
+            });
+            headerSearch.addEventListener('change', applyDailyPriceHeaderFilters);
         }
 
         document.querySelectorAll('.voice-example').forEach((button) => {
@@ -773,7 +980,22 @@
         }
 
         if (voiceApplyListPrice) {
-            voiceApplyListPrice.addEventListener('change', resetVoicePreview);
+            voiceApplyListPrice.addEventListener('change', function () {
+                resetVoicePreview();
+                if (voiceCommandInput?.value.trim()) {
+                    setVoiceStatus('List-price option changed. Preview the command again before saving.', 'info');
+                }
+            });
+        }
+
+        if (voiceCommandInput) {
+            voiceCommandInput.addEventListener('input', function () {
+                resetVoicePreview();
+                setVoiceStatus(
+                    this.value.trim() ? 'Command changed. Preview it before saving.' : '',
+                    'info'
+                );
+            });
         }
 
         if (voicePreviewButton) {
@@ -801,20 +1023,30 @@
                     setVoiceStatus('Listening... speak the price command now.', 'info');
                     voiceStartButton.disabled = true;
                     voiceStartButton.innerHTML = '<i class="fas fa-microphone-alt mr-1"></i> Listening';
-                    recognition.start();
+                    try {
+                        recognition.start();
+                    } catch (error) {
+                        voiceStartButton.disabled = false;
+                        voiceStartButton.innerHTML = '<i class="fas fa-microphone mr-1"></i> Speak';
+                        setVoiceStatus('Microphone is already active. Wait a moment and try again.', 'warning');
+                    }
                 });
 
-                recognition.onresult = function (event) {
+                recognition.onresult = async function (event) {
                     const transcript = event.results?.[0]?.[0]?.transcript || '';
                     if (voiceCommandInput) {
                         voiceCommandInput.value = transcript;
                         voiceCommandInput.focus();
                     }
-                    setVoiceStatus('Voice captured. Review the text, then click Preview.', 'success');
+                    setVoiceStatus('Voice captured. Creating the price preview...', 'info');
+                    await previewVoiceCommand();
                 };
 
                 recognition.onerror = function (event) {
-                    setVoiceStatus(event.error ? `Voice input failed: ${event.error}` : 'Voice input failed. Type the command manually.', 'warning');
+                    const message = event.error === 'not-allowed'
+                        ? 'Microphone permission was blocked. Allow microphone access in the browser, then try again.'
+                        : (event.error ? `Voice input failed: ${event.error}` : 'Voice input failed. Type the command manually.');
+                    setVoiceStatus(message, 'warning');
                 };
 
                 recognition.onend = function () {

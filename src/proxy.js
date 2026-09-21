@@ -1,5 +1,53 @@
 import { NextResponse } from "next/server";
 
+function getApiBaseUrl() {
+  return String(
+    process.env.NEXT_PUBLIC_MANIDVIPA_URL ||
+      "https://admin.manidvipastore.com/api"
+  ).replace(/\/+$/, "");
+}
+
+function normalizeRoutePath(value) {
+  const path = String(value || "/")
+    .split("?")[0]
+    .split("#")[0]
+    .trim();
+  const withSlash = path.startsWith("/") ? path : `/${path}`;
+  const normalized = withSlash.replace(/\/{2,}/g, "/").replace(/\/$/, "");
+  return normalized || "/";
+}
+
+async function fetchEditableRoutes() {
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/seo-routes`, {
+      cache: "no-store",
+      headers: {
+        Accept: "application/json",
+        "Cache-Control": "no-cache",
+      },
+    });
+
+    if (!response.ok) return { routes: [], redirects: [] };
+
+    const result = await response.json();
+    return {
+      routes: Array.isArray(result?.data?.routes) ? result.data.routes : [],
+      redirects: Array.isArray(result?.data?.redirects)
+        ? result.data.redirects
+        : [],
+    };
+  } catch {
+    return { routes: [], redirects: [] };
+  }
+}
+
+function metadataRequestHeaders(request, pathName) {
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-metadata-pathName", normalizeRoutePath(pathName));
+  requestHeaders.set("x-metadata-description", normalizeRoutePath(pathName));
+  return requestHeaders;
+}
+
 function cleanSlug(value) {
   return String(value || "")
     .toLowerCase()
@@ -31,7 +79,7 @@ function buildLegacyCategoryRedirectPath(categorySlug) {
   return parentSlug ? `/${parentSlug}/${categorySlug}` : `/${categorySlug}`;
 }
 
-export function proxy(request) {
+export async function proxy(request) {
   const pathName = request.nextUrl.pathname;
   const legacyCategory = request.nextUrl.searchParams.get("category");
 
@@ -45,17 +93,53 @@ export function proxy(request) {
     return NextResponse.redirect(redirectUrl, 308);
   }
 
-  const response = NextResponse.next();
+  const currentPath = normalizeRoutePath(pathName);
+  const routeConfig = await fetchEditableRoutes();
+  const historicalRedirect = routeConfig.redirects.find(
+    (redirect) => normalizeRoutePath(redirect?.from_url) === currentPath
+  );
 
-  if (pathName) {
-    response.headers.set("x-metadata-pathName", pathName || "Default Title");
-    response.headers.set(
-      "x-metadata-description",
-      pathName || "Default Description"
-    );
+  if (historicalRedirect?.to_url) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = normalizeRoutePath(historicalRedirect.to_url);
+    return NextResponse.redirect(redirectUrl, 308);
   }
 
-  return response;
+  const publicRoute = routeConfig.routes.find(
+    (route) => normalizeRoutePath(route?.url) === currentPath
+  );
+
+  if (publicRoute?.alias) {
+    const systemPath = normalizeRoutePath(publicRoute.alias);
+
+    if (systemPath !== currentPath) {
+      const rewriteUrl = request.nextUrl.clone();
+      rewriteUrl.pathname = systemPath;
+      return NextResponse.rewrite(rewriteUrl, {
+        request: {
+          headers: metadataRequestHeaders(request, currentPath),
+        },
+      });
+    }
+  }
+
+  const systemRoute = routeConfig.routes.find(
+    (route) =>
+      normalizeRoutePath(route?.alias) === currentPath &&
+      normalizeRoutePath(route?.url) !== currentPath
+  );
+
+  if (systemRoute?.url) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = normalizeRoutePath(systemRoute.url);
+    return NextResponse.redirect(redirectUrl, 308);
+  }
+
+  return NextResponse.next({
+    request: {
+      headers: metadataRequestHeaders(request, currentPath),
+    },
+  });
 }
 
 export const config = {

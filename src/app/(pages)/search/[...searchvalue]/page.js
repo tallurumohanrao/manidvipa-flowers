@@ -5,6 +5,7 @@ import styles from "@/scss/pages/listingPage.module.scss";
 import { useParams } from "next/navigation";
 import { useToast, useUser } from "@/context/UserContext";
 import Toast from "@/components/Toast";
+import { getPriceVisibility } from "@/lib/priceVisibility";
 
 const url = process.env.NEXT_PUBLIC_MANIDVIPA_URL;
 const IMG_URL = process.env.NEXT_PUBLIC_IMG_URL;
@@ -96,7 +97,9 @@ export default function Page() {
                       <div className="container">
                         <div className="row">
                           {sortedProducts.length > 0 ? (
-                            sortedProducts.map((painting, index) => (
+                            sortedProducts.map((painting, index) => {
+                              const priceVisibility = getPriceVisibility(painting);
+                              return (
                               <div
                                 key={index}
                                 className={`col-xs-6 col-sm-4 col-md-3 col-lg-3 my-2`}
@@ -119,10 +122,14 @@ export default function Page() {
                                   slug={painting.slug}
                                   productId={painting.id}
                                   wishlist_id={painting.wishlist_id}
+                                  showPrice={priceVisibility.showPrice}
+                                  priceMessage={priceVisibility.message}
+                                  priceCtaLabel={priceVisibility.ctaLabel}
                                   // fetchData={() => fetchData()}
                                 />
                               </div>
-                            ))
+                              );
+                            })
                           ) : (
                             <p>No products found within this price range</p>
                           )}

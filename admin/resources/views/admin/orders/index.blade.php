@@ -42,6 +42,15 @@
 </style>
 @endpush
 @section('content')
+@php
+$orderSourceLabels = [
+    'whatsapp' => 'WhatsApp',
+    'website' => 'Website',
+    'phone' => 'Phone',
+    'manual' => 'Manual',
+    'unknown' => 'Unknown',
+];
+@endphp
 <section class="content">
     <div class="container-fluid">
         <div class="card shadow mb-4">
@@ -110,6 +119,10 @@
                             <label for="deliveryAdmin">Delivery Person</label>
                             {!! html()->select('deliveryAdmin', $admins)->placeholder('Any delivery person')->value(request('deliveryAdmin'))->id('deliveryAdmin')->class('custom-select custom-select-sm form-control form-control-sm') !!}
                         </div>
+                        <div class="form-group col-xl-2 col-lg-3 col-md-4 col-sm-6">
+                            <label for="source">Order Source</label>
+                            {!! html()->select('source', $orderSources)->placeholder('Any source')->value(request('source'))->id('source')->class('custom-select custom-select-sm form-control form-control-sm') !!}
+                        </div>
                         <div class="form-group col-xl-2 col-lg-3 col-md-4 col-sm-6 d-flex align-items-end">
                             <div class="order-filter-actions w-100">
                                 {!! html()->button('<i class="fas fa-search mr-1"></i> Search','submit')->class('btn btn-primary btn-sm') !!}
@@ -144,6 +157,7 @@
                                     <th>Order ID</th>
                                     <th>Name</th>
                                     <th>Contact</th>
+                                    <th>Source</th>
                                     <th>User Id</th>
                                     <th>Amount</th>
                                     <th>Order Status</th>
@@ -168,6 +182,7 @@
                                     <td><a target="_blank" href="{{ route('admin.'.$module.'.show',['order'=>$row->id]) }}">{{ $row->id }}</a></td>
                                     <td>{{ $row->name }}</td>
                                     <td>{!! $row->email .'</br>'. $row->contact_number !!}</td>
+                                    <td><span class="badge badge-info">{{ $orderSourceLabels[$row->source ?? 'unknown'] ?? 'Unknown' }}</span></td>
                                     <td>
                                         @if($row->user_id)
                                         @can('users_edit')

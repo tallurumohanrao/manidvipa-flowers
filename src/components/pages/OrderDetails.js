@@ -122,6 +122,12 @@ export default function OrderDetails({ id, handleBack, userData, userToken }) {
             Order Id # {orderDetails?.order?.id}
             <br></br>
             Ordered on {formatDisplayDateTime(orderDetails?.order?.created_at)}
+            {orderDetails?.order?.price_locked_at ? (
+              <>
+                <br></br>
+                Price locked on {formatDisplayDateTime(orderDetails.order.price_locked_at)}
+              </>
+            ) : null}
           </p>
           <div className={`row mb-3 ${styles.order_info}`}>
             <div className="col-sm-6">

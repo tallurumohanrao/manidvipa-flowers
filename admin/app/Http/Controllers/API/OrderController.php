@@ -8,8 +8,11 @@ use App\Http\Controllers\API\BaseController as BaseController;
 // use App\Traits\SmsTrait;
 
 use Auth,Validator,DB,Str;
+use Illuminate\Support\Facades\Schema;
 use App\Traits\GoogleDistanceTrait;
 use App\Traits\ShippingChargeTrait;
+use App\Support\PriceVisibility;
+use App\Support\SellingOption;
 
 class OrderController extends BaseController
 {
@@ -70,10 +73,14 @@ class OrderController extends BaseController
                 'name' => $request->name ?: ($user->name ?? 'WhatsApp Customer'),
                 'email' => $request->email ?: ($user->email ?? ''),
                 'contact_number' => $request->contact_number ?: ($user->contact_number ?? ''),
+                'source' => 'whatsapp',
                 'serve_date' => $serveDate,
                 'order_status_id' => $statusId,
                 'created_at' => $now,
             ];
+            if (Schema::hasColumn('orders', 'price_locked_at')) {
+                $create['price_locked_at'] = $now;
+            }
 
             $orderId = DB::table('orders')->insertGetId($create);
             if(!$orderId){
@@ -88,14 +95,26 @@ class OrderController extends BaseController
                 if(!$product){
                     continue;
                 }
+                if(! PriceVisibility::productCanPurchase($product)){
+                    $control = PriceVisibility::forProduct($product, 'cart');
+                    DB::rollBack();
+                    return response()->json(['success'=>false,'message'=>$product->title.': '.($control['message'] ?: 'not available for online ordering.')], 422);
+                }
 
                 $weight = DB::table('product_weights')->where(['product_id'=>$value->product_id,'id'=>$value->weight_id])->lockForUpdate()->first();
                 if(!$weight){
                     continue;
                 }
+                SellingOption::hydrateInventory($weight);
 
                 $quantity = max(1, (int) $value->quantity);
-                $stockError = $this->reserveProductWeight($weight, $quantity, $product->title, $now);
+                $customQuantity = $value->custom_quantity ?? null;
+                if($customError = SellingOption::customQuantityError($weight, $customQuantity)){
+                    DB::rollBack();
+                    return response()->json(['success'=>false,'message'=>$product->title.': '.$customError],422);
+                }
+                $stockQuantity = SellingOption::requiredStock($weight, $quantity, $customQuantity);
+                $stockError = $this->reserveProductWeight($weight, $stockQuantity, $product->title, $now);
                 if($stockError){
                     DB::rollBack();
                     return response()->json([
@@ -104,27 +123,32 @@ class OrderController extends BaseController
                     ], 200);
                 }
 
-                $amount = $quantity * $weight->sell_price;
+                $sellPrice = SellingOption::price($weight, 'sell', $customQuantity);
+                $listPrice = SellingOption::price($weight, 'list', $customQuantity);
+                $costPrice = SellingOption::price($weight, 'cost', $customQuantity);
+                $optionLabel = SellingOption::label($weight, $customQuantity);
+                $amount = $quantity * $sellPrice;
                 DB::table('order_products')->insert([
                     'order_id'=>$orderId,
                     'product_id'=>$product->id,
                     'weight_id'=>$weight->id,
                     'product_title'=>$product->title,
-                    'weight'=>$weight->name,
+                    'weight'=>$optionLabel,
                     'sku'=>$product->sku,
                     'amount'=> $amount,
-                    'sell_price'=> $weight->sell_price,
-                    'list_price'=> $weight->list_price,
-                    'cost_price'=> $weight->cost_price,
+                    'sell_price'=> $sellPrice,
+                    'list_price'=> $listPrice,
+                    'cost_price'=> $costPrice,
                     'quantity'=>$quantity,
+                    'stock_quantity'=>$stockQuantity,
                     'created_at' => $now,
                 ]);
 
                 $orderProducts[] = [
                     'title' => $product->title,
-                    'weight' => $weight->name,
+                    'weight' => $optionLabel,
                     'quantity' => $quantity,
-                    'sell_price' => (float) $weight->sell_price,
+                    'sell_price' => $sellPrice,
                     'amount' => (float) $amount,
                 ];
                 $subTotal += $amount;
@@ -315,9 +339,13 @@ class OrderController extends BaseController
             $create['name'] = $request->name ?? ($user->name ?? '');
             $create['email'] = $request->email ?? ($user->email ?? '');
             $create['contact_number'] = $request->contact_number ?? ($user->contact_number ?? '');
+            $create['source'] = 'website';
             $create['serve_date'] = date('Y-m-d',strtotime($request->serve_date));
             $create['order_status_id'] = $this->statusIdByName('order_statuses', 'Checkout', 1);
             $create['created_at'] = $now;
+            if (Schema::hasColumn('orders', 'price_locked_at')) {
+                $create['price_locked_at'] = $now;
+            }
             $orderId = DB::table('orders')->insertGetId($create);
             if(!$orderId){
                 DB::rollBack();
@@ -331,20 +359,36 @@ class OrderController extends BaseController
                 if(!$product){
                     continue;
                 }
+                if(! PriceVisibility::productCanPurchase($product)){
+                    $control = PriceVisibility::forProduct($product, 'cart');
+                    DB::rollBack();
+                    return response()->json(['success'=>false,'message'=>$product->title.': '.($control['message'] ?: 'not available for online ordering.')], 422);
+                }
                 $weight = DB::table('product_weights')->where(['product_id'=>$value->product_id,'id'=>$value->weight_id])->lockForUpdate()->first();
                 if(!$weight){
                     continue;
                 }
+                SellingOption::hydrateInventory($weight);
 
                 $quantity = max(1, (int) $value->quantity);
-                $stockError = $this->reserveProductWeight($weight, $quantity, $product->title, $now);
+                $customQuantity = $value->custom_quantity ?? null;
+                if($customError = SellingOption::customQuantityError($weight, $customQuantity)){
+                    DB::rollBack();
+                    return response()->json(['success'=>false,'message'=>$product->title.': '.$customError],422);
+                }
+                $stockQuantity = SellingOption::requiredStock($weight, $quantity, $customQuantity);
+                $stockError = $this->reserveProductWeight($weight, $stockQuantity, $product->title, $now);
                 if($stockError){
                     DB::rollBack();
                     return response()->json(['success'=>false,'message'=>$stockError], 200);
                 }
 
-                DB::table('order_products')->insert(['order_id'=>$orderId,'product_id'=>$product->id,'weight_id'=>$weight->id,'product_title'=>$product->title,'weight'=>$weight->name,'sku'=>$product->sku,'amount'=> $quantity * $weight->sell_price,'sell_price'=> $weight->sell_price,'list_price'=> $weight->list_price,'cost_price'=> $weight->cost_price,'quantity'=>$quantity,'created_at' => $now]);
-                $subTotal += ( $weight->sell_price * $quantity );
+                $sellPrice = SellingOption::price($weight, 'sell', $customQuantity);
+                $listPrice = SellingOption::price($weight, 'list', $customQuantity);
+                $costPrice = SellingOption::price($weight, 'cost', $customQuantity);
+                $amount = $quantity * $sellPrice;
+                DB::table('order_products')->insert(['order_id'=>$orderId,'product_id'=>$product->id,'weight_id'=>$weight->id,'product_title'=>$product->title,'weight'=>SellingOption::label($weight,$customQuantity),'sku'=>$product->sku,'amount'=>$amount,'sell_price'=>$sellPrice,'list_price'=>$listPrice,'cost_price'=>$costPrice,'quantity'=>$quantity,'stock_quantity'=>$stockQuantity,'created_at'=>$now]);
+                $subTotal += $amount;
                 $orderProducts[] = $product->id;
             endforeach;
 
@@ -482,19 +526,37 @@ class OrderController extends BaseController
         return $id ? (int) $id : $fallback;
     }
 
-    private function reserveProductWeight($weight, int $quantity, string $productTitle, string $now): ?string
+    private function reserveProductWeight($weight, float $quantity, string $productTitle, string $now): ?string
     {
-        if((int) ($weight->stock ?? 0) !== 1){
+        $pool = null;
+        if ((int) ($weight->inventory_pool_id ?? 0) > 0) {
+            $pool = DB::table('product_inventory_pools')
+                ->where('id', $weight->inventory_pool_id)
+                ->lockForUpdate()
+                ->first();
+            if (! $pool || ! (int) $pool->status) {
+                return $productTitle.' is currently unavailable.';
+            }
+            $weight->inventory_qty = (float) $pool->qty;
+            $weight->inventory_track_stock = (int) $pool->track_stock;
+            $weight->inventory_status = (int) $pool->status;
+        }
+
+        if(! SellingOption::tracksStock($weight)){
             return null;
         }
 
-        $availableQuantity = (int) ($weight->qty ?? 0);
+        $availableQuantity = SellingOption::availableStock($weight);
         if($availableQuantity < $quantity){
-            return $productTitle.' stock not available. Available stock is ('.$availableQuantity.').';
+            $unit = SellingOption::inventoryUnitLabel($weight, $availableQuantity);
+            return $productTitle.' stock not available. Available stock: '.SellingOption::formatNumber($availableQuantity).' '.$unit.'.';
         }
 
-        DB::table('product_weights')->where('id',$weight->id)->update([
-            'qty'=> DB::raw('qty-'.$quantity),
+        $query = $pool
+            ? DB::table('product_inventory_pools')->where('id', $pool->id)
+            : DB::table('product_weights')->where('id',$weight->id);
+        $query->update([
+            'qty'=> DB::raw('qty-'.sprintf('%.3F',$quantity)),
             'updated_at'=>$now,
         ]);
 
@@ -527,7 +589,7 @@ class OrderController extends BaseController
             return response()->json(['status'=>false,'message'=>'Page not found.'], 404);
         }
         
-        $order = DB::table('orders as o')->select('o.id','o.order_encrypt_key','o.user_id','o.name','o.email','o.amount','o.order_status_id','o.serve_date','o.created_at','o.updated_at','o.sub_total','os.name as order_status_name')->leftJoin('order_statuses as os', 'os.id', '=', 'o.order_status_id')->where('o.order_encrypt_key',$order_encrypt_key)->first();
+        $order = DB::table('orders as o')->select('o.id','o.order_encrypt_key','o.user_id','o.name','o.email','o.amount','o.order_status_id','o.serve_date','o.created_at','o.updated_at','o.sub_total','o.price_locked_at','os.name as order_status_name')->leftJoin('order_statuses as os', 'os.id', '=', 'o.order_status_id')->where('o.order_encrypt_key',$order_encrypt_key)->first();
         if(!$order){
             return response()->json(['status'=>false,'message'=>'Page not found.'], 404);
         }

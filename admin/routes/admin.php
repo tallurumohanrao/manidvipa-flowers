@@ -2,9 +2,19 @@
 use App\Http\Controllers\Admin\DashboardController;
 
 Route::get('/', [DashboardController::class, 'index'])->name('index');
+Route::get('/reports', [App\Http\Controllers\Admin\ReportsController::class, 'index'])->name('reports.index');
+Route::get('/reports/sales', [App\Http\Controllers\Admin\ReportsController::class, 'sales'])->name('reports.sales');
+Route::get('/reports/orders', [App\Http\Controllers\Admin\ReportsController::class, 'orders'])->name('reports.orders');
+Route::get('/reports/inventory', [App\Http\Controllers\Admin\ReportsController::class, 'inventory'])->name('reports.inventory');
+Route::get('/reports/products', [App\Http\Controllers\Admin\ReportsController::class, 'products'])->name('reports.products');
+Route::get('/reports/customers', [App\Http\Controllers\Admin\ReportsController::class, 'customers'])->name('reports.customers');
+Route::get('/reports/{report}/export', [App\Http\Controllers\Admin\ReportsController::class, 'export'])
+    ->where('report', 'sales|orders|inventory|products|customers')
+    ->name('reports.export');
 Route::post('/clear', [DashboardController::class, 'clear'])->name('clear');
 Route::post('/down', [DashboardController::class, 'down'])->name('down');
 Route::post('/up', [DashboardController::class, 'up'])->name('up');
+Route::get('/media/{path}', [DashboardController::class, 'media'])->where('path', '.*')->name('media.show');
 Route::get('/account', [App\Http\Controllers\Admin\AccountController::class, 'index'])->name('account');
 Route::get('/account/edit', [App\Http\Controllers\Admin\AccountController::class, 'edit'])->name('account.edit');
 Route::patch('/account/{account}/edit', [App\Http\Controllers\Admin\AccountController::class, 'update'])->name('account.update');
@@ -37,6 +47,16 @@ Route::delete('shippingprices-delete-all', [App\Http\Controllers\Admin\ShippingP
 Route::resource('featuredproducts', FeaturedProductController::class)->only(['index', 'store', 'destroy']);
 Route::delete('featuredproducts-delete-all', [App\Http\Controllers\Admin\FeaturedProductController::class, 'massDestroy'])->name('featuredproducts.massdestroy');
 
+/* ----------------- Homepage Sections ------------------*/
+Route::resource('home-sections', App\Http\Controllers\Admin\HomepageSectionController::class)
+    ->except('show')
+    ->names('home_sections')
+    ->parameters(['home-sections' => 'homepage_section']);
+Route::patch('/home-sections/update-status/{id}', [App\Http\Controllers\Admin\HomepageSectionController::class, 'updateStatus'])->name('home_sections.update.status');
+Route::match(['post', 'patch'], '/home-sections/reorder', [App\Http\Controllers\Admin\HomepageSectionController::class, 'reorder'])->name('home_sections.reorder');
+Route::delete('home-sections-delete-all', [App\Http\Controllers\Admin\HomepageSectionController::class, 'massDestroy'])->name('home_sections.massdestroy');
+/* ----------------- Homepage Sections ------------------*/
+
 /* ----------------- Subscriptions ------------------*/
 Route::resource('subscriptionplans', App\Http\Controllers\Admin\SubscriptionPlanController::class)->except('show');
 Route::patch('/subscriptionplans/update-status/{id}', [App\Http\Controllers\Admin\SubscriptionPlanController::class, 'updateStatus'])->name('subscriptionplans.update.status');
@@ -49,6 +69,7 @@ Route::delete('subscriptionenquiries-delete-all', [App\Http\Controllers\Admin\Su
 Route::patch('/shipping/update/{id}', [App\Http\Controllers\Admin\OrderController::class, 'updateShipping'])->name('orders.updateShipping');
 Route::patch('/payment/update/{id}', [App\Http\Controllers\Admin\OrderController::class, 'updatePayment'])->name('orders.updatePayment');
 Route::patch('/order/delivery/update/{id}', [App\Http\Controllers\Admin\OrderController::class, 'updateDeliveryPreference'])->name('orders.updateDeliveryPreference');
+Route::patch('/order/customer-details/update/{id}', [App\Http\Controllers\Admin\OrderController::class, 'updateCustomerDetails'])->name('orders.updateCustomerDetails');
 Route::patch('/order/workflow/update/{id}', [App\Http\Controllers\Admin\OrderController::class, 'updateWorkflow'])->name('orders.updateWorkflow');
 Route::patch('/order/update/{id}', [App\Http\Controllers\Admin\OrderController::class, 'updateBooking'])->name('orders.updateBooking');
 Route::delete('orders-delete-all', [App\Http\Controllers\Admin\OrderController::class, 'massDestroy'])->name('orders.massdestroy');
@@ -94,6 +115,8 @@ Route::post('/productsizes/{id}', [App\Http\Controllers\Admin\ProductController:
 Route::delete('/products-size-delete/{id}', [App\Http\Controllers\Admin\ProductController::class, 'productsSizeDestroy'])->name('products.size.destroy');
 
 Route::get('/products/weights/{id}', [App\Http\Controllers\Admin\ProductController::class, 'weights'])->name('products.weights');
+Route::post('/product-inventory/{id}', [App\Http\Controllers\Admin\ProductController::class, 'storeInventory'])->name('products.inventorystore');
+Route::delete('/product-inventory/{id}', [App\Http\Controllers\Admin\ProductController::class, 'productInventoryDestroy'])->name('products.inventory.destroy');
 Route::post('/productweights/{id}', [App\Http\Controllers\Admin\ProductController::class, 'storeWeights'])->name('products.weightsstore');
 Route::delete('/products-weight-delete/{id}', [App\Http\Controllers\Admin\ProductController::class, 'productsWeightDestroy'])->name('products.weight.destroy');
 

@@ -58,6 +58,7 @@ export default function OrderCheckout({
   const { showToast } = useToast();
 
   const [startDate, setStartDate] = useState(null);
+  const [deliveryDateNotice, setDeliveryDateNotice] = useState(false);
   const [selectedDeliverySlot, setSelectedDeliverySlot] = useState("6-9");
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
   const [selectedAddress, setSelectedAddress] = useState(null);
@@ -159,6 +160,7 @@ export default function OrderCheckout({
 
       if (savedDate) {
         setStartDate(savedDate);
+        setDeliveryDateNotice(true);
       }
 
       if (savedSlot) {
@@ -353,7 +355,10 @@ export default function OrderCheckout({
                     <span>Delivery Date</span>
                     <DatePicker
                       selected={startDate}
-                      onChange={(date) => setStartDate(date)}
+                      onChange={(date) => {
+                        setStartDate(date);
+                        setDeliveryDateNotice(Boolean(date));
+                      }}
                       minDate={getTomorrowDate()}
                       dateFormat="dd-MM-yyyy"
                       className="p-2"
@@ -377,6 +382,11 @@ export default function OrderCheckout({
                     </datalist>
                   </label>
                 </div>
+                {deliveryDateNotice ? (
+                  <p className={styles.deliveryDateNotice} role="status" aria-live="polite">
+                    <strong>Price Notice:</strong> Flower prices change daily based on market rates. The price shown today may change by your delivery date. <strong>The final price will be confirmed before delivery.</strong>
+                  </p>
+                ) : null}
               </div>
               {selectError.date && (
                 <div className={`${styles.error} mt-2`}>

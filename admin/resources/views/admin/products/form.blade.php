@@ -5,7 +5,8 @@
     </div>
     <div class="col-md-2">
         <label class="col-form-label" for="sku">SKU</label>
-        {{ html()->text('sku')->class('form-control') }}
+        {{ html()->text('sku')->class('form-control')->placeholder('MF-RED-ROSES') }}
+        <small class="form-text text-muted">Unique code. Use uppercase letters, numbers and hyphens. Leave blank to generate one.</small>
     </div>
     <div class="col-md-2">
         <label class="col-form-label" for="qty">Display Quantity</label>
@@ -35,6 +36,16 @@
     <div class="col-md-2">
         <label class="col-form-label" for="status">Status</label>
         {!! html()->select('status',array('1' => 'Enable', '0' => 'Disable'))->id('status')->class('form-control') !!}
+    </div>
+    <div class="col-md-4">
+        <label class="col-form-label" for="price_visibility">Customer Price Display</label>
+        {!! html()->select('price_visibility', $priceVisibilityModes)->id('price_visibility')->value(old('price_visibility', data_get($row, 'price_visibility', 'inherit') ?: 'inherit'))->class('form-control')->required() !!}
+        <small class="form-text text-muted">Cost price always remains private. Enquiry Only and Coming Soon also prevent cart and checkout.</small>
+    </div>
+    <div class="col-md-4">
+        <label class="col-form-label" for="price_visible_from">Automatically Show Everywhere From</label>
+        <input type="datetime-local" name="price_visible_from" id="price_visible_from" class="form-control" value="{{ old('price_visible_from', data_get($row, 'price_visible_from') ? \Carbon\Carbon::parse(data_get($row, 'price_visible_from'))->format('Y-m-d\TH:i') : '') }}">
+        <small class="form-text text-muted">Optional. At this time the price becomes public and ordering is enabled.</small>
     </div>
     <div class="col-md-12">
         <label class="col-form-label" for="short_description">Short Description</label>

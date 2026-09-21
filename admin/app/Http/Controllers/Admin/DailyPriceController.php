@@ -25,8 +25,8 @@ class DailyPriceController extends Controller
     {
         abort_if(Gate::denies('dailyprices_view'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
 
-        $perPage = (int) ($request->per_page ?: 25);
-        $perPage = in_array($perPage, [25, 50, 100], true) ? $perPage : 25;
+        $perPage = (int) ($request->per_page ?: 10);
+        $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
 
         $query = $this->basePriceQuery();
         $this->applyFilters($query, $request);
@@ -49,8 +49,10 @@ class DailyPriceController extends Controller
             ->filter(fn ($category) => empty($category->parent_id))
             ->values();
 
-        $weightOptions = DB::table('weights')
+        $weightOptions = DB::table('product_weights')
             ->select('name')
+            ->whereNotNull('name')
+            ->distinct()
             ->orderBy('name')
             ->get()
             ->pluck('name')
@@ -993,6 +995,11 @@ class DailyPriceController extends Controller
                 'pw.sell_price',
                 'pw.list_price',
                 'pw.cost_price',
+                'pw.quantity_value',
+                'pw.quantity_unit',
+                'pw.pricing_mode',
+                'pw.unit_sell_price',
+                'pw.unit_list_price',
                 'pw.qty',
                 'pw.stock',
                 'pw.status as weight_status',
@@ -1090,13 +1097,20 @@ class DailyPriceController extends Controller
 
     private function applyPriceUpdate($row, float $newSellPrice, float $newListPrice, string $source, string $notes): void
     {
+        $updates = [
+            'sell_price' => $newSellPrice,
+            'list_price' => $newListPrice,
+            'updated_at' => now(),
+        ];
+        $quantityValue = (float) ($row->quantity_value ?? 0);
+        if ($quantityValue > 0 && ! empty($row->quantity_unit)) {
+            $updates['unit_sell_price'] = round($newSellPrice / $quantityValue, 4);
+            $updates['unit_list_price'] = round($newListPrice / $quantityValue, 4);
+        }
+
         DB::table('product_weights')
             ->where('id', $row->weight_id)
-            ->update([
-                'sell_price' => $newSellPrice,
-                'list_price' => $newListPrice,
-                'updated_at' => now(),
-            ]);
+            ->update($updates);
 
         $this->insertPriceLog($row, $newSellPrice, $newListPrice, $source, $notes);
     }

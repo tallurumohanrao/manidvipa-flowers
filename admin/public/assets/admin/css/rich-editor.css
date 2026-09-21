@@ -1,0 +1,140 @@
+.admin-rich-editor {
+    border: 1px solid #d1d9e6;
+    border-radius: 6px;
+    background: #fff;
+    overflow: hidden;
+}
+
+.admin-rich-editor:focus-within {
+    border-color: #4e73df;
+    box-shadow: 0 0 0 .2rem rgba(78, 115, 223, .18);
+}
+
+.admin-rich-editor__toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+    padding: 8px;
+    border-bottom: 1px solid #e3e6f0;
+    background: #f8f9fc;
+}
+
+.admin-rich-editor__button {
+    width: 34px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #d1d9e6;
+    border-radius: 4px;
+    background: #fff;
+    color: #4e5d78;
+    cursor: pointer;
+}
+
+.admin-rich-editor__button:hover,
+.admin-rich-editor__button:focus {
+    color: #224abe;
+    border-color: #4e73df;
+    outline: none;
+}
+
+.admin-rich-editor__button.is-active {
+    color: #fff;
+    background: #4e73df;
+    border-color: #4e73df;
+}
+
+.admin-rich-editor__button:disabled {
+    cursor: not-allowed;
+    opacity: .55;
+}
+
+.admin-rich-editor__separator {
+    width: 1px;
+    height: 24px;
+    margin: 0 4px;
+    background: #d1d9e6;
+}
+
+.admin-rich-editor__area,
+.admin-rich-editor__source {
+    width: 100%;
+    min-height: 260px;
+    padding: 14px;
+    border: 0;
+    outline: 0;
+    color: #3a3f51;
+    background: #fff;
+    line-height: 1.6;
+}
+
+.admin-rich-editor.is-compact .admin-rich-editor__area,
+.admin-rich-editor.is-compact .admin-rich-editor__source {
+    min-height: 170px;
+}
+
+.admin-rich-editor__source {
+    display: none;
+    resize: vertical;
+    font-family: Consolas, Monaco, monospace;
+    font-size: 13px;
+}
+
+.admin-rich-editor.is-source .admin-rich-editor__area {
+    display: none;
+}
+
+.admin-rich-editor.is-source .admin-rich-editor__source {
+    display: block;
+}
+
+.admin-rich-editor__area p,
+.admin-rich-editor__area ul,
+.admin-rich-editor__area ol,
+.admin-rich-editor__area blockquote {
+    margin-bottom: .75rem;
+}
+
+.admin-rich-editor__area h2,
+.admin-rich-editor__area h3 {
+    margin-top: .75rem;
+    margin-bottom: .5rem;
+    font-weight: 700;
+}
+
+.admin-rich-editor__area img {
+    max-width: 100%;
+    height: auto;
+}
+
+.admin-rich-editor__area table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: .75rem;
+}
+
+.admin-rich-editor__area th,
+.admin-rich-editor__area td {
+    border: 1px solid #d1d9e6;
+    padding: 8px;
+}
+
+.admin-rich-editor__area blockquote {
+    padding: 8px 12px;
+    border-left: 4px solid #4e73df;
+    background: #f8f9fc;
+}
+
+@media (max-width: 576px) {
+    .admin-rich-editor__toolbar {
+        gap: 3px;
+        padding: 6px;
+    }
+
+    .admin-rich-editor__button {
+        width: 32px;
+        height: 30px;
+    }
+}

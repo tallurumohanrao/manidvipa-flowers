@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\Controller;
 use App\Models\Admin\SubscriptionEnquiry;
 use App\Models\Admin\SubscriptionPlan;
+use App\Support\PriceVisibility;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
@@ -100,6 +101,8 @@ class SubscriptionController extends Controller
 
     private function formatPlan(SubscriptionPlan $plan): array
     {
+        $priceControl = PriceVisibility::forSubscription($plan);
+
         return [
             'id' => $plan->id,
             'title' => $plan->title,
@@ -109,9 +112,16 @@ class SubscriptionController extends Controller
             'flower_grade' => $plan->flower_grade,
             'short_description' => $plan->short_description,
             'description' => $plan->description,
-            'starting_price' => (float) $plan->starting_price,
-            'price_label' => $this->formatPriceLabel($plan->starting_price),
-            'price_suffix' => $plan->price_suffix,
+            'starting_price' => $priceControl['include_price_data'] ? (float) $plan->starting_price : null,
+            'price_label' => $priceControl['show_price'] ? $this->formatPriceLabel($plan->starting_price) : $priceControl['message'],
+            'price_suffix' => $priceControl['show_price'] ? $plan->price_suffix : '',
+            'configured_price_visibility' => $priceControl['configured_mode'],
+            'price_visibility' => $priceControl['effective_mode'],
+            'price_visible_from' => $priceControl['visible_from'],
+            'show_price' => $priceControl['show_price'],
+            'can_purchase' => false,
+            'price_message' => $priceControl['message'],
+            'price_cta_label' => $priceControl['cta_label'],
             'billing_cycle' => $plan->billing_cycle,
             'delivery_frequency' => $plan->delivery_frequency,
             'included_quantity_text' => $plan->included_quantity_text,

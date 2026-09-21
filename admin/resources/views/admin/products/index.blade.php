@@ -45,6 +45,7 @@
                                     <th>Title</th>
                                     <th>SKU</th>
                                     <th>Quantity</th>
+                                    <th>Customer Price</th>
                                     <th>Categories</th>
                                     <th>Status</th>
                                     <th>Created At</th>
@@ -64,6 +65,15 @@
                                     <td>{{ $row->title }}</td>
                                     <td>{{ $row->sku }}</td>
                                     <td>{{ $row->display_quantity ?? '-' }}</td>
+                                    @php($priceDisplay = \App\Support\PriceVisibility::forProduct($row, 'listing'))
+                                    <td>
+                                        <span class="badge badge-{{ $priceDisplay['show_price'] ? 'success' : ($priceDisplay['effective_mode'] === 'coming_soon' ? 'warning' : 'info') }}">
+                                            {{ $priceVisibilityModes[$priceDisplay['effective_mode']] ?? ucfirst(str_replace('_', ' ', $priceDisplay['effective_mode'])) }}
+                                        </span>
+                                        @if($priceDisplay['visible_from'])
+                                            <div class="small text-muted mt-1">From {{ \Carbon\Carbon::parse($priceDisplay['visible_from'])->format('d-m-Y h:i A') }}</div>
+                                        @endif
+                                    </td>
                                     <td>{{ $row->category_titles ?: '-' }}</td>
                                     <td>
                                         @can($module.'_edit')

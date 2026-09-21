@@ -16,5 +16,5 @@ class Page extends Model
      *
      * @var array
      */
-    protected $fillable = ['name', 'description', 'status'];
+    protected $fillable = ['name', 'slug', 'description', 'status'];
 }

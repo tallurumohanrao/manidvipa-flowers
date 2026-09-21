@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Role;
 use App\Models\Admin\Permission;
+use App\Support\AdminAccessCache;
 use Illuminate\Http\Request;
 use App\Http\Requests\StoreRoleRequest;
 use Symfony\Component\HttpFoundation\Response;
@@ -40,7 +41,11 @@ class RoleController extends Controller
     {
         abort_if(Gate::denies($this->module.'_create'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         $role = [];
-        $permissions = Permission::whereStatus(1)->get();
+        $permissions = Permission::whereStatus(1)
+            ->orderBy('group_sort_order')
+            ->orderBy('module_sort_order')
+            ->orderBy('module')
+            ->get();
         return view('admin.'.$this->module.'.create', compact('permissions','role'));
     }
 
@@ -78,7 +83,11 @@ class RoleController extends Controller
     public function edit(Role $role)
     {
         abort_if(Gate::denies($this->module.'_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
-        $permissions = Permission::whereStatus(1)->get();
+        $permissions = Permission::whereStatus(1)
+            ->orderBy('group_sort_order')
+            ->orderBy('module_sort_order')
+            ->orderBy('module')
+            ->get();
         return view('admin.'.$this->module.'.edit', compact('role','permissions'));
     }
 
@@ -107,6 +116,7 @@ class RoleController extends Controller
                 return response()->json(['status' => 'error', 'message' => 'You cannot disable a role assigned to your own account.'], 422);
             }
             if($role->update(['status'=>$request->status])){
+                AdminAccessCache::invalidate();
                 $status=$request->status==1?'enabled':'disabled';
                 return response()->json(['status'=>'success','message'=>"Status $status successfully."]);
             }
@@ -129,6 +139,7 @@ class RoleController extends Controller
             $permissions->delete();
         }
         $result = $role->delete();
+        AdminAccessCache::invalidate();
         if($result == 1)
         return response()->json(['success'=>true, 'message' => 'Deleted successfully.']);
         else
@@ -150,6 +161,8 @@ class RoleController extends Controller
             Role::whereIn('id', $ids)->delete();
         });
 
+        AdminAccessCache::invalidate();
+
         return response()->json(['success' => true, 'message' => 'Selected roles deleted.']);
     }
 
@@ -166,12 +179,34 @@ class RoleController extends Controller
             ->unique()
             ->values();
 
+        // Management actions only make sense when the administrator can open
+        // the module. Always grant the module's View ability when Create,
+        // Edit, or Delete was selected.
+        $definitions = Permission::where('status', 1)
+            ->get(['view', 'create', 'edit', 'delete']);
+        $requiredViews = $definitions
+            ->filter(function ($definition) use ($permissions) {
+                return $permissions->intersect([
+                    $definition->create,
+                    $definition->edit,
+                    $definition->delete,
+                ])->isNotEmpty();
+            })
+            ->pluck('view')
+            ->filter();
+        $permissions = $permissions
+            ->merge($requiredViews)
+            ->unique()
+            ->values();
+
         DB::transaction(function () use ($role, $permissions) {
             $role->permissions()->delete();
             foreach ($permissions as $permission) {
                 $role->permissions()->create(['permission' => $permission]);
             }
         });
+
+        AdminAccessCache::invalidate();
     }
 
     private function isCurrentAdminsRole(Role $role): bool

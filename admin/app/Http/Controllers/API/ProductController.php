@@ -4,6 +4,8 @@ namespace App\Http\Controllers\API;
    
 use Illuminate\Http\Request;
 use App\Http\Controllers\API\BaseController as BaseController;
+use App\Support\PriceVisibility;
+use App\Support\SellingOption;
 use Validator,Cache,DB;
 use App\Http\Resources\Product as ProductResource;
    
@@ -120,12 +122,19 @@ class ProductController extends BaseController
             return $data;
         }
 
-        $weightsByProduct = DB::table('product_weights')
-            ->select('id', 'product_id', 'name', 'sell_price', 'list_price', 'stock', 'qty')
+        $weightsByProduct = SellingOption::hydrateInventoryCollection(DB::table('product_weights')
+            ->select(
+                'id', 'product_id', 'name', 'sell_price', 'list_price', 'stock', 'qty',
+                'quantity_value', 'quantity_unit', 'unit_id', 'inventory_pool_id', 'pricing_mode', 'unit_sell_price',
+                'unit_list_price', 'allow_custom_quantity', 'minimum_custom_quantity',
+                'maximum_custom_quantity', 'custom_quantity_step', 'is_default'
+            )
             ->whereIn('product_id', $productIds)
+            ->where('status', 1)
+            ->orderByRaw('CASE WHEN stock = 1 AND qty < COALESCE(quantity_value, 1) THEN 1 ELSE 0 END')
             ->orderByRaw('CAST(sell_price AS DECIMAL(10,2)) ASC')
             ->orderBy('id')
-            ->get()
+            ->get())
             ->groupBy('product_id');
 
         $imagesByProduct = DB::table('product_images')
@@ -153,7 +162,10 @@ class ProductController extends BaseController
             ->groupBy('product_id');
 
         $products = $products->map(function ($product) use ($weightsByProduct, $imagesByProduct, $categoriesByProduct) {
-            $weights = $weightsByProduct->get($product->id, collect())->values();
+            $weights = $weightsByProduct->get($product->id, collect())->values()
+                ->map(fn ($weight) => SellingOption::publicData($weight))
+                ;
+            $weights = SellingOption::sortOptions($weights);
             $images = $imagesByProduct->get($product->id, collect())->values();
             $categories = $categoriesByProduct->get($product->id, collect())->values();
 
@@ -166,10 +178,12 @@ class ProductController extends BaseController
                 $product->image_name = $images->first()->name;
             }
 
-            if ((!$product->weight_id || !$product->sell_price) && $weights->isNotEmpty()) {
-                $defaultWeight = $weights->first();
+            if ($weights->isNotEmpty()) {
+                $defaultWeight = SellingOption::defaultOption($weights);
                 $product->weight_id = $defaultWeight->id;
-                $product->weight_name = $defaultWeight->name;
+                $product->default_weight_id = $defaultWeight->id;
+                $product->weight_name = $defaultWeight->display_name;
+                $product->default_weight_label = $defaultWeight->display_name;
                 $product->sell_price = $defaultWeight->sell_price;
                 $product->list_price = $defaultWeight->list_price;
             }
@@ -180,12 +194,43 @@ class ProductController extends BaseController
                 $product->category_title = $defaultCategory->title;
             }
 
+            $this->applyPriceVisibility($product, 'listing', $weights);
+
             return $product;
         });
 
         $data->setCollection($products);
 
         return $data;
+    }
+
+    private function applyPriceVisibility(object $product, string $context, $weights = null): array
+    {
+        $control = PriceVisibility::forProduct($product, $context);
+
+        $product->configured_price_visibility = $control['configured_mode'];
+        $product->price_visibility = $control['effective_mode'];
+        $product->show_price = $control['show_price'];
+        $product->can_purchase = $control['can_purchase'];
+        $product->price_message = $control['message'];
+        $product->price_cta_label = $control['cta_label'];
+        $product->price_visible_from = $control['visible_from'];
+
+        if (! $control['include_price_data']) {
+            $product->sell_price = null;
+            $product->list_price = null;
+        }
+
+        if ($weights !== null && ! $control['include_price_data']) {
+            $weights->each(function ($weight) {
+                $weight->sell_price = null;
+                $weight->list_price = null;
+                $weight->unit_sell_price = null;
+                $weight->unit_list_price = null;
+            });
+        }
+
+        return $control;
     }
 
     public function search(Request $request)
@@ -208,6 +253,8 @@ class ProductController extends BaseController
              'p.title',
              'p.sku',
              'p.slug',
+             'p.price_visibility',
+             'p.price_visible_from',
              'product_weights.id as weight_id',
              'product_weights.name as weight_name',
              'product_weights.sell_price',
@@ -248,7 +295,7 @@ class ProductController extends BaseController
          }else{
              $query->orderByDesc('p.id');
          }
-         $data = $query->paginate($perpage);
+         $data = $this->hydrateListingProducts($query->paginate($perpage));
          return response()->json(['success' => true,'data' => $data], 200);
     }
     public function productsbycategory(Request $request)
@@ -289,6 +336,8 @@ class ProductController extends BaseController
             'p.slug',
             'p.created_at',
             'p.updated_at',
+            'p.price_visibility',
+            'p.price_visible_from',
             'product_weights.id as weight_id',
             'product_weights.name as weight_name',
             'product_weights.sell_price',
@@ -474,7 +523,7 @@ class ProductController extends BaseController
         #$product = DB::table('products')->where('id',$request->product_id)->first();
         $search = DB::table('products');
         #$search->with(['sizes','images']);
-        $search->select('id','title','sku','description');
+        $search->select('id','title','sku','description','price_visibility','price_visible_from');
         if($user_id){
             $search->addSelect(DB::raw("(SELECT id FROM wishlist WHERE wishlist.product_id  = products.id and user_id = $user_id) as wishlist_id"));
         }
@@ -486,12 +535,31 @@ class ProductController extends BaseController
         $images = DB::table('product_images')->select('name')->where('product_id',$product->id)->where('status', 1)->orderBy('priority')->get();
         #$sizes = DB::table('product_sizes')->select('id','name','sell_price','list_price')->where('product_id',$product->id)->get();DB::raw('CONCAT("' . config('app.url') . '/storage/products/", name) AS url')
         $weights = DB::table('product_weights')
-            ->select('id','name','sell_price','list_price','stock','qty')
+            ->select(
+                'id','name','sell_price','list_price','stock','qty',
+                'quantity_value','quantity_unit','unit_id','inventory_pool_id','pricing_mode','unit_sell_price',
+                'unit_list_price','allow_custom_quantity','minimum_custom_quantity',
+                'maximum_custom_quantity','custom_quantity_step', 'is_default'
+            )
             ->where('product_id',$product->id)
             ->where('status', 1)
-            ->orderByRaw('CASE WHEN stock = 1 AND qty <= 0 THEN 1 ELSE 0 END')
+            ->orderByRaw('CASE WHEN stock = 1 AND qty < COALESCE(quantity_value, 1) THEN 1 ELSE 0 END')
             ->orderBy('id')
             ->get();
+        $weights = SellingOption::hydrateInventoryCollection($weights)
+            ->map(fn ($weight) => SellingOption::publicData($weight))
+            ;
+        $weights = SellingOption::sortOptions($weights);
+        if ($weights->isNotEmpty()) {
+            $defaultWeight = SellingOption::defaultOption($weights);
+            $product->weight_id = $defaultWeight->id;
+            $product->default_weight_id = $defaultWeight->id;
+            $product->weight_name = $defaultWeight->display_name;
+            $product->default_weight_label = $defaultWeight->display_name;
+            $product->sell_price = $defaultWeight->sell_price;
+            $product->list_price = $defaultWeight->list_price;
+        }
+        $this->applyPriceVisibility($product, 'detail', $weights);
         return response()->json(['success'=>true,'data'=>$product,'images'=>$images,'weights'=>$weights],200);
     }
     

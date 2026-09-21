@@ -2,9 +2,9 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\AdminAccessCache;
 use Closure;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 class AuthGates
@@ -14,15 +14,7 @@ class AuthGates
         $admin = Auth::guard('admin')->user();
 
         if ($admin) {
-            $roleIds = DB::table('admin_role')
-                ->join('roles', 'roles.id', '=', 'admin_role.role_id')
-                ->where('admin_role.admin_id', $admin->id)
-                ->where('roles.status', 1)
-                ->pluck('roles.id');
-
-            $activeAbilities = DB::table('permissions')
-                ->where('status', 1)
-                ->get(['view', 'create', 'edit', 'delete'])
+            $activeAbilities = AdminAccessCache::activePermissions()
                 ->flatMap(fn ($permission) => [
                     $permission->view,
                     $permission->create,
@@ -32,14 +24,7 @@ class AuthGates
                 ->filter()
                 ->unique()
                 ->values();
-
-            $grantedAbilities = $roleIds->isEmpty()
-                ? collect()
-                : DB::table('role_permissions')
-                    ->whereIn('role_id', $roleIds)
-                    ->whereIn('permission', $activeAbilities)
-                    ->pluck('permission')
-                    ->unique();
+            $grantedAbilities = AdminAccessCache::abilitiesForAdmin((int) $admin->id);
 
             foreach ($activeAbilities as $ability) {
                 Gate::define($ability, fn () => $grantedAbilities->contains($ability));

@@ -34,6 +34,15 @@ class ProfileController extends Controller
         if ($request->filled('profileId')) {
             $query->where('profile_id', $request->input('profileId') );
         }
+        if ($request->filled('q')) {
+            $term = '%'.$request->input('q').'%';
+            $query->where(function ($search) use ($term) {
+                $search->where('profile_id', 'like', $term)
+                    ->orWhere('name', 'like', $term)
+                    ->orWhere('city', 'like', $term)
+                    ->orWhere('occupation', 'like', $term);
+            });
+        }
         if ($request->filled('status')) {
             $query->where('status', $request->input('status'));
         }

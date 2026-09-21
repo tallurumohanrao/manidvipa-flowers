@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Admin;
 use App\Models\Admin\Role;
+use App\Support\AdminAccessCache;
 use Illuminate\Http\Request;
 use App\Http\Requests\StoreAdminRequest;
 use App\Traits\StoreImageTrait;
@@ -80,6 +81,7 @@ class AdminController extends Controller
         if($request->filled('roles')) {
             $admin->roles()->sync($request->input('roles'));
         }
+        AdminAccessCache::invalidate();
         return $this->redirectAfterSave($request->FormButton, $admin->id);
     }
 
@@ -127,6 +129,7 @@ class AdminController extends Controller
             //if($request->filled('roles')) {
                 $admin->roles()->sync($request->input('roles'));
             //}
+            AdminAccessCache::invalidate();
             return $this->redirectAfterSave($request->FormButton, $admin->id);
         }
     }
@@ -141,6 +144,7 @@ class AdminController extends Controller
                 return response()->json(['status' => 'error', 'message' => 'You cannot disable your own account.'], 422);
             }
             if($admin->update(['status'=>$request->status])){
+                AdminAccessCache::invalidate();
                 $status=$request->status==1?'enabled':'disabled';
                 return response()->json(['status'=>'success','message'=>"Status $status successfully."]);
             }
@@ -163,6 +167,7 @@ class AdminController extends Controller
             DB::table('admin_role')->where('admin_id', $admin->id)->delete();
             return $admin->delete();
         });
+        AdminAccessCache::invalidate();
         if($result == 1)
         return response()->json(['success'=>true, 'message' => 'Deleted successfully.']);
         else
@@ -187,6 +192,8 @@ class AdminController extends Controller
             DB::table('admin_role')->whereIn('admin_id', $ids)->delete();
             Admin::whereIn('id', $ids)->delete();
         });
+
+        AdminAccessCache::invalidate();
 
         return response()->json(['success' => true, 'message' => 'Selected administrators deleted.']);
     }

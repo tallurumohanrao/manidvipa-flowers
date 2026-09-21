@@ -35,6 +35,18 @@
         {{ html()->text('price_suffix')->class('form-control')->placeholder('/ month') }}
     </div>
 
+    <div class="col-md-4">
+        <label class="col-form-label" for="price_visibility">Customer Price Display</label>
+        {!! html()->select('price_visibility', $priceVisibilityModes)->id('price_visibility')->value(old('price_visibility', data_get($row, 'price_visibility', 'inherit') ?: 'inherit'))->class('form-control')->required() !!}
+        <small class="form-text text-muted">The stored price remains available to admins when public pricing is hidden.</small>
+    </div>
+
+    <div class="col-md-4">
+        <label class="col-form-label" for="price_visible_from">Automatically Show Price From</label>
+        <input type="datetime-local" name="price_visible_from" id="price_visible_from" class="form-control" value="{{ old('price_visible_from', data_get($row, 'price_visible_from') ? \Carbon\Carbon::parse(data_get($row, 'price_visible_from'))->format('Y-m-d\TH:i') : '') }}">
+        <small class="form-text text-muted">Optional. Useful for launching public subscription prices later.</small>
+    </div>
+
     <div class="col-md-3">
         <label class="col-form-label" for="delivery_frequency">Delivery Frequency</label>
         {{ html()->text('delivery_frequency')->class('form-control')->placeholder('Daily or 3 days per week') }}
@@ -52,7 +64,7 @@
 
     <div class="col-md-12">
         <label class="col-form-label" for="short_description">Short Description</label>
-        {{ html()->text('short_description')->class('form-control')->placeholder('Fresh reception, desk and meeting-room flowers for offices.') }}
+        {{ html()->textarea('short_description')->id('short_description')->class('form-control editor')->rows(5)->placeholder('Fresh reception, desk and meeting-room flowers for offices.') }}
     </div>
 
     <div class="col-md-4">
@@ -89,7 +101,7 @@
 
     <div class="col-md-6">
         <label class="col-form-label" for="description">Detailed Description</label>
-        {{ html()->textarea('description')->class('form-control')->rows(5)->placeholder('Explain this subscription plan in detail.') }}
+        {{ html()->textarea('description')->id('description')->class('form-control editor')->rows(8)->placeholder('Explain this subscription plan in detail.') }}
     </div>
 
     <div class="col-md-6">

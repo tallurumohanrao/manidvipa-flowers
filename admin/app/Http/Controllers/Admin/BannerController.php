@@ -35,10 +35,20 @@ class BannerController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function index()
+    public function index(Request $request)
     {
         abort_if(Gate::denies($this->module.'_view'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
-        $data = $this->model::orderBy('priority')->paginate(config('PER_PAGE'));
+        $query = $this->model::query();
+        if ($request->filled('q')) {
+            $query->where(function ($search) use ($request) {
+                $term = '%'.$request->input('q').'%';
+                $search->where('title', 'like', $term)
+                    ->orWhere('alt', 'like', $term)
+                    ->orWhere('url', 'like', $term)
+                    ->orWhere('page', 'like', $term);
+            });
+        }
+        $data = $query->orderBy('priority')->paginate($request->input('per_page') ?: config('PER_PAGE'))->withQueryString();
         return view('admin.'.$this->module.'.index', compact('data'));
     }
 

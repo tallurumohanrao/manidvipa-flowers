@@ -34,8 +34,8 @@
 </div> --}}
 
 <div class="col-md-8">
-    <label class="col-form-label" for="icon">Description</label>
-    {{ html()->textarea('description')->class('form-control')->placeholder('Description') }}
+    <label class="col-form-label" for="description">Description</label>
+    {{ html()->textarea('description')->id('description')->class('form-control editor')->placeholder('Description') }}
 </div>
 
 <div class="col-md-3">

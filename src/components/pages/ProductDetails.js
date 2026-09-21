@@ -29,6 +29,7 @@ import {
   getCartCount,
 } from "../../../hook/userCookie";
 import Toast from "@/components/Toast";
+import { getPriceVisibility } from "@/lib/priceVisibility";
 
 const IMG_URL = process.env.NEXT_PUBLIC_IMG_URL;
 
@@ -84,6 +85,30 @@ function formatWeightLabel(label) {
   return `${grams / 1000}kg`;
 }
 
+function formatQuantityNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Number(number.toFixed(3)).toString() : "";
+}
+
+function formatQuantityUnit(unit, quantity) {
+  const singular = Math.abs(Number(quantity) - 1) < 0.00001;
+  const labels = {
+    flower: singular ? "Flower" : "Flowers",
+    piece: singular ? "Piece" : "Pieces",
+    stem: singular ? "Stem" : "Stems",
+    bunch: singular ? "Bunch" : "Bunches",
+    gram: singular ? "Gram" : "Grams",
+    kg: "KG",
+    ml: "ml",
+    liter: singular ? "Liter" : "Liters",
+    packet: singular ? "Packet" : "Packets",
+    box: singular ? "Box" : "Boxes",
+    basket: singular ? "Basket" : "Baskets",
+    set: singular ? "Set" : "Sets",
+  };
+  return labels[unit] || "Units";
+}
+
 function getProductDataPrice(data) {
   return parsePriceValue(
     data?.sell_price || data?.offer_price || data?.price || data?.starting_price
@@ -112,7 +137,7 @@ function buildPriceOptions(productDetails) {
 
   if (weights.length) {
     return weights.map((weight, index) => {
-      const weightName = weight?.name || weight?.weight || weight?.title || `Option ${index + 1}`;
+      const weightName = weight?.display_name || weight?.name || weight?.weight || weight?.title || `Option ${index + 1}`;
       const sellPrice = parsePriceValue(weight?.sell_price || weight?.price);
       const listPrice = parsePriceValue(weight?.list_price || weight?.mrp);
       const weightId = getWeightId(weight, productData);
@@ -120,15 +145,26 @@ function buildPriceOptions(productDetails) {
       return {
         key: String(weightId || weight?.id || index),
         id: weightId,
-        name: formatWeightLabel(weightName),
+        name: weight?.display_name || (weight?.is_structured ? weightName : formatWeightLabel(weightName)),
         originalName: weightName,
         weightGrams: parseWeightInGrams(weightName),
         sell_price: sellPrice,
         list_price: listPrice,
+        isStructured: Boolean(weight?.is_structured),
+        quantityValue: Number(weight?.quantity_value) || null,
+        quantityUnit: weight?.quantity_unit || "",
+        unitSellPrice: parsePriceValue(weight?.unit_sell_price),
+        unitListPrice: parsePriceValue(weight?.unit_list_price),
+        allowCustomQuantity: Boolean(weight?.allow_custom_quantity),
+        minimumCustomQuantity: Number(weight?.minimum_custom_quantity) || 1,
+        maximumCustomQuantity: Number(weight?.maximum_custom_quantity) || null,
+        customQuantityStep: Number(weight?.custom_quantity_step) || 1,
+        isOutOfStock: weight?.is_out_of_stock != null
+          ? Boolean(weight.is_out_of_stock)
+          : Number(weight?.stock) > 0 && Number(weight?.qty) < (Number(weight?.quantity_value) || 1),
       };
-    }).sort((a, b) => {
-      if (a.weightGrams !== b.weightGrams) return a.weightGrams - b.weightGrams;
-      return a.sell_price - b.sell_price;
+    // The API order is canonical: the configured default option is first,
+    // followed by available options. Keep it unchanged across surfaces.
     });
   }
 
@@ -172,7 +208,7 @@ function getReviewSummary(reviews = []) {
   const count = validReviews.length;
 
   if (!count) {
-    return { rating: "4.8", count: 120 };
+    return { rating: null, count: 0 };
   }
 
   const total = validReviews.reduce(
@@ -208,6 +244,7 @@ export default function ProductDetails({
   const router = useRouter();
   const { id } = useParams();
   const initialPriceOption = buildPriceOptions(produtsDetails || {})[0];
+  const initialPriceVisibility = getPriceVisibility(produtsDetails?.data, "detail");
 
   const [productDetails, setProductDetails] = useState(produtsDetails || {});
   const [formData, setFormData] = useState({
@@ -222,15 +259,16 @@ export default function ProductDetails({
     resolveProductImageSrc(produtsDetails?.images?.[0]?.name)
   );
   const [selectedPrice, setSelectedPrice] = useState(() =>
-    parsePriceValue(initialPriceOption?.sell_price)
+    initialPriceVisibility.revealAfterSelection ? 0 : parsePriceValue(initialPriceOption?.sell_price)
   );
   const [selectedWeightId, setSelectedWeightId] = useState(
-    initialPriceOption?.id || null
+    initialPriceVisibility.revealAfterSelection ? null : initialPriceOption?.id || null
   );
   const [selectedOptionKey, setSelectedOptionKey] = useState(
-    initialPriceOption?.key || null
+    initialPriceVisibility.revealAfterSelection ? null : initialPriceOption?.key || null
   );
   const [quantity, setQuantity] = useState(0);
+  const [customQuantity, setCustomQuantity] = useState("");
   const [cartAction, setCartAction] = useState("");
   const [wasAddedToCart, setWasAddedToCart] = useState(false);
   const [selectedAddonKeys, setSelectedAddonKeys] = useState([]);
@@ -242,6 +280,7 @@ export default function ProductDetails({
   const { addWatchlistCount, decreaseWatchlistCount } = useWatchlistCount();
 
   const productData = productDetails?.data || {};
+  const priceVisibility = getPriceVisibility(productData, "detail");
   const productTitle = productData?.title || "Fresh Flowers";
   const priceOptions = useMemo(() => buildPriceOptions(productDetails), [productDetails]);
   const selectedPriceOption =
@@ -250,7 +289,17 @@ export default function ProductDetails({
     ? productDetails.images
     : [{ name: selectedImage || "/assets/images/no-image.png" }];
   const displayQuantity = quantity > 0 ? quantity : 1;
-  const totalPrice = selectedPrice * displayQuantity;
+  const enteredCustomQuantity = Number(customQuantity);
+  const effectiveSelectedPrice = selectedPriceOption?.allowCustomQuantity && enteredCustomQuantity > 0
+    ? selectedPriceOption.unitSellPrice * enteredCustomQuantity
+    : selectedPrice;
+  const selectedOptionLabel = selectedPriceOption?.allowCustomQuantity && enteredCustomQuantity > 0
+    ? `${formatQuantityNumber(enteredCustomQuantity)} ${formatQuantityUnit(selectedPriceOption.quantityUnit, enteredCustomQuantity)}`
+    : selectedPriceOption?.name;
+  const totalPrice = effectiveSelectedPrice * displayQuantity;
+  const showSelectedPrice = priceVisibility.showPrice || (
+    priceVisibility.revealAfterSelection && Boolean(selectedOptionKey)
+  );
   const reviewSummary = getReviewSummary(customerReview);
   const productDescription =
     productData?.description ||
@@ -264,6 +313,7 @@ export default function ProductDetails({
     setSelectedPrice(parsePriceValue(option?.sell_price));
     setSelectedWeightId(option?.id || null);
     setSelectedOptionKey(option?.key || null);
+    setCustomQuantity("");
     setWasAddedToCart(false);
   };
 
@@ -288,14 +338,36 @@ export default function ProductDetails({
   const handleAddcart = async (e, action) => {
     e.preventDefault();
 
+    if (!priceVisibility.canPurchase) {
+      showToast(priceVisibility.message || "This product is not available for online ordering.", "error");
+      return;
+    }
+
     if (!productDetails?.data?.id || !selectedWeightId) {
       showToast("Price option is not available for cart. Please contact us to order this item.", "error");
+      return;
+    }
+
+    if (selectedPriceOption?.isOutOfStock) {
+      showToast(`${selectedPriceOption.name} is currently out of stock.`, "error");
       return;
     }
 
     if (!effectiveGuestSession) {
       showToast("Please wait while your cart is getting ready.", "error");
       return;
+    }
+
+    if (selectedPriceOption?.allowCustomQuantity && customQuantity !== "") {
+      const minimum = selectedPriceOption.minimumCustomQuantity || 1;
+      const maximum = selectedPriceOption.maximumCustomQuantity;
+      const step = selectedPriceOption.customQuantityStep || 1;
+      const steps = (enteredCustomQuantity - minimum) / step;
+      if (!Number.isFinite(enteredCustomQuantity) || enteredCustomQuantity < minimum ||
+          (maximum && enteredCustomQuantity > maximum) || Math.abs(steps - Math.round(steps)) > 0.00001) {
+        showToast(`Enter a quantity from ${formatQuantityNumber(minimum)}${maximum ? ` to ${formatQuantityNumber(maximum)}` : ""} in steps of ${formatQuantityNumber(step)}.`, "error");
+        return;
+      }
     }
 
     const nextCartAction = action || "cart";
@@ -305,6 +377,9 @@ export default function ProductDetails({
       product_id: productDetails?.data?.id,
       quantity: cartQuantity,
       weight_id: selectedWeightId,
+      ...(selectedPriceOption?.allowCustomQuantity && customQuantity !== ""
+        ? { custom_quantity: enteredCustomQuantity }
+        : {}),
     };
 
     setCartAction(nextCartAction);
@@ -374,8 +449,15 @@ export default function ProductDetails({
   }, [produtsDetails, userToken, id]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    // The product page is server-rendered with the current selling options.
+    // Fetching the same endpoint again after hydration can replace that data
+    // with an older cached/API response, which makes the selected unit briefly
+    // look correct and then jump back to a previous option. Only fetch when
+    // the page did not receive product data (for example, a client-only use).
+    if (!produtsDetails?.data?.id) {
+      fetchData();
+    }
+  }, [fetchData, produtsDetails?.data?.id]);
 
   useEffect(() => {
     const defaultPriceOption = priceOptions?.[0];
@@ -383,10 +465,21 @@ export default function ProductDetails({
       (option) => option.key === selectedOptionKey
     );
 
+    if (!priceVisibility.canPurchase) {
+      setSelectedPrice(0);
+      setSelectedWeightId(null);
+      setSelectedOptionKey(null);
+      return;
+    }
+
+    if (priceVisibility.revealAfterSelection && !selectedOptionKey) {
+      return;
+    }
+
     if (defaultPriceOption && (!selectedOptionKey || !hasSelectedOption)) {
       handlePriceChange(defaultPriceOption);
     }
-  }, [priceOptions, selectedOptionKey]);
+  }, [priceOptions, selectedOptionKey, priceVisibility.canPurchase, priceVisibility.revealAfterSelection]);
 
   const fetchDataReviews = useCallback(async () => {
     if (!productDetails?.data?.id) {
@@ -553,15 +646,22 @@ export default function ProductDetails({
               <div className={styles.titleRow}>
                 <div>
                   <h1>{productTitle}</h1>
-                  <div className={styles.ratingLine}>
-                    <span className={styles.stars}>
-                      {[...Array(5)].map((_, index) => (
-                        <FaStar key={index} aria-hidden="true" />
-                      ))}
-                    </span>
-                    <strong>{reviewSummary.rating}</strong>
-                    <span>({reviewSummary.count} reviews)</span>
-                  </div>
+                  {reviewSummary.count > 0 ? (
+                    <div className={styles.ratingLine}>
+                      <span
+                        className={styles.stars}
+                        aria-label={`${reviewSummary.rating} out of 5 stars`}
+                      >
+                        {Array.from({ length: Math.round(Number(reviewSummary.rating)) }, (_, index) => (
+                          <FaStar key={index} aria-hidden="true" />
+                        ))}
+                      </span>
+                      <strong>{reviewSummary.rating}</strong>
+                      <span>({reviewSummary.count} reviews)</span>
+                    </div>
+                  ) : (
+                    <div className={styles.ratingLine}>No reviews yet</div>
+                  )}
                 </div>
 
                 {userToken &&
@@ -587,8 +687,10 @@ export default function ProductDetails({
               </div>
 
               <p className={styles.priceLine}>
-                <strong>{formatFlowerPrice(totalPrice || selectedPrice)}</strong>
-                <span>/ {selectedPriceOption?.name || productData?.unit || "kg"}</span>
+                {showSelectedPrice ? <>
+                  <strong>{formatFlowerPrice(totalPrice || effectiveSelectedPrice)}</strong>
+                  <span>/ {selectedOptionLabel || productData?.unit || "kg"}</span>
+                </> : <strong>{priceVisibility.message}</strong>}
               </p>
 
               <ul className={styles.productHighlights}>
@@ -600,7 +702,9 @@ export default function ProductDetails({
 
               <div className={styles.optionBlock}>
                 <h2>Select Quantity</h2>
-                {priceOptions?.length > 0 ? (
+                {!priceVisibility.canPurchase ? (
+                  <p className={styles.optionError}>{priceVisibility.message}</p>
+                ) : priceOptions?.length > 0 ? (
                   <div className={styles.weightOptions} role="radiogroup" aria-label="Select quantity">
                     {priceOptions.map((option) => (
                       <button
@@ -608,8 +712,9 @@ export default function ProductDetails({
                         key={option.key}
                         className={selectedOptionKey === option.key ? styles.activeWeight : ""}
                         onClick={() => handlePriceChange(option)}
+                        disabled={option.isOutOfStock}
                       >
-                        {option.name}
+                        {option.name}{option.isOutOfStock ? " — Sold out" : ""}
                       </button>
                     ))}
                   </div>
@@ -618,7 +723,30 @@ export default function ProductDetails({
                 )}
               </div>
 
-              <div className={styles.optionBlock}>
+              {selectedPriceOption?.allowCustomQuantity ? (
+                <div className={styles.customQuantityBox}>
+                  <label htmlFor="custom-product-quantity">Custom {formatQuantityUnit(selectedPriceOption.quantityUnit, 2).toLowerCase()}</label>
+                  <div className={styles.customQuantityInput}>
+                    <input
+                      id="custom-product-quantity"
+                      type="number"
+                      min={selectedPriceOption.minimumCustomQuantity}
+                      max={selectedPriceOption.maximumCustomQuantity || undefined}
+                      step={selectedPriceOption.customQuantityStep}
+                      value={customQuantity}
+                      placeholder={formatQuantityNumber(selectedPriceOption.quantityValue)}
+                      onChange={(event) => { setCustomQuantity(event.target.value); setWasAddedToCart(false); }}
+                    />
+                    <span>{formatQuantityUnit(selectedPriceOption.quantityUnit, Number(customQuantity) || 2)}</span>
+                  </div>
+                  <small>
+                    Enter {formatQuantityNumber(selectedPriceOption.minimumCustomQuantity)}
+                    {selectedPriceOption.maximumCustomQuantity ? `–${formatQuantityNumber(selectedPriceOption.maximumCustomQuantity)}` : "+"} in steps of {formatQuantityNumber(selectedPriceOption.customQuantityStep)}. Leave blank for {selectedPriceOption.name}.
+                  </small>
+                </div>
+              ) : null}
+
+              {priceVisibility.canPurchase ? <><div className={styles.optionBlock}>
                 <h2>Add-ons <span>(Optional)</span></h2>
                 <div className={styles.addonList}>
                   {addonOptions.map((addon) => (
@@ -693,11 +821,11 @@ export default function ProductDetails({
                 >
                   {cartAction === "checkout" ? "Please wait..." : "Buy Now"}
                 </button>
-              </div>
+              </div></> : null}
 
               <a href={whatsappHref} target="_blank" rel="noopener noreferrer" className={styles.whatsappButton}>
                 <FaWhatsapp />
-                Order on WhatsApp
+                {priceVisibility.canPurchase ? "Order on WhatsApp" : priceVisibility.ctaLabel}
               </a>
             </div>
           </div>

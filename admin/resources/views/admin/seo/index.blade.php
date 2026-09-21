@@ -61,8 +61,8 @@
                                         </div>
                                     </th>
                                     <th>S.No.</th>
-                                    <th>URL</th>
-                                    {{--<th>Alias</th>--}}
+                                    <th>Public URL</th>
+                                    <th>System Page</th>
                                     <th>Page Title</th>
                                     <th>Meta Keywords</th>
                                     <th>Meta Description</th>
@@ -84,8 +84,12 @@
                                         </div>
                                     </td>
                                     <td>{{$loop->iteration}}</td>
-                                    <td>{{$seo->url}}</td>
-                                    {{--<td>{{$seo->alias}}</td>--}}
+                                    <td>
+                                        <a href="{{ 'https://www.manidvipaflowers.com'.$seo->url }}" target="_blank" rel="noopener">
+                                            {{$seo->url}}
+                                        </a>
+                                    </td>
+                                    <td>{{$seo->alias ?: $seo->url}}</td>
                                     <td>{{$seo->page_title}}</td>
                                     <td>{{$seo->meta_keywords}}</td>
                                     <td>{{$seo->meta_description}}</td>

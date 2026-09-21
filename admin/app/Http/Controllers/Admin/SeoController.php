@@ -6,9 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Admin\SeoUrl;
 use Illuminate\Http\Request;
 use App\Http\Requests\StoreSeoRequest;
+use App\Support\SeoRouteManager;
 use App\Traits\RedirectTrait;
 use Symfony\Component\HttpFoundation\Response;
-use Gate,View,Cache;
+use Gate,View,Cache,DB;
 
 class SeoController extends Controller
 {
@@ -23,7 +24,7 @@ class SeoController extends Controller
 
     private function clearStorefrontCache(): void
     {
-        Cache::flush();
+        SeoRouteManager::clearCaches();
     }
 
     /**
@@ -72,8 +73,8 @@ class SeoController extends Controller
     public function store(StoreSeoRequest $request)
     {
         abort_if(Gate::denies($this->module.'_create'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
-        $formInput = $request->all();
-        $model = $this->model::create($formInput);
+        $formInput = $request->validated();
+        $model = SeoRouteManager::save($formInput, $formInput['alias']);
         $this->clearStorefrontCache();
         return $this->redirectAfterSave($request->FormButton, $model->id,$model->type);
     }
@@ -101,7 +102,8 @@ class SeoController extends Controller
     public function update(StoreSeoRequest $request, SeoUrl $seo)
     {
         abort_if(Gate::denies($this->module.'_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
-        $seo->update($request->all());
+        $formInput = $request->validated();
+        $seo = SeoRouteManager::save($formInput, $formInput['alias'], $seo->url, [$seo->url]);
         $this->clearStorefrontCache();
         return $this->redirectAfterSave($request->FormButton, $seo->id,$seo->type);
     }
@@ -128,6 +130,10 @@ class SeoController extends Controller
     public function destroy(SeoUrl $seo)
     {
         abort_if(Gate::denies($this->module.'_delete'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
+        DB::table('seo_url_redirects')
+            ->where('from_url', $seo->url)
+            ->orWhere('to_url', $seo->url)
+            ->delete();
         $result = $seo->delete();
         if($result == 1) {
             $this->clearStorefrontCache();
@@ -144,6 +150,10 @@ class SeoController extends Controller
         foreach($ids as $id) :
             $seo = $this->model::find($id);
             if($seo) {
+                DB::table('seo_url_redirects')
+                    ->where('from_url', $seo->url)
+                    ->orWhere('to_url', $seo->url)
+                    ->delete();
                 $result = $seo->delete();
             }
         endforeach;

@@ -42,6 +42,55 @@ class OrderStatusWorkflowTest extends TestCase
             ->assertSee('Checkout');
     }
 
+    public function test_admin_can_complete_missing_whatsapp_customer_and_delivery_details(): void
+    {
+        $order = $this->createOrder();
+        $admin = $this->createAdminWithAbilities(['orders_view', 'orders_edit']);
+
+        $this->withoutMiddleware(VerifyCsrfToken::class)
+            ->actingAs($admin, 'admin')
+            ->patchJson(route('admin.orders.updateCustomerDetails', $order['order_id']), [
+                'name' => 'WhatsApp Customer',
+                'email' => 'customer@example.test',
+                'contact_number' => '9876543210',
+                'source' => 'whatsapp',
+                'shipping_full_name' => 'Delivery Recipient',
+                'shipping_email' => 'customer@example.test',
+                'shipping_phone_number' => '9876543210',
+                'shipping_address_line1' => '12 Flower Street',
+                'shipping_address_line2' => 'Near Temple',
+                'shipping_landmark' => 'Main Gate',
+                'shipping_city' => 'Hyderabad',
+                'shipping_state' => 'Telangana',
+                'shipping_pincode' => '500001',
+                'shipping_country' => 'India',
+                'same_as_billing' => 1,
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order['order_id'],
+            'name' => 'WhatsApp Customer',
+            'contact_number' => '9876543210',
+        ]);
+        $this->assertDatabaseHas('order_shipping_addresses', [
+            'order_id' => $order['order_id'],
+            'full_name' => 'Delivery Recipient',
+            'phone_number' => '9876543210',
+            'address_line1' => '12 Flower Street',
+            'pincode' => '500001',
+        ]);
+        $this->assertDatabaseHas('order_billing_addresses', [
+            'order_id' => $order['order_id'],
+            'address_line1' => '12 Flower Street',
+        ]);
+        $this->assertDatabaseHas('order_workflow_events', [
+            'order_id' => $order['order_id'],
+            'event_type' => 'customer_details',
+        ]);
+    }
+
     public function test_admin_non_cancel_status_update_does_not_cancel_shipping_or_return_stock(): void
     {
         $pendingStatusId = $this->statusId('order_statuses', 'Pending');
@@ -328,12 +377,32 @@ class OrderStatusWorkflowTest extends TestCase
             'updated_at' => $now,
         ]);
 
+        $flowerUnitId = DB::table('measurement_units')->where('code', 'flower')->value('id');
+        $inventoryPoolId = DB::table('product_inventory_pools')->insertGetId([
+            'product_id' => $productId,
+            'unit_id' => $flowerUnitId,
+            'qty' => 300,
+            'track_stock' => 1,
+            'status' => 1,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
         $weightId = DB::table('product_weights')->insertGetId([
             'product_id' => $productId,
-            'name' => '1 Kg',
-            'sell_price' => 300,
-            'list_price' => 320,
-            'qty' => 3,
+            'name' => '108 Flowers',
+            'quantity_value' => 108,
+            'quantity_unit' => 'flower',
+            'unit_id' => $flowerUnitId,
+            'inventory_pool_id' => $inventoryPoolId,
+            'pricing_mode' => 'automatic',
+            'unit_sell_price' => 5,
+            'unit_list_price' => 6,
+            'unit_cost_price' => 3,
+            'sell_price' => 540,
+            'list_price' => 648,
+            'cost_price' => 324,
+            'qty' => 999999,
             'stock' => 1,
             'status' => 1,
             'created_at' => $now,
@@ -359,9 +428,21 @@ class OrderStatusWorkflowTest extends TestCase
         ])->assertOk()->assertJsonPath('success', true);
 
         $orderId = $response->json('data.order_id');
-        $this->assertDatabaseHas('product_weights', [
-            'id' => $weightId,
-            'qty' => 1,
+        $this->assertDatabaseHas('orders', [
+            'id' => $orderId,
+            'source' => 'whatsapp',
+        ]);
+        $this->assertNotNull(DB::table('orders')->where('id', $orderId)->value('price_locked_at'));
+        $this->assertDatabaseHas('product_inventory_pools', [
+            'id' => $inventoryPoolId,
+            'qty' => 84,
+        ]);
+        $this->assertDatabaseHas('order_products', [
+            'order_id' => $orderId,
+            'weight_id' => $weightId,
+            'weight' => '108 Flowers',
+            'quantity' => 2,
+            'stock_quantity' => 216,
         ]);
         $this->assertDatabaseMissing('carts', [
             'cart_session' => $cartSession,
@@ -377,9 +458,9 @@ class OrderStatusWorkflowTest extends TestCase
             ->assertOk()
             ->assertJsonPath('success', true);
 
-        $this->assertDatabaseHas('product_weights', [
-            'id' => $weightId,
-            'qty' => 3,
+        $this->assertDatabaseHas('product_inventory_pools', [
+            'id' => $inventoryPoolId,
+            'qty' => 300,
         ]);
 
         $this->withoutMiddleware(VerifyCsrfToken::class)
@@ -390,9 +471,9 @@ class OrderStatusWorkflowTest extends TestCase
             ->assertOk()
             ->assertJsonPath('success', true);
 
-        $this->assertDatabaseHas('product_weights', [
-            'id' => $weightId,
-            'qty' => 3,
+        $this->assertDatabaseHas('product_inventory_pools', [
+            'id' => $inventoryPoolId,
+            'qty' => 300,
         ]);
     }
 

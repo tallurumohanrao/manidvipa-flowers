@@ -66,6 +66,10 @@ class OrderController extends Controller
             $query->where('orders.delivery_admin_id', $request->deliveryAdmin);
         }
 
+        if ($request->filled('source')) {
+            $query->where('orders.source', $request->source);
+        }
+
         if ($request->filled('workflowQueue')) {
             $this->applyWorkflowQueueFilter($query, $request->workflowQueue);
         }
@@ -77,7 +81,14 @@ class OrderController extends Controller
         $packingStatuses = $this->packingStatuses();
         $admins = $this->activeAdminOptions();
         $workflowQueues = $this->workflowQueues();
-        return view('admin.'.$this->module.'.index', compact('data','orderStatuses','shippingStatuses','packingStatuses','admins','workflowQueues'));
+        $orderSources = [
+            'whatsapp' => 'WhatsApp',
+            'website' => 'Website',
+            'phone' => 'Phone',
+            'manual' => 'Manual',
+            'unknown' => 'Unknown',
+        ];
+        return view('admin.'.$this->module.'.index', compact('data','orderStatuses','shippingStatuses','packingStatuses','admins','workflowQueues','orderSources'));
     }
 
     /**
@@ -284,6 +295,99 @@ class OrderController extends Controller
             'date_html' => date('d/m/Y',strtotime($serveDate)),
             'slot_html' => e($serveTimeSlot),
             'lineitem_html' => e($lineItemTitle),
+        ]);
+    }
+
+    public function updateCustomerDetails(Request $request, $id)
+    {
+        abort_if(Gate::denies($this->module.'_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
+
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'email' => 'nullable|email|max:191',
+            'contact_number' => 'nullable|string|max:30',
+            'source' => 'required|string|in:whatsapp,website,phone,manual,unknown',
+            'shipping_full_name' => 'nullable|string|max:191',
+            'shipping_email' => 'nullable|email|max:191',
+            'shipping_phone_number' => 'nullable|string|max:30',
+            'shipping_company_name' => 'nullable|string|max:50',
+            'shipping_address_line1' => 'nullable|string|max:255',
+            'shipping_address_line2' => 'nullable|string|max:255',
+            'shipping_landmark' => 'nullable|string|max:255',
+            'shipping_city' => 'nullable|string|max:191',
+            'shipping_state' => 'nullable|string|max:191',
+            'shipping_pincode' => 'nullable|string|max:20',
+            'shipping_country' => 'nullable|string|max:20',
+            'same_as_billing' => 'nullable|boolean',
+        ]);
+        if($validator->fails()){
+            return $this->validationErrorResponse($validator);
+        }
+
+        if(! DB::table('orders')->where('id',$id)->exists()){
+            return response()->json(['success'=>false, 'message' => 'Order not found.'], 404);
+        }
+
+        $now = date('Y-m-d H:i:s');
+        $shipping = [
+            'full_name' => trim((string) $request->shipping_full_name),
+            'email' => trim((string) $request->shipping_email),
+            'phone_number' => trim((string) $request->shipping_phone_number),
+            'company_name' => trim((string) $request->shipping_company_name),
+            'address_line1' => trim((string) $request->shipping_address_line1),
+            'address_line2' => trim((string) $request->shipping_address_line2),
+            'landmark' => trim((string) $request->shipping_landmark),
+            'city' => trim((string) $request->shipping_city),
+            'state' => trim((string) $request->shipping_state),
+            'pincode' => trim((string) $request->shipping_pincode),
+            'country' => trim((string) ($request->shipping_country ?: 'India')),
+            'address_type' => 1,
+            'updated_at' => $now,
+        ];
+
+        DB::beginTransaction();
+        try {
+            DB::table('orders')->where('id',$id)->update([
+                'name' => trim((string) $request->name),
+                'email' => trim((string) $request->email),
+                'contact_number' => trim((string) ($request->contact_number ?: $request->shipping_phone_number)),
+                'source' => $request->source,
+                'updated_at' => $now,
+            ]);
+
+            $existingShipping = DB::table('order_shipping_addresses')->where('order_id',$id)->first();
+            if($existingShipping){
+                DB::table('order_shipping_addresses')->where('id',$existingShipping->id)->update($shipping);
+            }else{
+                $shipping['order_id'] = $id;
+                $shipping['created_at'] = $now;
+                DB::table('order_shipping_addresses')->insert($shipping);
+            }
+
+            if($request->boolean('same_as_billing')){
+                $billing = $shipping;
+                unset($billing['updated_at']);
+                $existingBilling = DB::table('order_billing_addresses')->where('order_id',$id)->first();
+                if($existingBilling){
+                    DB::table('order_billing_addresses')->where('id',$existingBilling->id)->update($billing + ['updated_at' => $now]);
+                }else{
+                    $billing['order_id'] = $id;
+                    $billing['created_at'] = $now;
+                    DB::table('order_billing_addresses')->insert($billing);
+                }
+            }
+
+            $this->logWorkflowEvent($id, 'customer_details', null, 'Customer and delivery details updated');
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            report($e);
+            return response()->json(['success'=>false, 'message' => 'Unable to update customer details.'], 500);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Customer and delivery details updated successfully.',
         ]);
     }
 
@@ -621,19 +725,27 @@ class OrderController extends Controller
     private function releaseOrderStock(int $orderId): void
     {
         $products = DB::table('order_products')
-            ->select('weight_id','quantity')
+            ->select('weight_id','quantity','stock_quantity')
             ->where('order_id',$orderId)
             ->whereNotNull('weight_id')
             ->get();
 
         foreach($products as $product) :
-            $quantity = max(0, (int) $product->quantity);
-            if($quantity < 1){
+            $quantity = max(0, (float) ($product->stock_quantity ?? $product->quantity));
+            if($quantity <= 0){
                 continue;
             }
             $weight = DB::table('product_weights')->where('id',$product->weight_id)->lockForUpdate()->first();
-            if($weight && (int) $weight->stock === 1){
-                DB::table('product_weights')->where('id',$product->weight_id)->update(['qty'=> DB::raw('qty+'.$quantity)]);
+            if ($weight && (int) ($weight->inventory_pool_id ?? 0) > 0) {
+                $pool = DB::table('product_inventory_pools')->where('id', $weight->inventory_pool_id)->lockForUpdate()->first();
+                if ($pool && (int) $pool->track_stock === 1) {
+                    DB::table('product_inventory_pools')->where('id', $pool->id)->update([
+                        'qty' => DB::raw('qty+'.sprintf('%.3F', $quantity)),
+                        'updated_at' => now(),
+                    ]);
+                }
+            } elseif($weight && (int) $weight->stock === 1){
+                DB::table('product_weights')->where('id',$product->weight_id)->update(['qty'=> DB::raw('qty+'.sprintf('%.3F',$quantity))]);
             }
         endforeach;
     }

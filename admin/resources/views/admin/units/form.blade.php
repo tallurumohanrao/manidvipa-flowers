@@ -1,10 +1,16 @@
-<div class="row">
-    <div class="col-md-2">
-        <label class="col-form-label" for="name">Name</label>
-        {{ html()->text('name')->class('form-control')->required() }}
-    </div>
-    <div class="col-md-2">
-        <label class="col-form-label" for="status">Status</label>
-        {!! html()->select('status',array('1' => 'Enable', '0' => 'Disable'))->id('status')->class('form-control') !!}
-    </div>
+<div class="alert alert-info">
+    Units are shared by product inventory and selling options. Use an independent base for Flower, Stem or Bunch. Use Gram as the base for KG and ml as the base for Liter.
 </div>
+<div class="row">
+    @if($isUsed ?? false)<input type="hidden" name="type" value="{{ $row->type }}"><input type="hidden" name="base_code" value="{{ $row->base_code }}"><input type="hidden" name="conversion_factor" value="{{ $row->conversion_factor }}">@endif
+    <div class="form-group col-md-4"><label for="singular_name">Singular name *</label><input id="singular_name" type="text" name="singular_name" class="form-control" value="{{ old('singular_name', $row->singular_name ?? '') }}" placeholder="Flower" required></div>
+    <div class="form-group col-md-4"><label for="plural_name">Plural name *</label><input id="plural_name" type="text" name="plural_name" class="form-control" value="{{ old('plural_name', $row->plural_name ?? '') }}" placeholder="Flowers" required></div>
+    <div class="form-group col-md-4"><label for="code">Unit code *</label><input id="code" type="text" name="code" class="form-control" value="{{ old('code', $row->code ?? '') }}" placeholder="flower" @if($row) readonly @endif required><small class="form-text text-muted">Permanent lowercase code. It cannot be changed after creation.</small></div>
+    <div class="form-group col-md-3"><label for="type">Unit type *</label><select id="type" name="type" class="form-control" required @disabled($isUsed ?? false)>@foreach(['count'=>'Count','weight'=>'Weight','volume'=>'Volume','package'=>'Package'] as $value=>$label)<option value="{{ $value }}" @selected(old('type', $row->type ?? 'count') === $value)>{{ $label }}</option>@endforeach</select></div>
+    <div class="form-group col-md-3"><label for="base_code">Inventory base</label><select id="base_code" name="base_code" class="form-control" @disabled($isUsed ?? false)><option value="">Independent / this unit</option>@foreach($baseUnits as $value=>$label)<option value="{{ $value }}" @selected(old('base_code', $row->base_code ?? '') === $value)>{{ $label }}</option>@endforeach</select></div>
+    <div class="form-group col-md-3"><label for="conversion_factor">Base-unit factor *</label><input id="conversion_factor" type="number" name="conversion_factor" class="form-control" min="0.000001" step="0.000001" value="{{ old('conversion_factor', $row->conversion_factor ?? 1) }}" required @readonly($isUsed ?? false)><small class="form-text text-muted">Example: 1 KG = 1000 Grams.</small></div>
+    <div class="form-group col-md-3"><label for="priority">Display order *</label><input id="priority" type="number" name="priority" class="form-control" min="0" value="{{ old('priority', $row->priority ?? 100) }}" required></div>
+    <div class="form-group col-md-3"><label for="status">Status *</label><select id="status" name="status" class="form-control" required><option value="1" @selected((string)old('status', $row->status ?? 1) === '1')>Enable</option><option value="0" @selected((string)old('status', $row->status ?? 1) === '0')>Disable</option></select></div>
+    <div class="form-group col-md-4 d-flex align-items-end pb-2"><div class="custom-control custom-checkbox"><input type="hidden" name="allows_decimal" value="0"><input id="allows_decimal" type="checkbox" name="allows_decimal" value="1" class="custom-control-input" @checked(old('allows_decimal', $row->allows_decimal ?? false)) @disabled($isUsed ?? false)><label class="custom-control-label" for="allows_decimal">Allow decimal quantities</label></div></div>
+</div>
+@if($isUsed ?? false)<div class="alert alert-warning mb-0">This unit is already used by products. You can rename, reorder, or disable it. Its code, type, base conversion, decimal rule, and delete action are locked to protect existing stock.</div>@endif

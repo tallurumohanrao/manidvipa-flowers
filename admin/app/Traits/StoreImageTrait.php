@@ -74,7 +74,8 @@ trait StoreImageTrait {
                 if (!File::isDirectory(dirname($storedPath))) {
                     File::makeDirectory(dirname($storedPath), 0755, true);
                 }
-                if(Image::make($file->getRealPath())->save($storedPath, 50)){
+                $sourceImage = Image::make($file->getRealPath())->orientate();
+                if($sourceImage->save($storedPath, 50)){
                     $this->mirrorPublicStorageFile($storedPath, $directory.'/'.$name);
 
                     if(!in_array($directory,['banners'])){
@@ -84,18 +85,21 @@ trait StoreImageTrait {
                             if (!File::isDirectory($destinationPathThumbnail)) {
                                 File::makeDirectory($destinationPathThumbnail, 0755, true);
                             }
-                            $img = Image::make($file->path());
+                            $img = clone $sourceImage;
                             $hw = explode('X',$size);
                             $img->resize($hw[0], $hw[1], function ($constraint) {
                                 $constraint->aspectRatio();
                             })->save($destinationPathThumbnail.'/'.$name);
+                            $img->destroy();
                             $this->mirrorPublicStorageFile($destinationPathThumbnail.'/'.$name, $directory.'/'.$size.'/'.$name);
                         endforeach;
                     }
+                    $sourceImage->destroy();
                 //if($file->storeAs( $directory , $name , 'public' )){
                     Storage::delete('public/'.$directory.'/'.$old_file);
                     return $name;
                 }
+                $sourceImage->destroy();
             }
         }
         return $old_file;

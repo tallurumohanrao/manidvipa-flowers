@@ -16,7 +16,12 @@ import {
   titleFromSlug,
   unpackPaginatedProducts,
 } from "@/lib/seo";
-import { fetchFirstSeoMetadata } from "@/lib/metadata";
+import {
+  buildPublicSeoRouteMap,
+  fetchEditableSeoRoutes,
+  fetchFirstSeoMetadata,
+  resolvePublicSeoPath,
+} from "@/lib/metadata";
 
 const reservedTopLevelRoutes = new Set([
   "about",
@@ -26,6 +31,7 @@ const reservedTopLevelRoutes = new Set([
   "cart",
   "checkout",
   "contact-us",
+  "content",
   "decorations",
   "flowers",
   "forgot-password",
@@ -145,14 +151,23 @@ export default async function Page({ params }) {
   const { categorySlug, category, categories, canonicalPath } = context;
   const userToken = await getUserToken();
 
-  const [productByCategoryData, siteSettings] = await Promise.all([
+  const [productByCategoryData, siteSettings, seoData, editableRoutes] = await Promise.all([
     fetchListingData(
       "GET",
       `products-by-category?category_slug=${encodeURIComponent(categorySlug)}`,
       userToken
     ),
     fetchSiteSettingsData(userToken),
+    fetchFirstSeoMetadata([
+      canonicalPath,
+      `/${categorySlug}`,
+      `/flower-category/${categorySlug}`,
+      `/products/${categorySlug}`,
+    ]),
+    fetchEditableSeoRoutes(),
   ]);
+  const publicPath = seoData?.url || canonicalPath;
+  const publicRouteMap = buildPublicSeoRouteMap(editableRoutes);
 
   const categoryTitle = category?.title || titleFromSlug(categorySlug, "All Flowers");
   const products = unpackPaginatedProducts(productByCategoryData);
@@ -160,21 +175,24 @@ export default async function Page({ params }) {
     ? findCategoryBySlug(categories, category.parent_slug)
     : null;
   const breadcrumbItems = [
-    { name: "Home", path: "/" },
-    { name: "Flowers", path: "/flowers" },
+    { name: "Home", path: resolvePublicSeoPath("/", publicRouteMap) },
+    { name: "Flowers", path: resolvePublicSeoPath("/flowers", publicRouteMap) },
   ];
 
   if (parentCategory) {
     breadcrumbItems.push({
       name: parentCategory.title || titleFromSlug(parentCategory.slug),
-      path: buildCategoryUrl(parentCategory, categories),
+      path: resolvePublicSeoPath(
+        buildCategoryUrl(parentCategory, categories),
+        publicRouteMap
+      ),
     });
   }
 
-  breadcrumbItems.push({ name: categoryTitle, path: canonicalPath });
+  breadcrumbItems.push({ name: categoryTitle, path: publicPath });
 
   const breadcrumbSchema = buildBreadcrumbSchema(breadcrumbItems);
-  const itemListSchema = buildItemListSchema(products, canonicalPath);
+  const itemListSchema = buildItemListSchema(products, publicPath, publicRouteMap);
 
   return (
     <>

@@ -9,7 +9,7 @@
 		<ul class="list-inline mb-3 text-right">
 			<li class="list-inline-item">
 				<div class="btn-group">
-                @can($module.'_create1')
+                @can($module.'_create')
                 <a href="{{ route('admin.'.$module.'.create') }}" class="btn btn-primary">Create</a>
                 @endcan
                 </div>
@@ -25,6 +25,7 @@
                                 <tr role="row">
                                     <th>#</th>
                                     <th>Name</th>
+                                    <th>Public URL</th>
                                     <th>Status</th>
                                     <th>Created At</th>
                                     <th>Actions</th>
@@ -36,6 +37,7 @@
                                 <tr id="row-{{ $row->id }}">
                                     <td>{{$row->id}}</td>
                                     <td>{{$row->name}}</td>
+                                    <td>{{$row->public_url}}</td>
                                     <td>
                                         @can($module.'_edit')
                                         <label class="switch">

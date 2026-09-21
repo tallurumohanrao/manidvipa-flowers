@@ -4,6 +4,8 @@ namespace App\Http\Controllers\API;
    
 use Illuminate\Http\Request;
 use App\Http\Controllers\API\BaseController as BaseController;
+use App\Support\PriceVisibility;
+use App\Support\SellingOption;
 use Validator,DB,Hash;
    
 class AccountController extends BaseController
@@ -17,7 +19,7 @@ class AccountController extends BaseController
         } else {
              return response()->json(['success' => false,'message' => 'Please login to access myaccount.'], 200);
         }
-        $orders = DB::table('orders as o')->selectRaw('o.id,o.order_encrypt_key,o.amount,o.sub_total,o.created_at,o.updated_at,o.order_status_id,oss.name as order_status_name,os.updated_at as shipping_update_at,ss.name as shipping_status,os.shipping_status_id')
+        $orders = DB::table('orders as o')->selectRaw('o.id,o.order_encrypt_key,o.amount,o.sub_total,o.created_at,o.updated_at,o.price_locked_at,o.order_status_id,oss.name as order_status_name,os.updated_at as shipping_update_at,ss.name as shipping_status,os.shipping_status_id')
         ->join('order_statuses as oss','o.order_status_id', '=', 'oss.id')
         #->addSelect(DB::raw("(SELECT COUNT(op.id) as products_count FROM order_products as op WHERE op.order_id = o.id"))
         #->addSelect(DB::raw("(SELECT COUNT(op.id) FROM order_products as op WHERE op.order_id = o.id GROUP BY op.order_id) as products_count"))
@@ -46,7 +48,7 @@ class AccountController extends BaseController
                 $order_products_array[] = ['product_id'=>$order_product->product_id,'product_title'=>$order_product->product_title,'quantity'=>$order_product->quantity,'amount'=>$order_product->amount,'weight'=>$order_product->weight,'sku'=>$order_product->sku,'image_name'=>$image_name];
             endforeach;
             
-            $data[] = ["order_id"=>$order->id,"order_encrypt_key"=>$order->order_encrypt_key,'order_products'=>$order_products_array, "amount"=> $order->amount, "sub_total"=>$order->sub_total,'order_status_name'=>$order->order_status_name,"order_status_id"=>$order->order_status_id, "order_created_at"=>$order->created_at, "order_status_updated_at"=>$order->updated_at, "shipping_update_at"=> $order->shipping_update_at, "shipping_status"=> $order->shipping_status, "shipping_status_id"=> $order->shipping_status_id];
+            $data[] = ["order_id"=>$order->id,"order_encrypt_key"=>$order->order_encrypt_key,'order_products'=>$order_products_array, "amount"=> $order->amount, "sub_total"=>$order->sub_total,'order_status_name'=>$order->order_status_name,"order_status_id"=>$order->order_status_id, "order_created_at"=>$order->created_at, "price_locked_at"=>$order->price_locked_at, "order_status_updated_at"=>$order->updated_at, "shipping_update_at"=> $order->shipping_update_at, "shipping_status"=> $order->shipping_status, "shipping_status_id"=> $order->shipping_status_id];
         endforeach;
         return response()->json([ 'success' => true, 'data'    => $data ], 200);
     }
@@ -68,7 +70,7 @@ class AccountController extends BaseController
             return $this->sendError('Validation Error.', $validator->errors());       
         }
         $order_encrypt_key = $request->order_encrypt_key;
-        $order = DB::table('orders as o')->select('o.id','o.order_encrypt_key','o.user_id','o.name','o.email','o.amount','o.order_status_id','o.created_at','o.updated_at','o.sub_total','os.name as order_status_name')->join('order_statuses as os', 'os.id', '=', 'o.order_status_id')->where(['o.user_id'=>$user_id,'o.order_encrypt_key'=>$order_encrypt_key])->first();
+        $order = DB::table('orders as o')->select('o.id','o.order_encrypt_key','o.user_id','o.name','o.email','o.amount','o.order_status_id','o.created_at','o.updated_at','o.sub_total','o.price_locked_at','os.name as order_status_name')->join('order_statuses as os', 'os.id', '=', 'o.order_status_id')->where(['o.user_id'=>$user_id,'o.order_encrypt_key'=>$order_encrypt_key])->first();
         if(!$order){
             return response()->json(['status'=>false,'message'=>'Page not found.'], 404);
         }
@@ -99,10 +101,25 @@ class AccountController extends BaseController
         } else {
              return response()->json(['success' => false,'message' => 'Please login to access myaccount.'], 200);
         }
-        $orders = DB::table('wishlist as w')->select('w.id as wishlist_id','w.product_title','w.product_slug','w.weight','w.weight_id','w.product_id','pw.sell_price','pw.list_price','product_images.name as image_name')
-        ->leftJoin('product_weights as pw','pw.id','=','w.weight_id')->where('user_id',$user_id)->leftJoin('product_images', function ($imgjoin) {
+        $orders = DB::table('wishlist as w')->select('w.id as wishlist_id','w.product_title','w.product_slug','w.weight','w.weight_id','w.product_id','p.price_visibility','p.price_visible_from','pw.sell_price','pw.list_price','product_images.name as image_name')
+        ->join('products as p','p.id','=','w.product_id')->leftJoin('product_weights as pw','pw.id','=','w.weight_id')->where('user_id',$user_id)->leftJoin('product_images', function ($imgjoin) {
             $imgjoin->on('product_images.id', '=', DB::raw('(SELECT id FROM product_images WHERE product_images.product_id = w.product_id LIMIT 1)'));
-        })->get();
+        })->get()->map(function ($product) {
+            $control = PriceVisibility::forProduct($product, 'listing');
+            $product->configured_price_visibility = $control['configured_mode'];
+            $product->price_visibility = $control['effective_mode'];
+            $product->price_visible_from = $control['visible_from'];
+            $product->show_price = $control['show_price'];
+            $product->can_purchase = $control['can_purchase'];
+            $product->price_message = $control['message'];
+            $product->price_cta_label = $control['cta_label'];
+            if (! $control['include_price_data']) {
+                $product->sell_price = null;
+                $product->list_price = null;
+            }
+
+            return $product;
+        });
         $response = [
             'success' => true,
             'data'    => $orders
@@ -134,7 +151,14 @@ class AccountController extends BaseController
         if($product == null){
             return response()->json(['success' => false,'message' => 'Product not found.'], 404);
         }
-        $weight = DB::table('product_weights')->where(['product_id'=>$request->product_id])->first();
+        $weight = DB::table('product_weights')
+            ->where('product_id', $request->product_id)
+            ->where('status', 1)
+            ->orderByDesc('is_default')
+            ->orderByRaw('CASE WHEN stock = 1 AND qty > 0 THEN 0 ELSE 1 END')
+            ->orderByRaw('CAST(sell_price AS DECIMAL(12,2)) ASC')
+            ->orderBy('id')
+            ->first();
         // if($weight == null){
         //     return response()->json(['success' => false,'message' => 'Product weight not found.'], 404);
         // }
@@ -143,7 +167,10 @@ class AccountController extends BaseController
         $insert['product_slug'] = $product->slug;
         $insert['product_id'] = $product->id;
         $insert['weight_id'] = $weight->id ?? null;
-        $insert['weight'] = $weight->name ?? null;
+        if ($weight) {
+            SellingOption::hydrateInventory($weight);
+        }
+        $insert['weight'] = $weight ? SellingOption::label($weight) : null;
         $insert['created_at'] = date('Y-m-d H:i:s');
         $id = DB::table('wishlist')->insertGetId($insert);
         if($id){
@@ -400,19 +427,27 @@ class AccountController extends BaseController
     private function releaseOrderStock(int $orderId): void
     {
         $products = DB::table('order_products')
-            ->select('weight_id','quantity')
+            ->select('weight_id','quantity','stock_quantity')
             ->where('order_id',$orderId)
             ->whereNotNull('weight_id')
             ->get();
 
         foreach($products as $product) :
-            $quantity = max(0, (int) $product->quantity);
-            if($quantity < 1){
+            $quantity = max(0, (float) ($product->stock_quantity ?? $product->quantity));
+            if($quantity <= 0){
                 continue;
             }
             $weight = DB::table('product_weights')->where('id',$product->weight_id)->lockForUpdate()->first();
-            if($weight && (int) $weight->stock === 1){
-                DB::table('product_weights')->where('id',$product->weight_id)->update(['qty'=> DB::raw('qty+'.$quantity)]);
+            if ($weight && (int) ($weight->inventory_pool_id ?? 0) > 0) {
+                $pool = DB::table('product_inventory_pools')->where('id', $weight->inventory_pool_id)->lockForUpdate()->first();
+                if ($pool && (int) $pool->track_stock === 1) {
+                    DB::table('product_inventory_pools')->where('id', $pool->id)->update([
+                        'qty' => DB::raw('qty+'.sprintf('%.3F', $quantity)),
+                        'updated_at' => now(),
+                    ]);
+                }
+            } elseif($weight && (int) $weight->stock === 1){
+                DB::table('product_weights')->where('id',$product->weight_id)->update(['qty'=> DB::raw('qty+'.sprintf('%.3F',$quantity))]);
             }
         endforeach;
     }

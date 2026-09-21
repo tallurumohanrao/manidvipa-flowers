@@ -4,6 +4,8 @@
   background-color: $bg-white;
   color: $color-black;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 
   h1,
   h2,

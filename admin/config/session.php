@@ -113,7 +113,10 @@ return [
     |
     */
 
-    'lottery' => [2, 100],
+    'lottery' => [
+        (int) env('SESSION_GC_PROBABILITY', 1),
+        max(1, (int) env('SESSION_GC_DIVISOR', 1000)),
+    ],
 
     /*
     |--------------------------------------------------------------------------

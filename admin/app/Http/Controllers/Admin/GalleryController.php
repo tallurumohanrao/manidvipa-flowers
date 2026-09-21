@@ -26,10 +26,14 @@ class GalleryController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function index()
+    public function index(Request $request)
     {
         abort_if(Gate::denies($this->module.'_view'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
-        $data = $this->model::orderBy('priority')->paginate(20)->withQueryString();
+        $query = $this->model::query();
+        if ($request->filled('q')) {
+            $query->where('image', 'like', '%'.$request->input('q').'%');
+        }
+        $data = $query->orderBy('priority')->paginate($request->input('per_page') ?: 20)->withQueryString();
         return view('admin.'.$this->module.'.index', ['data' => $data]);
     }
 

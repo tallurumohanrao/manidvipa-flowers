@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use App\Http\Requests\StoreCategoryRequest;
 use App\Traits\RedirectTrait;
 use App\Traits\StoreImageTrait;
+use App\Support\SeoRouteManager;
 use Symfony\Component\HttpFoundation\Response;
 use Gate,View,Str,DB,Cache;
 
@@ -23,7 +24,9 @@ class CategoryController extends Controller
 
     private function clearStorefrontCache(): void
     {
-        Cache::flush();
+        foreach (['api_categories', 'api_featured_products', 'api_home_sections', 'categories', 'primarymenu'] as $key) {
+            Cache::forget($key);
+        }
     }
 
     private function getParentCategories($excludeId = null)
@@ -39,10 +42,28 @@ class CategoryController extends Controller
             ->pluck('title', 'id');
     }
 
-    private function prepareCategoryInput(StoreCategoryRequest $request): array
+    private function categorySeoPath(string $slug, $parentId = null): string
     {
-        $formInput = $request->all();
-        $slug = Str::slug($formInput['title']);
+        $parentSlug = $parentId
+            ? DB::table('categories')->where('id', $parentId)->value('slug')
+            : null;
+
+        return $parentSlug ? '/'.$parentSlug.'/'.$slug : '/'.$slug;
+    }
+
+    private function findCategorySeo(string $slug, $parentId = null)
+    {
+        return SeoRouteManager::findByAlias($this->categorySeoPath($slug, $parentId), [
+            '/products/'.$slug,
+            '/categories/'.$slug,
+            '/'.$slug,
+        ]);
+    }
+
+    private function prepareCategoryInput(StoreCategoryRequest $request, ?Category $category = null): array
+    {
+        $formInput = $request->except('url');
+        $slug = $category?->slug ?: SeoRouteManager::slugFromPath($request->url, $formInput['title']);
 
         $formInput['name'] = $slug;
         $formInput['slug'] = $slug;
@@ -108,6 +129,7 @@ class CategoryController extends Controller
         return view('admin.'.$this->module.'.create', [
             'row' => [],
             'parentCategories' => $this->getParentCategories(),
+            'pageUrl' => null,
         ]);
     }
 
@@ -121,7 +143,16 @@ class CategoryController extends Controller
     {
         abort_if(Gate::denies($this->module.'_create'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         $formInput = $this->prepareCategoryInput($request);
+        $alias = $this->categorySeoPath($formInput['slug'], $formInput['parent_id']);
+        $existingSeo = $this->findCategorySeo($formInput['slug'], $formInput['parent_id']);
+        SeoRouteManager::ensurePathIsAvailable($request->url, $alias, $existingSeo?->id);
         $category = $this->model::create($formInput);
+        SeoRouteManager::save(
+            ['url' => $request->url, 'page_title' => $category->title],
+            $this->categorySeoPath($category->slug, $category->parent_id),
+            null,
+            ['/products/'.$category->slug, '/categories/'.$category->slug, '/'.$category->slug]
+        );
         $this->clearStorefrontCache();
         return $this->redirectAfterSave($request->FormButton, $category->id);
     }
@@ -146,9 +177,11 @@ class CategoryController extends Controller
     public function edit(Category $category)
     {
         abort_if(Gate::denies($this->module.'_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
+        $seo = $this->findCategorySeo($category->slug, $category->parent_id);
         return view('admin.'.$this->module.'.edit', [
             'row' => $category,
             'parentCategories' => $this->getParentCategories($category->id),
+            'pageUrl' => $seo?->url ?: $this->categorySeoPath($category->slug, $category->parent_id),
         ]);
     }
 
@@ -162,11 +195,25 @@ class CategoryController extends Controller
     public function update(StoreCategoryRequest $request, Category $category)
     {
         abort_if(Gate::denies($this->module.'_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
-        $formInput = $this->prepareCategoryInput($request);
+        $oldAlias = $this->categorySeoPath($category->slug, $category->parent_id);
+        $seo = $this->findCategorySeo($category->slug, $category->parent_id);
+        $formInput = $this->prepareCategoryInput($request, $category);
         if ((int) $formInput['parent_id'] === (int) $category->id) {
             $formInput['parent_id'] = null;
         }
+        $newAlias = $this->categorySeoPath($category->slug, $formInput['parent_id']);
+        SeoRouteManager::ensurePathIsAvailable($request->url, $newAlias, $seo?->id);
         if($category->update($formInput) === true) {
+            $newAlias = $this->categorySeoPath($category->slug, $category->parent_id);
+            SeoRouteManager::save(
+                ['url' => $request->url, 'page_title' => $category->title],
+                $newAlias,
+                $seo?->url,
+                [$oldAlias, '/products/'.$category->slug, '/categories/'.$category->slug, '/'.$category->slug]
+            );
+            if ($oldAlias !== $newAlias) {
+                SeoRouteManager::recordRedirect($oldAlias, $request->url);
+            }
             $this->clearStorefrontCache();
             return $this->redirectAfterSave($request->FormButton, $category->id);
         }

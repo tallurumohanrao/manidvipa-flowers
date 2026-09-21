@@ -42,6 +42,7 @@
     <label class="col-sm-3 col-form-label" for="roles">Roles</label>
     <div class="col-sm-9">
         {!! html()->multiselect('roles[]',\App\Models\Admin\Role::where('status', 1)->pluck('name', 'id'),$selected ?? [])->id('roles')->class('form-control select2')->attributes(['multiple'=>true, 'required'=>true]) !!}
+        <small class="form-text text-muted">Choose one or more active roles. This administrator receives the combined permissions from those roles.</small>
     </div>
 </div>
 

@@ -6,7 +6,7 @@ import {
   unpackPaginatedProducts,
 } from "@/lib/seo";
 
-export const revalidate = 3600;
+export const revalidate = 60;
 
 const VALID_CHANGE_FREQUENCIES = new Set([
   "always",
@@ -103,8 +103,9 @@ function buildCategorySitemapPath(category, categories = []) {
   return parentSlug && parentSlug !== slug ? `/${parentSlug}/${slug}` : `/${slug}`;
 }
 
-function addEntry(entries, pathOrUrl, options = {}) {
-  const path = normalizeSitemapPath(pathOrUrl);
+function addEntry(entries, pathOrUrl, options = {}, editableRoutes = new Map()) {
+  const normalizedPath = normalizeSitemapPath(pathOrUrl);
+  const path = editableRoutes.get(normalizedPath) || normalizedPath;
   if (isNoIndexPath(path)) return;
 
   const url = canonicalUrl(path);
@@ -124,23 +125,31 @@ function extractProducts(productsResponse) {
 
 export default async function sitemap() {
   const entries = new Map();
-
-  PUBLIC_SITEMAP_ROUTES.forEach((route) => {
-    addEntry(entries, route.path, route);
-  });
-
-  const [apiSitemap, categoriesResponse, productsResponse] = await Promise.all([
-    fetchApi("sitemap"),
+  const [routesResponse, categoriesResponse, productsResponse] = await Promise.all([
+    fetchApi("seo-routes"),
     fetchApi("categories"),
     fetchApi("products-by-category?category_slug=all-flowers&per_page=200"),
   ]);
+  const editableRouteRows = Array.isArray(routesResponse?.data?.routes)
+    ? routesResponse.data.routes
+    : [];
+  const editableRoutes = new Map(
+    editableRouteRows.map((route) => [
+      normalizeSitemapPath(route.alias),
+      normalizeSitemapPath(route.url),
+    ])
+  );
 
-  apiSitemap?.data?.forEach((item) => {
-    addEntry(entries, item.loc, {
-      lastModified: item.lastmod,
-      changeFrequency: item.changeFrequency || item.changefreq,
-      priority: item.priority,
-    });
+  PUBLIC_SITEMAP_ROUTES.forEach((route) => {
+    addEntry(entries, route.path, route, editableRoutes);
+  });
+
+  editableRouteRows.forEach((route) => {
+    addEntry(entries, route.url, {
+      lastModified: route.updated_at,
+      changeFrequency: "weekly",
+      priority: 0.6,
+    }, editableRoutes);
   });
 
   const categories = Array.isArray(categoriesResponse?.data) ? categoriesResponse.data : [];
@@ -152,7 +161,7 @@ export default async function sitemap() {
       lastModified: category.updated_at || category.created_at,
       changeFrequency: "daily",
       priority: category.parent_id ? 0.75 : 0.8,
-    });
+    }, editableRoutes);
   });
 
   extractProducts(productsResponse).forEach((product) => {
@@ -161,7 +170,7 @@ export default async function sitemap() {
       lastModified: product.updated_at || product.created_at,
       changeFrequency: "daily",
       priority: 0.72,
-    });
+    }, editableRoutes);
   });
 
   return Array.from(entries.values());

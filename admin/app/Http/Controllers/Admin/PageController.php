@@ -6,11 +6,21 @@ use App\Http\Controllers\Controller;
 use App\Models\Admin\Page;
 use Illuminate\Http\Request;
 use App\Http\Requests\StorePageRequest;
+use App\Support\SeoRouteManager;
 use Symfony\Component\HttpFoundation\Response;
 use Gate,View,DB,Str,Cache;
 
 class PageController extends Controller
 {
+    private const FIXED_PAGE_ROUTES = [
+        'about-us' => '/about',
+        'contact-us' => '/contact-us',
+        'privacy-policy' => '/privacy-policy',
+        'terms-conditions' => '/terms-conditions',
+        'refund-policy' => '/refund-cancellation',
+        'refund-return-policy' => '/refund-cancellation',
+    ];
+
     public function __construct(Page $model)
     {
         $this->model = $model;
@@ -25,7 +35,12 @@ class PageController extends Controller
     public function index()
     {
         abort_if(Gate::denies($this->module.'_view'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
-        return view('admin.pages.index', ['data' => Page::all()]);
+        $data = Page::all()->each(function ($page) {
+            $alias = $this->pageSystemPath($page->slug ?: Str::slug($page->name));
+            $page->public_url = SeoRouteManager::findByAlias($alias)?->url ?: $alias;
+        });
+
+        return view('admin.pages.index', compact('data'));
     }
 
     /**
@@ -36,7 +51,7 @@ class PageController extends Controller
     public function create()
     {
         abort_if(Gate::denies($this->module.'_create'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
-        return view('admin.pages.create', ['page' => []]);
+        return view('admin.pages.create', ['page' => [], 'pageUrl' => null]);
     }
 
     /**
@@ -50,7 +65,14 @@ class PageController extends Controller
         abort_if(Gate::denies($this->module.'_create'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         $input = $request->only('name','description','status');
         $input['slug'] = Str::slug($request->name);
+        $alias = $this->pageSystemPath($input['slug']);
+        $existingSeo = SeoRouteManager::findByAlias($alias);
+        SeoRouteManager::ensurePathIsAvailable($request->url, $alias, $existingSeo?->id);
         if($id = DB::table('pages')->insertGetId($input)) {
+            SeoRouteManager::save(
+                ['url' => $request->url, 'page_title' => $request->name],
+                $this->pageSystemPath($input['slug'])
+            );
             $this->clearPageCaches($input['slug']);
             return $this->redirectFormOnSubmit($request->FormButton,$id);
         }
@@ -76,7 +98,9 @@ class PageController extends Controller
     public function edit(Page $page)
     {
         abort_if(Gate::denies($this->module.'_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
-        return view('admin.pages.edit', compact('page'));
+        $alias = $this->pageSystemPath($page->slug ?: Str::slug($page->name));
+        $pageUrl = SeoRouteManager::findByAlias($alias)?->url ?: $alias;
+        return view('admin.pages.edit', compact('page', 'pageUrl'));
     }
 
     /**
@@ -91,8 +115,16 @@ class PageController extends Controller
         abort_if(Gate::denies($this->module.'_edit'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         $oldSlug = $page->slug;
         $input = $request->only('name','description','status');
-        $input['slug'] = Str::slug($request->name);
+        $input['slug'] = $oldSlug ?: Str::slug($request->name);
+        $alias = $this->pageSystemPath($input['slug']);
+        $seo = SeoRouteManager::findByAlias($alias);
+        SeoRouteManager::ensurePathIsAvailable($request->url, $alias, $seo?->id);
         DB::table('pages')->where('id',$page->id)->update($input);
+        SeoRouteManager::save(
+            ['url' => $request->url, 'page_title' => $request->name],
+            $alias,
+            $seo?->url
+        );
         $this->clearPageCaches($oldSlug, $input['slug']);
 
         return $this->redirectFormOnSubmit($request->FormButton,$page->id);
@@ -138,6 +170,11 @@ class PageController extends Controller
         foreach (array_unique($cacheKeys) as $cacheKey) {
             Cache::forget($cacheKey);
         }
+    }
+
+    private function pageSystemPath(string $slug): string
+    {
+        return self::FIXED_PAGE_ROUTES[$slug] ?? '/content/'.$slug;
     }
     /**
      * Remove the specified resource from storage.

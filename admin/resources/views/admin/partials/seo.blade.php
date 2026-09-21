@@ -5,9 +5,15 @@
 </div>
 <div class="row">
     <div class="col-md-6">
-        <label for="url" class="col-form-label">URL*</label>
+        <label for="url" class="col-form-label">Public Product URL*</label>
         {{ html()->hidden('seo[old_url]',$seoOldUrl ?? ($seo->url ?? null))->class('form-control') }}
-        {{ html()->text('seo[url]',$seoUrl ?? ($seo->url ?? null))->class('form-control')->required() }}
+        <div class="input-group">
+            <div class="input-group-prepend">
+                <span class="input-group-text">https://www.manidvipaflowers.com</span>
+            </div>
+            {{ html()->text('seo[url]',$seoUrl ?? ($seo->url ?? null))->class('form-control')->placeholder('/flowers/red-roses')->required() }}
+        </div>
+        <small class="form-text text-muted">Fully editable. Changing this URL creates a permanent redirect from the previous URL.</small>
     </div>
     <div class="col-md-6">
         <label for="page_title" class="col-form-label">Page Title</label>

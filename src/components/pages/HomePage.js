@@ -12,6 +12,7 @@ import {
   fetchListingData,
   getCartCount,
 } from "../../../hook/userCookie";
+import { getPriceVisibility } from "@/lib/priceVisibility";
 
 const IMG_URL = process.env.NEXT_PUBLIC_IMG_URL;
 
@@ -171,24 +172,38 @@ function getSubscriptionPlanFallbackImage(plan, index) {
 }
 
 function normalizeHomeSubscriptionPlans(plans = []) {
-  const source = Array.isArray(plans) && plans.length ? plans : fallbackSubscriptionPlans;
+  const hasApiPlans = Array.isArray(plans) && plans.length;
+  const source = hasApiPlans ? plans : fallbackSubscriptionPlans;
 
-  return source.slice(0, 5).map((plan, index) => ({
+  return source.slice(0, 5).map((plan, index) => {
+    const priceVisibility = getPriceVisibility(
+      plan,
+      "listing",
+      hasApiPlans ? "enquiry_only" : "enquiry_only"
+    );
+
+    return ({
+    ...plan,
     title: plan?.title || "Flower Subscription",
-    description:
+    description: cleanPlainText(
       plan?.included_arrangement_count ||
       plan?.included_quantity_text ||
       plan?.short_description ||
       plan?.description ||
       plan?.description_text ||
-      "Fresh flowers delivered on a regular schedule.",
-    price: plan?.price_label || plan?.price || "Custom Quote",
-    cadence: plan?.price_suffix || plan?.cadence || "",
+      "Fresh flowers delivered on a regular schedule."
+    ),
+    price: priceVisibility.showPrice
+      ? plan?.price_label || plan?.price || "Custom Quote"
+      : priceVisibility.message,
+    cadence: priceVisibility.showPrice ? plan?.price_suffix || plan?.cadence || "" : "",
+    show_price: priceVisibility.showPrice,
     image:
       plan?.image_url ||
       plan?.image ||
       getSubscriptionPlanFallbackImage(plan, index),
-  }));
+  });
+  });
 }
 
 const defaultHeroSlides = [
@@ -812,6 +827,40 @@ function SectionTitle({ title, subtitle, actionText, actionHref = "/flowers" }) 
   );
 }
 
+function HomepageManagedSection({ section, userToken }) {
+  const products = Array.isArray(section?.products) ? section.products : [];
+  if (!section?.title || !products.length) return null;
+
+  const actionHref = section.button_url || section.category_url || "/flowers";
+  const maxItems = Number(section.max_items) > 0 ? Number(section.max_items) : 6;
+
+  return (
+    <section
+      className={styles.sectionWhite}
+      id={`homepage-section-${section.id}`}
+      style={{ order: Number(section.priority) || 0 }}
+    >
+      <div className={styles.homeContainer}>
+        <SectionTitle
+          title={section.title}
+          subtitle={section.subtitle}
+          actionText={section.button_text}
+          actionHref={actionHref}
+        />
+        <div className={styles.freshArrivalGrid}>
+          {products.slice(0, maxItems).map((product, index) => (
+            <FreshArrivalCard
+              key={product?.product_id || product?.slug || `${section.id}-${index}`}
+              product={product}
+              userToken={userToken}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function getProductImage(product) {
   if (product?.localImage) return product.localImage;
   if (product?.image_url) return product.image_url;
@@ -840,7 +889,14 @@ function formatPrice(value) {
 }
 
 function getProductUnit(product, fallback = "kg") {
-  return product?.unit || product?.units || product?.measurement || product?.weight_name || fallback;
+  return (
+    product?.default_weight_label ||
+    product?.weight_name ||
+    product?.unit ||
+    product?.units ||
+    product?.measurement ||
+    fallback
+  );
 }
 
 function getSearchableProductText(product) {
@@ -871,19 +927,22 @@ function normalizeProductCollection(products = []) {
 
 function normalizeHomeProduct(product, fallback = {}, fallbackUnit = "kg") {
   const productSlug = product?.slug || fallback.slug;
+  const priceVisibility = getPriceVisibility(product);
 
   return {
     ...fallback,
     ...product,
     title: product?.title || fallback.title || "Fresh Flowers",
     slug: productSlug,
-    sell_price:
+    sell_price: priceVisibility.showPrice ? (
       product?.sell_price ||
       product?.starting_price ||
       product?.price ||
       fallback.startingPrice ||
-      fallback.sell_price,
-    list_price: product?.list_price || fallback.listPrice || fallback.list_price,
+      fallback.sell_price) : null,
+    list_price: priceVisibility.showPrice
+      ? product?.list_price || fallback.listPrice || fallback.list_price
+      : null,
     localImage: product?.localImage || fallback.localImage,
     image_url: product?.image_url || fallback.image_url,
     image_name: product?.image_name || fallback.image_name,
@@ -906,6 +965,11 @@ function buildSeedProducts(seeds = [], fallbackUnit = "kg") {
         href: seed.href,
         unit: seed.unit || fallbackUnit,
         tag: seed.tag,
+        price_visibility: "enquiry_only",
+        show_price: false,
+        can_purchase: false,
+        price_message: "Contact us for price",
+        price_cta_label: "Enquire Now",
       },
       seed,
       fallbackUnit
@@ -956,7 +1020,14 @@ function buildSeedMatchedProducts(products = [], seeds = [], fallbackUnit = "kg"
     }
 
     return matchedProduct
-      ? normalizeHomeProduct(matchedProduct, seed, seed.unit || fallbackUnit)
+      ? normalizeHomeProduct({
+          ...matchedProduct,
+          price_visibility: "enquiry_only",
+          show_price: false,
+          can_purchase: false,
+          price_message: "Contact us for price",
+          price_cta_label: "Enquire Now",
+        }, seed, seed.unit || fallbackUnit)
       : normalizeHomeProduct(
           {
             title: seed.title,
@@ -967,6 +1038,11 @@ function buildSeedMatchedProducts(products = [], seeds = [], fallbackUnit = "kg"
             href: seed.href,
             unit: seed.unit || fallbackUnit,
             tag: seed.tag,
+            price_visibility: "enquiry_only",
+            show_price: false,
+            can_purchase: false,
+            price_message: "Contact us for price",
+            price_cta_label: "Enquire Now",
           },
           seed,
           fallbackUnit
@@ -1015,6 +1091,7 @@ function getProductId(product) {
 
 function getWeightName(weight, fallback) {
   return (
+    weight?.display_name ||
     weight?.name ||
     weight?.weight ||
     weight?.title ||
@@ -1042,11 +1119,16 @@ function buildFreshWeightOptions(product) {
         sellPrice,
         listPrice,
         weightId: getWeightId(weight, product),
-        isOutOfStock: Number(weight?.stock) > 0 && Number(weight?.qty) <= 0,
+        isOutOfStock: weight?.is_out_of_stock != null
+          ? Boolean(weight.is_out_of_stock)
+          : Number(weight?.stock) > 0 && Number(weight?.qty) < (Number(weight?.quantity_value) || 1),
       };
     });
 
-    return normalizedWeights.sort((left, right) => Number(left.isOutOfStock) - Number(right.isOutOfStock));
+    // The API returns the canonical order: explicit default first, then
+    // available options. Do not re-sort here or the home card can disagree
+    // with the product details page.
+    return normalizedWeights;
   }
 
   const baseSellPrice = parsePriceValue(product?.sell_price || product?.list_price);
@@ -1100,6 +1182,8 @@ function FreshArrivalCard({ product, userToken }) {
   const totalSellPrice = (selectedWeight?.sellPrice || 0) * displayQuantity;
   const totalListPrice = (selectedWeight?.listPrice || 0) * displayQuantity;
   const productId = getProductId(cartProduct);
+  const priceVisibility = getPriceVisibility(product);
+  const canBuyFromCard = priceVisibility.showPrice && priceVisibility.canPurchase;
 
   useEffect(() => {
     setSelectedWeightIndex(0);
@@ -1224,6 +1308,11 @@ function FreshArrivalCard({ product, userToken }) {
   const handleAddToCart = async (event) => {
     event.preventDefault();
 
+    if (!canBuyFromCard) {
+      showToast(priceVisibility.message || "Please open the product to continue.", "error");
+      return;
+    }
+
     if (isOutOfStock) {
       showToast("This weight is out of stock. Please choose another option.", "error");
       return;
@@ -1302,13 +1391,13 @@ function FreshArrivalCard({ product, userToken }) {
       <div className={styles.freshArrivalBody}>
         <h3>{product?.title || "Fresh Flowers"}</h3>
         <div className={styles.freshStars}>★★★★★</div>
-        <div className={styles.freshPrice}>
+        {priceVisibility.showPrice ? <div className={styles.freshPrice}>
           {totalListPrice && totalListPrice > totalSellPrice ? (
             <span>{formatPrice(totalListPrice)}</span>
           ) : null}
           <strong>{formatPrice(totalSellPrice)}</strong>
-        </div>
-        <select
+        </div> : <div className={styles.freshPrice}><strong>{priceVisibility.message}</strong></div>}
+        {canBuyFromCard ? <><select
           className={styles.freshWeightSelect}
           value={selectedWeightIndex}
           onChange={handleWeightChange}
@@ -1324,7 +1413,7 @@ function FreshArrivalCard({ product, userToken }) {
         <div className={styles.freshQuantity}>
           <span>−</span>
           <strong>{quantity}</strong>
-          <span>{getProductUnit(product)}</span>
+          <span>{selectedWeight?.label || getProductUnit(product)}</span>
           <span>+</span>
         </div>
         <div className={styles.freshQuantityStepper}>
@@ -1362,7 +1451,11 @@ function FreshArrivalCard({ product, userToken }) {
         >
           <FaShoppingBasket aria-hidden="true" />
           {isAdding ? "Adding..." : isResolvingWeights ? "Loading..." : isOutOfStock ? "Out of stock" : wasAdded ? "Added" : "Add"}
-        </button>
+        </button></> : (
+          <Link href={href} className={styles.freshAddButton}>
+            {priceVisibility.ctaLabel}
+          </Link>
+        )}
       </div>
     </article>
   );
@@ -1371,6 +1464,7 @@ function FreshArrivalCard({ product, userToken }) {
 function PremiumProductCard({ product }) {
   const imageSrc = getProductImage(product);
   const href = getProductHref(product);
+  const priceVisibility = getPriceVisibility(product);
 
   return (
     <article className={styles.premiumProductCard}>
@@ -1386,9 +1480,7 @@ function PremiumProductCard({ product }) {
       <div className={styles.premiumProductInfo}>
         <span className={styles.premiumProductTag}>Premium Blooms</span>
         <h3>{product?.title || "Premium Flowers"}</h3>
-        <p>
-          Starting <strong>{formatPrice(product?.sell_price || product?.list_price)}</strong>
-        </p>
+        <p>{priceVisibility.showPrice ? <>Starting <strong>{formatPrice(product?.sell_price || product?.list_price)}</strong></> : <strong>{priceVisibility.message}</strong>}</p>
         <Link href={href} className={styles.premiumExploreLink}>
           <span className={styles.premiumExploreFullText}>Explore Premium Flowers</span>
           <span className={styles.premiumExploreShortText}>Explore</span>
@@ -1402,6 +1494,7 @@ function PremiumProductCard({ product }) {
 function RareProductCard({ product }) {
   const imageSrc = getProductImage(product);
   const href = getProductHref(product);
+  const priceVisibility = getPriceVisibility(product);
 
   return (
     <article className={styles.rareProductCard}>
@@ -1417,10 +1510,7 @@ function RareProductCard({ product }) {
       <div className={styles.rareProductInfo}>
         {product?.tag ? <span className={styles.rareProductTag}>{product.tag}</span> : null}
         <h3>{product?.title || "Rare Flowers"}</h3>
-        <p>
-          Starting <strong>{formatPrice(product?.sell_price || product?.list_price)}</strong> /{" "}
-          {getProductUnit(product, "bunch")}
-        </p>
+        <p>{priceVisibility.showPrice ? <>Starting <strong>{formatPrice(product?.sell_price || product?.list_price)}</strong> /{" "}{getProductUnit(product, "bunch")}</> : <strong>{priceVisibility.message}</strong>}</p>
         <Link href={href} className={styles.rareExploreLink}>
           Explore Flowers <span aria-hidden="true">&rarr;</span>
         </Link>
@@ -1434,6 +1524,7 @@ export default function HomePage({
   homeBanners = [],
   categories = [],
   initialHomeProducts = [],
+  homepageSections = [],
   initialPremiumProducts = [],
   initialRareProducts = [],
   initialSubscriptionPlans = [],
@@ -1441,6 +1532,36 @@ export default function HomePage({
   siteSettings,
 }) {
   const [homeProducts, setHomeProducts] = useState(initialHomeProducts || []);
+  const homepageSectionDefaults = useMemo(() => ({
+    hero: 10,
+    shop_by_category: 20,
+    subscriptions: 30,
+    fresh_arrivals: 40,
+    puja_box: 50,
+    shop_by_occasion: 60,
+    decorations: 70,
+    why_manidvipa: 80,
+    recent_decorations: 90,
+    testimonials: 100,
+    instagram: 110,
+    faqs: 120,
+    final_cta: 130,
+  }), []);
+  const homepageSectionByKey = useMemo(
+    () => new Map(
+      (Array.isArray(homepageSections) ? homepageSections : [])
+        .filter((section) => section?.section_key)
+        .map((section) => [section.section_key, section])
+    ),
+    [homepageSections]
+  );
+  const homepageSectionStyle = useCallback((key) => {
+    const section = homepageSectionByKey.get(key);
+    return {
+      order: Number(section?.priority ?? homepageSectionDefaults[key] ?? 999),
+      ...(section && Number(section.status) === 0 ? { display: "none" } : {}),
+    };
+  }, [homepageSectionByKey, homepageSectionDefaults]);
   const visibleSubscriptionPlans = useMemo(
     () => normalizeHomeSubscriptionPlans(initialSubscriptionPlans),
     [initialSubscriptionPlans]
@@ -1544,7 +1665,7 @@ export default function HomePage({
 
   return (
     <main className={styles.homePage}>
-      <section className={styles.heroSection} id="home">
+      <section className={styles.heroSection} id="home" style={homepageSectionStyle("hero")}>
         <div className={styles.heroCarousel}>
           <Slick
             slickCustomSettings={heroSliderSettings}
@@ -1639,7 +1760,7 @@ export default function HomePage({
         </div>
       </section>
 
-      <section className={styles.sectionWhite} id="shop-by-category">
+      <section className={styles.sectionWhite} id="shop-by-category" style={homepageSectionStyle("shop_by_category")}>
         <div className={styles.homeContainer}>
           <div className={styles.centerSectionTitle}>
             <Image src="/assets/icons/head-left.png" alt="" width={48} height={16} />
@@ -1662,7 +1783,7 @@ export default function HomePage({
         </div>
       </section>
 
-      <section className={styles.sectionSoft} id="subscriptions">
+      <section className={styles.sectionSoft} id="subscriptions" style={homepageSectionStyle("subscriptions")}>
         <div className={styles.homeContainer}>
           <div className={styles.subscriptionLayout}>
             <div className={styles.subscriptionArea}>
@@ -1732,7 +1853,7 @@ export default function HomePage({
         </div>
       </section>
 
-      <section className={styles.sectionWhite} id="fresh-arrivals">
+      <section className={styles.sectionWhite} id="fresh-arrivals" style={homepageSectionStyle("fresh_arrivals")}>
         <div className={styles.homeContainer}>
           <div className={styles.productShowcaseStack}>
             <div className={styles.freshProductSection}>
@@ -1791,7 +1912,15 @@ export default function HomePage({
         </div>
       </section>
 
-      <section className={`${styles.sectionSoft} ${styles.pujaBuilderSection}`} id="puja-box">
+      {homepageSections.filter((section) => !section?.is_system).map((section) => (
+        <HomepageManagedSection
+          key={section?.id || section?.title}
+          section={section}
+          userToken={userToken}
+        />
+      ))}
+
+      <section className={`${styles.sectionSoft} ${styles.pujaBuilderSection}`} id="puja-box" style={homepageSectionStyle("puja_box")}>
         <div className={styles.homeContainer}>
           <div className={styles.pujaBuilderCard}>
             <div className={styles.pujaBuilderContent}>
@@ -1871,7 +2000,7 @@ export default function HomePage({
         </div>
       </section>
 
-      <section className={styles.sectionSoft} id="shop-by-occasion">
+      <section className={styles.sectionSoft} id="shop-by-occasion" style={homepageSectionStyle("shop_by_occasion")}>
         <div className={styles.homeContainer}>
           <div className={styles.occasionDecorationGrid}>
             <div className={styles.occasionArea}>
@@ -1926,7 +2055,7 @@ export default function HomePage({
         </div>
       </section>
 
-      <section className={styles.sectionWhite} id="decorations">
+      <section className={styles.sectionWhite} id="decorations" style={homepageSectionStyle("decorations")}>
         <div className={styles.homeContainer}>
           <SectionTitle
             title="Flowers for Every Celebration"
@@ -1966,7 +2095,7 @@ export default function HomePage({
         </div>
       </section>
 
-      <section className={styles.benefitStrip} id="why-manidvipa">
+      <section className={styles.benefitStrip} id="why-manidvipa" style={homepageSectionStyle("why_manidvipa")}>
         <div className={styles.homeContainer}>
           <SectionTitle
             title="Why Manidvipa Flowers?"
@@ -1986,7 +2115,7 @@ export default function HomePage({
         </div>
       </section>
 
-      <section className={styles.sectionWhite} id="recent-decorations">
+      <section className={styles.sectionWhite} id="recent-decorations" style={homepageSectionStyle("recent_decorations")}>
         <div className={styles.homeContainer}>
           <div className={styles.galleryTestimonialsGrid}>
             <div>
@@ -2030,7 +2159,7 @@ export default function HomePage({
         </div>
       </section>
 
-      <section className={styles.testimonialSection} id="testimonials">
+      <section className={styles.testimonialSection} id="testimonials" style={homepageSectionStyle("testimonials")}>
         <div className={styles.homeContainer}>
           <SectionTitle
             title="What Our Customers Say"
@@ -2056,7 +2185,7 @@ export default function HomePage({
         </div>
       </section>
 
-      <section className={styles.instagramSection} id="instagram">
+      <section className={styles.instagramSection} id="instagram" style={homepageSectionStyle("instagram")}>
         <div className={styles.instagramInner}>
           <div className={styles.instagramHeader}>
             <div className={styles.instagramTitle}>
@@ -2100,7 +2229,7 @@ export default function HomePage({
       </section>
 
       {visibleFaqs.length ? (
-        <section className={styles.sectionSoft} id="faqs">
+        <section className={styles.sectionSoft} id="faqs" style={homepageSectionStyle("faqs")}>
           <div className={styles.homeContainer}>
             <SectionTitle
               title="Frequently Asked Questions"
@@ -2118,7 +2247,7 @@ export default function HomePage({
         </section>
       ) : null}
 
-      <section className={styles.finalCta} aria-label="Next morning flower delivery">
+      <section className={styles.finalCta} id="final-cta" aria-label="Next morning flower delivery" style={homepageSectionStyle("final_cta")}>
         <div className={styles.homeContainer}>
           <div className={styles.finalCtaGrid}>
             <div className={styles.finalCtaContent}>

@@ -1,0 +1,7 @@
+<tr>
+<td><input type="hidden" name="Inventory[{{ $index }}][id]" value="{{ $pool->id ?? '' }}"><select name="Inventory[{{ $index }}][unit_id]" class="form-control" required><option value="">-- Select base unit --</option>@foreach($inventoryUnits as $unit)<option value="{{ $unit->id }}" @selected((int)old("Inventory.$index.unit_id",$pool->unit_id ?? 0)===(int)$unit->id)>{{ $unit->singular_name }} / {{ $unit->plural_name }}</option>@endforeach</select></td>
+<td><input type="number" name="Inventory[{{ $index }}][qty]" class="form-control" min="0" step="0.001" value="{{ old("Inventory.$index.qty",$pool->qty ?? 0) }}" required></td>
+<td><input type="hidden" name="Inventory[{{ $index }}][track_stock]" value="0"><input type="checkbox" name="Inventory[{{ $index }}][track_stock]" value="1" @checked(old("Inventory.$index.track_stock",$pool->track_stock ?? true))></td>
+<td><select name="Inventory[{{ $index }}][status]" class="form-control"><option value="1" @selected((string)old("Inventory.$index.status",$pool->status ?? 1)==='1')>Enable</option><option value="0" @selected((string)old("Inventory.$index.status",$pool->status ?? 1)==='0')>Disable</option></select></td>
+<td>@if($pool)<a href="javascript:;" class="delete btn btn-sm btn-outline-danger" data-id="{{ $pool->id }}" data-url="{{ route('admin.products.inventory.destroy',['id'=>$pool->id]) }}"><i class="fa fa-trash"></i></a>@else<button type="button" class="btn btn-sm btn-outline-danger" data-remove-inventory><i class="fa fa-trash"></i></button>@endif</td>
+</tr>

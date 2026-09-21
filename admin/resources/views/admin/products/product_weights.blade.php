@@ -1,337 +1,48 @@
 @extends('admin.layouts.app')
 @push('styles')
 <style>
-    .stock-quantity-cell {
-        min-width: 250px;
-    }
-
-    .stock-quantity-editor .input-group {
-        flex-wrap: nowrap;
-    }
-
-    .stock-unit-label {
-        min-width: 98px;
-        justify-content: center;
-        background-color: #fff5f5;
-        color: #b31b1b;
-        font-weight: 700;
-        white-space: nowrap;
-    }
-
-    .stock-preview {
-        display: block;
-        margin-top: 6px;
-        color: #169247;
-        font-size: 12px;
-        font-weight: 700;
-        line-height: 1.25;
-    }
-
-    .stock-preview.stock-preview-danger {
-        color: #dc3545;
-    }
-
-    .stock-preview.stock-preview-muted {
-        color: #6c757d;
-        font-weight: 600;
-    }
-
-    .stock-help {
-        display: block;
-        margin-top: 3px;
-        color: #6c757d;
-        font-size: 11px;
-        line-height: 1.25;
-    }
+.inventory-card{border-left:4px solid #1cc88a}.selling-option{border:1px solid #dce3ef;border-left:4px solid #4e73df;border-radius:8px;margin-bottom:18px}.selling-option .card-header{background:#f7f9fc}.selling-option label{color:#4b5563;font-size:13px;font-weight:700}.option-box{background:#fbfcff;border:1px solid #e7ebf2;border-radius:6px;padding:14px;height:100%}.option-preview{color:#b31b1b;font-size:15px;font-weight:700}.option-help{font-size:11px}.workflow-step{align-items:center;background:#eef3ff;border-radius:50%;color:#4e73df;display:inline-flex;font-weight:800;height:30px;justify-content:center;margin-right:8px;width:30px}
 </style>
 @endpush
 @section('content')
-<section class="content">
-	<div class="container-fluid">
-		<div class="d-flex flex-wrap align-items-center justify-content-between">
-            <div>
-                <h4 class="heading mb-1">Weights &amp; stock &mdash; {{ $product->title }}</h4>
-                <p class="text-muted mb-0">Choose the selling unit first, then enter the stock count. Example: 5 in a 1 KG row shows 5 KG available; 100 in an Each Bunch row shows 100 bunches available.</p>
-            </div>
-            <div class="btn-group mt-2 mt-md-0">
-                <a href="{{ route('admin.products.edit', ['product' => $product->id]) }}" class="btn btn-outline-primary">Edit product</a>
-                <a href="{{ route('admin.products.index') }}" class="btn btn-outline-secondary">All products</a>
-            </div>
-        </div>
-		<hr>
-		<div class="card shadow mb-4">
-            <div class="card-body">
-            	<div class="row">
-            		<div class="col-sm-12">
-            		<div class="table-responsive">
-                    {{ html()->form('POST')->route('admin.'.$module.'.weightsstore',['id'=>$product->id])->class('form-horizontal')->id('form')->open() }}
-            			<table class="table table-bordered table-hover">
-                            <thead>
-                                <tr role="row">
-                                    {{-- <th>
-                                        <div class="custom-control custom-checkbox">
-                                            {!! html()->checkbox('selectAll')->id('selectAll')->class('custom-control-input') !!}
-                                            <label class="custom-control-label" for="selectAll"></label>
-                                        </div>
-                                    </th> --}}
-                                    <th scope="col">S.No</th>
-                                    <th scope="col">Weight</th>
-                                    <th scope="col">Sell Price</th>
-                                    <th scope="col">List Price</th>
-                                    <th scope="col">Cost Price</th>
-                                    {{--<th scope="col">GST %</th>
-                                    <th scope="col">Enable Vat</th>--}}
-                                    <th scope="col">Stock quantity &amp; unit</th>
-                                    <th scope="col">Track stock</th>
-                                    <th scope="col">Status</th>
-                                    {{-- <th scope="col">Created At</th> --}}
-                                    <th><button type="button" class="btn btn-sm btn-outline-primary" onclick="addWeights()" aria-label="Add another weight"><i class="fa fa-plus-circle" aria-hidden="true"></i> Add</button></th>
-                                </tr>
-                            </thead>
+<section class="content"><div class="container-fluid">
+<div class="d-flex flex-wrap align-items-center justify-content-between"><div><h4 class="heading mb-1">Inventory &amp; selling options — {{ $product->title }}</h4><p class="text-muted mb-1">Inventory is the real stock pool. Selling options are the customer quantities and prices connected to that pool.</p><p class="text-muted mb-0"><strong>Default option</strong> is shown first on home, category cards, the product page, cart and order details.</p></div><div class="btn-group mt-2 mt-md-0"><a href="{{ route('admin.products.edit',['product'=>$product->id]) }}" class="btn btn-outline-primary">Edit product</a><a href="{{ route('admin.products.index') }}" class="btn btn-outline-secondary">All products</a></div></div><hr>
+@if($errors->any())<div class="alert alert-danger"><strong>Please correct these details.</strong><ul class="mb-0 mt-2">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
 
-                            <tbody id="tablecontents">
-                            @foreach($weights as $row)
-                                <tr id="row-{{ $row->id }}">
-                                    {{-- <td>
-                                        <div class="custom-control custom-checkbox sub_chk">
-                                            {!! html()->checkbox('id[]', false, $row->id)->id($row->id)->class('custom-control-input') !!}
-                                            <label class="custom-control-label" for="{{ $row->id }}"></label>
-                                        </div>
-                                    </td> --}}
-                                    <td>
-                                        {{ $loop->iteration }}
-                                        {{ html()->hidden('Weight['.$loop->index.'][id]', $row->id) }}
-                                    </td>
-                                    <td>
-                                        {!! html()->select('Weight['.$loop->index.'][name]',$selectboxweights,$row->name)->class('form-control stock-weight-select')->placeholder('-- Select --','')->required()->attributes(['data-stock-weight-select'=>'1']) !!}
-                                    </td>
-                                    <td>
-                                        {{ html()->text('Weight['.$loop->index.'][sell_price]', $row->sell_price)->class('form-control')->required() }}
-                                    </td>
-                                    <td>
-                                        {{ html()->text('Weight['.$loop->index.'][list_price]', $row->list_price)->class('form-control')->required() }}
-                                    </td>
-                                    <td>
-                                        {{ html()->text('Weight['.$loop->index.'][cost_price]', $row->cost_price)->class('form-control') }}
-                                    </td>
-                                    <td class="stock-quantity-cell">
-                                        <div class="stock-quantity-editor" data-stock-editor="1">
-                                            <div class="input-group">
-                                                {{ html()->number('Weight['.$loop->index.'][qty]', $row->qty)->class('form-control stock-qty-input')->attributes(['min'=>0, 'step'=>'any', 'inputmode'=>'decimal', 'data-stock-qty'=>'1', 'aria-label'=>'Stock quantity for row '.$loop->iteration]) }}
-                                                <div class="input-group-append">
-                                                    <span class="input-group-text stock-unit-label" data-stock-unit>Unit</span>
-                                                </div>
-                                            </div>
-                                            <small class="stock-preview" data-stock-preview></small>
-                                            <small class="stock-help">The unit comes from the selected Weight row.</small>
-                                        </div>
-                                        @if($row->stock == 1 && $row->qty <= 0)
-                                            <span class="badge badge-danger mt-1">Out of stock</span>
-                                        @elseif($row->stock == 1 && $row->qty <= 5)
-                                            <span class="badge badge-warning mt-1">Low stock</span>
-                                        @endif
-                                    </td>
-                                    {{--<td>{{ html()->text('Weight['.$loop->index.'][vat_price]', $row->vat_price )->class('form-control') }}</td>
-                                    <td>
-                                    {{ html()->checkbox('Weight['.$loop->index.'][vat_enable]', 1, $row->vat_enable == 1)->class('form-control') }}
-                                    </td>--}}
-                                    <td>
-                                    {{ html()->checkbox('Weight['.$loop->index.'][stock]', $row->stock == 1, 1)->class('stock-track-input')->attributes(['data-stock-track'=>'1', 'aria-label'=>'Track stock for row '.$loop->iteration]) }}
-                                    </td>
-                                    <td>
-                                        {!! html()->select('Weight['.$loop->index.'][status]',[''=>'-- Select --','1'=>'Enable','0'=>'Disable'],$row->status)->class('form-control')->required() !!}
-                                        {{-- <label class="switch">
-                                        {{ html()->checkbox('status', $row->status, null)->class('status')->id('status_'.$row->id)->attributes(['data-id'=>$row->id,'data-url'=>route('admin.'.$module.'.weight.update.status',['id'=>$row->id])]) }}
-                                        <span class="slider round"></span>
-                                        </label> --}}
-                                    </td>
-                                    {{-- <td>{{$row->created_at}}</td> --}}
-                                    <td>
-                                        @can($module.'_delete')
-                                            <a href="javascript:;" class="delete btn btn-danger" title="Delete this weight" aria-label="Delete this weight" data-id="{{ $row->id }}" data-url="{{ route('admin.'.$module.'.weight.destroy',['id'=>$row->id]) }}"><i class="fa fa-trash" aria-hidden="true"></i></a>
-                                        @endcan
-                                    </td>
-                                </tr>
-                            @endforeach
-                            </tbody>
-                        </table>
-                        <button type="submit" class="btn btn-primary">Save weights &amp; stock</button>
-                    {{ html()->form()->close() }}
-                    </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-	</div>
-</section>
-<script>
-    var row_no ={{ $weights->count() + 1 }};
-    var stockWeightOptionsHtml = @json($shtml);
-</script>
+<div class="card shadow mb-4 inventory-card"><div class="card-header"><h5 class="mb-0"><span class="workflow-step">1</span>Real inventory</h5></div><div class="card-body">
+<p class="text-muted">Enter the total physical stock once. Example: Lotus = 2,500 Flowers; Marigold = 25,000 Grams. All connected selling options share this quantity.</p>
+<form method="POST" action="{{ route('admin.products.inventorystore',['id'=>$product->id]) }}">@csrf
+<div class="table-responsive"><table class="table table-bordered"><thead><tr><th>Base unit</th><th>Available stock</th><th>Track stock</th><th>Status</th><th></th></tr></thead><tbody id="inventory-rows">
+@foreach($inventoryPools as $index=>$pool)
+@include('admin.products.partials.inventory_pool',['index'=>$index,'pool'=>$pool])
+@endforeach
+</tbody></table></div>
+<div class="d-flex justify-content-between"><button type="button" class="btn btn-outline-success" id="add-inventory"><i class="fa fa-plus-circle"></i> Add inventory pool</button><button type="submit" class="btn btn-success"><i class="fa fa-save"></i> Save inventory</button></div>
+</form></div></div>
+
+<div class="card shadow mb-4"><div class="card-header"><h5 class="mb-0"><span class="workflow-step">2</span>Customer selling options</h5></div><div class="card-body">
+@if($inventoryPools->isEmpty())<div class="alert alert-warning">Create and save an inventory pool first. Selling options need real inventory to calculate availability correctly.</div>@endif
+<form method="POST" action="{{ route('admin.products.weightsstore',['id'=>$product->id]) }}">@csrf
+<div id="selling-options">@foreach($weights as $index=>$row)@include('admin.products.partials.selling_option',['index'=>$index,'row'=>$row])@endforeach</div>
+<div class="d-flex flex-wrap justify-content-between"><button type="button" class="btn btn-outline-primary" id="add-selling-option" @disabled($inventoryPools->isEmpty())><i class="fa fa-plus-circle"></i> Add selling option</button><button type="submit" class="btn btn-primary" @disabled($inventoryPools->isEmpty())><i class="fa fa-save"></i> Save selling options</button></div>
+</form></div></div>
+</div></section>
+<template id="inventory-template">@include('admin.products.partials.inventory_pool',['index'=>'__INDEX__','pool'=>null])</template>
+<template id="selling-option-template">@include('admin.products.partials.selling_option',['index'=>'__INDEX__','row'=>null])</template>
 @endsection
 @push('script')
 <script>
-function normalizeStockWeightName(name)
-{
-    return String(name || '')
-        .toLowerCase()
-        .replace(/[._-]+/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-}
+(function(){
+const inventoryRows=document.getElementById('inventory-rows'),inventoryTemplate=document.getElementById('inventory-template'),addInventory=document.getElementById('add-inventory');let inventoryIndex={{ $inventoryPools->count() }};
+addInventory.addEventListener('click',()=>{const box=document.createElement('tbody');box.innerHTML=inventoryTemplate.innerHTML.replaceAll('__INDEX__',String(inventoryIndex++));const row=box.firstElementChild;inventoryRows.appendChild(row);row.querySelector('[data-remove-inventory]').addEventListener('click',()=>row.remove())});
+document.querySelectorAll('[data-remove-inventory]').forEach(button=>button.addEventListener('click',()=>button.closest('tr').remove()));
 
-function formatStockNumber(value)
-{
-    var number = Number(value);
-
-    if (!Number.isFinite(number)) {
-        number = 0;
-    }
-
-    return number.toFixed(2).replace(/\.?0+$/, '') || '0';
-}
-
-function stockUnitForWeight(weightName, quantity)
-{
-    var name = normalizeStockWeightName(weightName);
-    var number = Number(quantity);
-    var isSingle = Number.isFinite(number) && Math.abs(number - 1) < 0.00001;
-
-    if (!name) {
-        return 'units';
-    }
-
-    if (name.includes('bunch')) {
-        return isSingle ? 'bunch' : 'bunches';
-    }
-
-    if (name.includes('stem')) {
-        return isSingle ? 'stem' : 'stems';
-    }
-
-    if (name.includes('piece') || name.includes('pcs') || name.includes('each one') || name === 'each') {
-        return isSingle ? 'piece' : 'pieces';
-    }
-
-    if (name.includes('packet')) {
-        return isSingle ? 'packet' : 'packets';
-    }
-
-    if (/^1\s*(kg|kgs|kilogram|kilograms)$/.test(name)) {
-        return 'KG';
-    }
-
-    if (/^1\s*(ltr|liter|litre|liters|litres|l)$/.test(name)) {
-        return 'LTR';
-    }
-
-    if (/\b(kg|kgs|kilogram|kilograms|gram|grams|grm|gm|g|ml|ltr|liter|litre|liters|litres|l)\b/.test(name)) {
-        return isSingle ? 'pack' : 'packs';
-    }
-
-    return isSingle ? 'unit' : 'units';
-}
-
-function stockPreviewForWeight(weightName, quantity, isTracked)
-{
-    var qtyText = formatStockNumber(quantity);
-    var unit = stockUnitForWeight(weightName, quantity);
-    var name = String(weightName || '').trim();
-
-    if (!name) {
-        return 'Select a weight/unit first.';
-    }
-
-    if (!isTracked) {
-        return 'Tracking off - customers can order this option without a stock limit.';
-    }
-
-    if (unit === 'pack' || unit === 'packs') {
-        return qtyText + ' ' + unit + ' of ' + name + ' available';
-    }
-
-    return qtyText + ' ' + unit + ' available';
-}
-
-function refreshStockEditor(row)
-{
-    if (!row) {
-        return;
-    }
-
-    var weightSelect = row.querySelector('[data-stock-weight-select]');
-    var quantityInput = row.querySelector('[data-stock-qty]');
-    var trackInput = row.querySelector('[data-stock-track]');
-    var unitLabel = row.querySelector('[data-stock-unit]');
-    var preview = row.querySelector('[data-stock-preview]');
-
-    if (!weightSelect || !quantityInput || !unitLabel || !preview) {
-        return;
-    }
-
-    var weightName = weightSelect.value;
-    var quantity = quantityInput.value;
-    var isTracked = !trackInput || trackInput.checked;
-    var unit = stockUnitForWeight(weightName, quantity);
-    var numericQuantity = Number(quantity);
-
-    unitLabel.textContent = unit;
-    preview.textContent = stockPreviewForWeight(weightName, quantity, isTracked);
-    preview.classList.toggle('stock-preview-muted', !weightName || !isTracked);
-    preview.classList.toggle('stock-preview-danger', Boolean(weightName) && isTracked && Number.isFinite(numericQuantity) && numericQuantity <= 0);
-}
-
-function refreshStockEditors()
-{
-    document.querySelectorAll('#tablecontents tr').forEach(function(row) {
-        refreshStockEditor(row);
-    });
-}
-
-function addWeights()
-{
-    var currentRowNo = row_no;
-    var newWeightRowId = 'row-new-' + currentRowNo;
-    var row = '<tr id="' + newWeightRowId + '">';
-    row += '<td>' + currentRowNo + '<input name="Weight[' + currentRowNo + '][id]" type="hidden" value=""></td>';
-    row += '<td><select class="select2 form-control stock-weight-select" data-stock-weight-select="1" autocomplete="off" name="Weight[' + currentRowNo + '][name]" required>' + stockWeightOptionsHtml + '</select></td>';
-    row += '<td><input name="Weight[' + currentRowNo + '][sell_price]" class="form-control" type="text" required></td>';
-    row += '<td><input name="Weight[' + currentRowNo + '][list_price]" class="form-control" type="text" required></td>';
-    row += '<td><input name="Weight[' + currentRowNo + '][cost_price]" class="form-control" type="text"></td>';
-    row += '<td class="stock-quantity-cell"><div class="stock-quantity-editor" data-stock-editor="1"><div class="input-group"><input class="form-control stock-qty-input" autocomplete="off" data-stock-qty="1" name="Weight[' + currentRowNo + '][qty]" type="number" min="0" step="any" inputmode="decimal" aria-label="Stock quantity for row ' + currentRowNo + '"><div class="input-group-append"><span class="input-group-text stock-unit-label" data-stock-unit>Unit</span></div></div><small class="stock-preview" data-stock-preview></small><small class="stock-help">The unit comes from the selected Weight row.</small></div></td>';
-    row += '<td><input autocomplete="off" name="Weight[' + currentRowNo + '][stock]" class="stock-track-input" data-stock-track="1" type="checkbox" value="1" checked aria-label="Track stock for row ' + currentRowNo + '"></td>';
-    row += '<td><select class="form-control" autocomplete="off" name="Weight[' + currentRowNo + '][status]"><option value="1">Enable</option><option value="0">Disable</option></select></td>';
-    row += '<td><button type="button" class="btn btn-danger remove-new-weight" aria-label="Remove this new weight"><i class="fa fa-trash" aria-hidden="true"></i></button></td>';
-    row += '</tr>';
-    $('#tablecontents').append(row);
-    refreshStockEditor(document.getElementById(newWeightRowId));
-    row_no++;
-}
-
-document.addEventListener('input', function(event) {
-    if (event.target.matches('[data-stock-qty]')) {
-        refreshStockEditor(event.target.closest('tr'));
-    }
-});
-
-document.addEventListener('change', function(event) {
-    if (event.target.matches('[data-stock-weight-select], [data-stock-track]')) {
-        refreshStockEditor(event.target.closest('tr'));
-    }
-});
-
-document.addEventListener('click', function(event) {
-    var removeButton = event.target.closest('.remove-new-weight');
-
-    if (removeButton) {
-        removeButton.closest('tr').remove();
-    }
-});
-
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', refreshStockEditors);
-} else {
-    refreshStockEditors();
-}
+const list=document.getElementById('selling-options'),template=document.getElementById('selling-option-template'),add=document.getElementById('add-selling-option');let next={{ $weights->count() }};
+const num=v=>{const n=Number(v||0);return Number.isFinite(n)?String(Number(n.toFixed(3))):'0'};
+function selectedUnit(card){const select=card.querySelector('[data-unit]'),option=select.options[select.selectedIndex];return{code:option?.dataset.code||'',base:option?.dataset.base||'',decimal:option?.dataset.decimal==='1',singular:option?.dataset.singular||'Unit',plural:option?.dataset.plural||'Units'}}
+function update(card){const q=card.querySelector('[data-quantity]').value,u=selectedUnit(card),label=card.querySelector('[data-label]').value.trim(),mode=card.querySelector('[data-mode]').value,custom=card.querySelector('[data-custom]').checked,inventory=card.querySelector('[data-inventory]');card.querySelector('[data-preview]').textContent=label||(q&&u.code?num(q)+' '+(Number(q)===1?u.singular:u.plural):'Complete quantity and unit');card.querySelector('[data-quantity]').step=u.decimal?'0.001':'1';card.querySelectorAll('[data-custom-fields] input[type=number]').forEach(input=>input.step=u.decimal?'0.001':'1');Array.from(inventory.options).forEach((option,index)=>{if(index===0)return;option.disabled=Boolean(u.base&&option.dataset.base!==u.base)});if(inventory.selectedOptions[0]?.disabled)inventory.value='';card.querySelector('[data-rates]').hidden=mode!=='automatic';card.querySelector('[data-totals]').querySelectorAll('input').forEach(i=>i.readOnly=mode==='automatic');card.querySelector('[data-custom-fields]').hidden=!custom;if(mode==='automatic'&&q){['sell','list','cost'].forEach(t=>{const rate=card.querySelector('[data-rate-'+t+']'),total=card.querySelector('[data-total-'+t+']');total.value=rate.value===''?'':(Number(q)*Number(rate.value)).toFixed(2)})}}
+function init(card){card.querySelectorAll('input,select').forEach(f=>f.addEventListener((f.type==='text'||f.type==='number')?'input':'change',()=>update(card)));const remove=card.querySelector('[data-remove]');if(remove)remove.addEventListener('click',()=>card.remove());update(card)}
+if(add)add.addEventListener('click',()=>{const box=document.createElement('div');box.innerHTML=template.innerHTML.replaceAll('__INDEX__',String(next++));const card=box.firstElementChild;list.appendChild(card);init(card);card.scrollIntoView({behavior:'smooth',block:'center'})});list.querySelectorAll('[data-option]').forEach(init);
+})();
 </script>
 @endpush

@@ -25,6 +25,7 @@ class OrderController extends Controller
         $create['order_encrypt_key'] = $order_encrypt_key;
         $create['name'] = $cartBillingAddress['full_name'];
         $create['email'] = $cartBillingAddress['email'];
+        $create['source'] = 'website';
         if(isset($totals['gst'])){
             $create['gst'] = $totals['gst']['amount'];
         }

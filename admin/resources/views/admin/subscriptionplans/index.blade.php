@@ -59,6 +59,7 @@
                                 <th>Segment / Package</th>
                                 <th>What Customer Gets</th>
                                 <th>Price</th>
+                                <th>Customer Price</th>
                                 <th>Refresh / Flowers</th>
                                 <th>Home</th>
                                 <th>Sort</th>
@@ -85,7 +86,7 @@
                                     </td>
                                     <td>
                                         <strong>{{ $row->title }}</strong>
-                                        <div class="text-muted small">{{ $row->short_description }}</div>
+                                        <div class="text-muted small">{{ \Illuminate\Support\Str::limit(trim(strip_tags($row->short_description)), 140) }}</div>
                                     </td>
                                     <td>
                                         <strong>{{ $row->business_type }}</strong>
@@ -118,6 +119,15 @@
                                         <strong>{!! $row->starting_price > 0 ? '&#8377;'.number_format($row->starting_price, 0) : 'Custom Quote' !!}</strong>
                                         <span>{{ $row->price_suffix }}</span>
                                         <div class="text-muted small">{{ $row->billing_cycle }}</div>
+                                    </td>
+                                    @php($priceDisplay = \App\Support\PriceVisibility::forSubscription($row))
+                                    <td>
+                                        <span class="badge badge-{{ $priceDisplay['show_price'] ? 'success' : ($priceDisplay['effective_mode'] === 'coming_soon' ? 'warning' : 'info') }}">
+                                            {{ $priceVisibilityModes[$priceDisplay['effective_mode']] ?? ucfirst(str_replace('_', ' ', $priceDisplay['effective_mode'])) }}
+                                        </span>
+                                        @if($priceDisplay['visible_from'])
+                                            <div class="small text-muted mt-1">From {{ \Carbon\Carbon::parse($priceDisplay['visible_from'])->format('d-m-Y h:i A') }}</div>
+                                        @endif
                                     </td>
                                     <td>
                                         <strong>{{ $row->refresh_frequency ?: $row->delivery_frequency }}</strong>

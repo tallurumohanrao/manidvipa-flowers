@@ -1,7 +1,7 @@
 @php
 $routeName = request()->route()?->getName() ?? 'admin.index';
 $route = explode('.', $routeName)[1] ?? 'index';
-$result = DB::table('permissions')->where('menu_status', 1)->where('status', 1)->orderBy('group_sort_order')->get();
+$result = \App\Support\AdminAccessCache::activePermissions()->where('menu_status', 1);
 $all = [];
 $modules = [];
 $icon_class = '';

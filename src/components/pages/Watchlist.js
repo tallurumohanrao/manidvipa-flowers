@@ -16,6 +16,7 @@ import {
   getCartCount,
 } from "../../../hook/userCookie";
 import { useWatchlistCount } from "@/context/UserContext";
+import { getPriceVisibility } from "@/lib/priceVisibility";
 
 const Banner = dynamic(() => import("@/components/banner"), { ssr: false });
 
@@ -192,7 +193,10 @@ const Watchlist = ({ watchlist, userToken, guestSession }) => {
   );
 };
 
-const WatchlistCard = React.memo(({ item, onDelete, onCart, isAdding, wasAdded }) => (
+const WatchlistCard = React.memo(({ item, onDelete, onCart, isAdding, wasAdded }) => {
+  const priceVisibility = getPriceVisibility(item);
+
+  return (
   <div className={`row ${styles.card}`}>
     <div
       className={`col-sm-3 ${styles.title_price}`}
@@ -224,18 +228,18 @@ const WatchlistCard = React.memo(({ item, onDelete, onCart, isAdding, wasAdded }
             <h5>{item.product_title}</h5>
           </li>
         </Link>
-        <li>
+        {priceVisibility.showPrice ? <li>
           <span>
             {item.weight} - {formatPrice(item.sell_price)}
           </span>
-        </li>
+        </li> : <li><strong>{priceVisibility.message}</strong></li>}
       </ul>
     </div>
     <div className={`col-sm-4 ${styles.cart_remove}`}>
       <div className={styles.cost}>
-        <h6>{formatPrice(item.sell_price)}/-</h6>
+        <h6>{priceVisibility.showPrice ? `${formatPrice(item.sell_price)}/-` : priceVisibility.message}</h6>
         <div className="d-flex align-items-center">
-          <p
+          {priceVisibility.showPrice && priceVisibility.canPurchase ? <p
             className="green-but"
             onClick={(e) => {
               if (!isAdding) onCart(e, item.product_id, item.weight_id, "cart");
@@ -244,7 +248,7 @@ const WatchlistCard = React.memo(({ item, onDelete, onCart, isAdding, wasAdded }
             aria-disabled={isAdding}
           >
             {isAdding ? "Adding..." : wasAdded ? "Added" : "Add To Cart"}
-          </p>
+          </p> : <Link href={`/flowers/${item.product_slug}`} className="green-but">{priceVisibility.ctaLabel}</Link>}
           <span
             className={styles.close_icon}
             onClick={() => onDelete(item.wishlist_id)}
@@ -257,7 +261,8 @@ const WatchlistCard = React.memo(({ item, onDelete, onCart, isAdding, wasAdded }
       </div>
     </div>
   </div>
-));
+  );
+});
 
 WatchlistCard.displayName = "WatchlistCard";
 

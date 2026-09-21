@@ -26,10 +26,20 @@ class ProjectController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function index()
+    public function index(Request $request)
     {
         abort_if(Gate::denies($this->module.'_view'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
-        $data = $this->model::paginate(config('PER_PAGE'));
+        $query = $this->model::query();
+        if ($request->filled('q')) {
+            $term = '%'.$request->input('q').'%';
+            $query->where(function ($search) use ($term) {
+                $search->where('title', 'like', $term)
+                    ->orWhere('location', 'like', $term)
+                    ->orWhere('category', 'like', $term)
+                    ->orWhere('slug', 'like', $term);
+            });
+        }
+        $data = $query->orderByDesc('id')->paginate($request->input('per_page') ?: config('PER_PAGE'))->withQueryString();
         return view('admin.'.$this->module.'.index', compact('data'));
     }
 

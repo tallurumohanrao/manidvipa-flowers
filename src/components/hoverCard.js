@@ -27,6 +27,9 @@ const HoverCard = ({
   handleClick,
   wishlist_id,
   userToken,
+  showPrice = true,
+  priceMessage = "Contact us for price",
+  priceCtaLabel = "View Details",
   fetchData = () => {},
 }) => {
   const pathname = usePathname();
@@ -233,15 +236,15 @@ const HoverCard = ({
       <div className={styles.store_content}>
         <h6>{title}</h6>
         <div className={styles.store_price}>
-          {originalPrice && (
+          {showPrice && originalPrice && (
             <p className={styles.originalPrice}>Rs {originalPrice} </p>
           )}
-          <p>Rs {salePrice} </p>
+          <p>{showPrice ? `Rs ${salePrice}` : priceMessage}</p>
         </div>
         <div className={styles.besides_btn}>
           <Link href={`/flowers/${slug}`}>
             <button className="primary-but" onClick={handleClick}>
-              View Details
+              {showPrice ? "View Details" : priceCtaLabel}
             </button>
           </Link>
         </div>

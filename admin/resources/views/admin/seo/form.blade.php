@@ -1,13 +1,24 @@
 <div class="row">
     <div class="col-md-6">
-        <label class="col-form-label" for="url">URL</label>
-        {{ html()->text('url')->class('form-control')->required() }}
+        <label class="col-form-label" for="url">Public Page URL*</label>
+        <div class="input-group">
+            <div class="input-group-prepend">
+                <span class="input-group-text">https://www.manidvipaflowers.com</span>
+            </div>
+            {{ html()->text('url')->class('form-control')->placeholder('/puja-flowers/chamanthi')->required() }}
+        </div>
+        <small class="form-text text-muted">Fully editable. Paste a complete URL or enter only the path; it will be saved as a clean path.</small>
     </div>
 
-    {{--<div class="col-md-6">
-        {!! Form::label('alias', 'Alias*', ['class' => 'col-form-label']) !!}
-        {!! Form::text('alias', null ,['class' => 'form-control ', 'placeholder' => '', 'autocomplete' => 'off']) !!}
-    </div>--}}
+    <div class="col-md-6">
+        <label class="col-form-label" for="alias">System Page Path*</label>
+        @if(isset($seo) && $seo->exists)
+            {{ html()->text('alias')->class('form-control')->attribute('readonly', 'readonly')->required() }}
+        @else
+            {{ html()->text('alias')->class('form-control')->placeholder('/about')->required() }}
+        @endif
+        <small class="form-text text-muted">The existing page that opens at the public URL. Keep this unchanged when you only rename the URL.</small>
+    </div>
 
     <div class="col-md-6">
         <label class="col-form-label" for="page_title">Page Title*</label>

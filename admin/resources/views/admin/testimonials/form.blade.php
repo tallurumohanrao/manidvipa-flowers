@@ -26,7 +26,7 @@
     </div>
     <div class="col-md-6">
     <label class="col-form-label" for="description">Description</label>
-        {{ html()->textarea('description')->class('form-control')->placeholder('Description')->id('description')->required() }}
+        {{ html()->textarea('description')->class('form-control editor')->placeholder('Description')->id('description')->required() }}
     </div>
 
 

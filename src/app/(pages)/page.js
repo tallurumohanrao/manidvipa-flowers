@@ -106,6 +106,7 @@ export default async function Page() {
     bannersData,
     categoriesData,
     homeProductsData,
+    homeSectionsData,
     premiumProductsData,
     rareProductsData,
     subscriptionPlansData,
@@ -115,6 +116,7 @@ export default async function Page() {
       fetchListingData("GET", "banners?page=home", userToken),
       fetchListingData("GET", "categories?scope=home", userToken),
       fetchListingData("GET", "home-featured-products", userToken),
+      fetchListingData("GET", "home-sections", userToken),
       fetchListingData(
         "GET",
         "products-by-category?category_slug=premium-flowers&per_page=5",
@@ -147,6 +149,7 @@ export default async function Page() {
         homeBanners={bannersData?.data || []}
         categories={categoriesData?.data || []}
         initialHomeProducts={homeProductsData?.data || []}
+        homepageSections={homeSectionsData?.data || []}
         initialPremiumProducts={unpackPaginatedProducts(premiumProductsData)}
         initialRareProducts={unpackPaginatedProducts(rareProductsData)}
         initialSubscriptionPlans={subscriptionPlansData?.data || []}

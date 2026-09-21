@@ -97,6 +97,21 @@
     width: 100%;
   }
 }
+
+.deliveryDateNotice {
+  margin: 12px 0 0;
+  padding: 9px 11px;
+  border-left: 3px solid #2f55d4;
+  background: #f3f6ff;
+  color: #24355f;
+  font-size: 16px;
+  line-height: 1.55;
+
+  strong {
+    color: #6d1b2e;
+    font-weight: 700;
+  }
+}
 .payment_type {
   display: flex;
   align-items: flex-start;

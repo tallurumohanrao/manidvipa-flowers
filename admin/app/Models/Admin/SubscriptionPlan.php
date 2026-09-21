@@ -19,6 +19,8 @@ class SubscriptionPlan extends Model
         'description',
         'starting_price',
         'price_suffix',
+        'price_visibility',
+        'price_visible_from',
         'billing_cycle',
         'delivery_frequency',
         'included_quantity_text',
@@ -40,6 +42,7 @@ class SubscriptionPlan extends Model
 
     protected $casts = [
         'starting_price' => 'decimal:2',
+        'price_visible_from' => 'datetime',
         'sort_order' => 'integer',
         'is_featured' => 'boolean',
         'status' => 'boolean',

@@ -16,7 +16,6 @@
     <link rel="shortcut icon" type="image/x-icon" href="{{ $faviconUrl }}">
     <!-- Custom fonts for this template-->
     <link rel="stylesheet" href="{{ asset('assets/admin/vendor/fontawesome-free/css/all.min.css') }}" />
-    <link href="https://fonts.googleapis.com/css?family=Nunito:200,200i,300,300i,400,400i,600,600i,700,700i,800,800i,900,900i" rel="stylesheet">
     <!-- Custom styles for this template-->
     <link rel="stylesheet" href="{{ asset('assets/admin/css/sb-admin-2.min.css') }}" />
     {{--<link rel="stylesheet" href="{{ asset('assets/admin/css/jquery.datetimepicker.min.css') }}" />--}}
@@ -24,8 +23,15 @@
     <link rel="stylesheet" href="{{ asset('assets/admin/css/sweetalert2.min.css') }}" />
     <link rel="stylesheet" href="{{ asset('assets/admin/css/select2.min.css') }}" />
     <link rel="stylesheet" href="{{ asset('assets/admin/css/style.css') }}" />
-    <link media="all" type="text/css" rel="stylesheet" href="//cdn.datatables.net/1.13.1/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="{{ asset('assets/admin/css/rich-editor.css') }}" />
+    <link rel="stylesheet" href="{{ asset('assets/admin/css/admin-shell.css') }}?v={{ @filemtime(public_path('assets/admin/css/admin-shell.css')) }}" />
+    <link rel="stylesheet" href="{{ asset('assets/admin/css/admin-tables.css') }}?v={{ @filemtime(public_path('assets/admin/css/admin-tables.css')) }}" />
+    @if(request()->is('admin/categories*'))
+    <link rel="stylesheet" href="{{ asset('assets/admin/css/categories.css') }}?v={{ @filemtime(public_path('assets/admin/css/categories.css')) }}" />
+    @endif
+    @if(request()->routeIs('admin.bookings.create', 'admin.bookings.edit'))
     <link rel="stylesheet" href="//code.jquery.com/ui/1.13.0/themes/base/jquery-ui.css">
+    @endif
     @stack('styles')
     <style>
         .cke_notifications_area{
@@ -130,6 +136,8 @@
                 </nav>
                 <!-- End of Topbar -->
 
+                @include('admin.includes.flash-message')
+
                 <!-- Begin Page Content -->
                 @yield('content')
                 <!-- /.container-fluid -->
@@ -180,7 +188,9 @@
 
    <!-- Bootstrap core JavaScript-->
    <script src="{{ asset('assets/admin/vendor/jquery/jquery.min.js') }}"></script>
+   @if(request()->routeIs('admin.bookings.create', 'admin.bookings.edit'))
    <script src="https://code.jquery.com/ui/1.13.0/jquery-ui.js"></script>
+   @endif
    <script src="{{ asset('assets/admin/vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
    <!-- Core plugin JavaScript-->
    <script src="{{ asset('assets/admin/vendor/jquery-easing/jquery.easing.min.js') }}"></script>
@@ -189,41 +199,47 @@
    <script src="{{ asset('assets/admin/js/select2.min.js') }}"></script>
    <script src="{{ asset('assets/admin/js/notific.js') }}"></script>
    <script src="{{ asset('assets/admin/js/sweetalert2.min.js') }}"></script>
-   <script src="{{ asset('assets/admin/js/custom.js') }}"></script>
+   <script src="{{ asset('assets/admin/js/custom.js') }}?v={{ @filemtime(public_path('assets/admin/js/custom.js')) }}"></script>
+   <script src="{{ asset('assets/admin/js/admin-tables.js') }}?v={{ @filemtime(public_path('assets/admin/js/admin-tables.js')) }}"></script>
    <script src="{{ asset('assets/admin/js/sb-admin-2.min.js') }}"></script>
-   <script src="https://cdn.ckeditor.com/4.12.1/standard/ckeditor.js"></script>
-
-    <script src="//cdn.datatables.net/1.13.1/js/jquery.dataTables.min.js"></script>
+   <script>
+       window.AdminRichEditorConfig = {
+           uploadUrl: @json(Route::has('admin.ckeditor.upload') ? route('admin.ckeditor.upload') : null),
+           csrfToken: @json(csrf_token())
+       };
+   </script>
+   <script src="{{ asset('assets/admin/js/rich-editor.js') }}"></script>
     @yield('script')
     @stack('script')
-    <script>
-
-$( function() {
-    $( ".datepicker" ).datepicker({
-        minDate : 0,
-        dateFormat: 'yy-mm-dd',
-    });
-});
-    @if(Route::has('admin.ckeditor.upload'))
-	$(function(){
-		$('.editor').each(function(e){
-			CKEDITOR.replace( this.id, {
-				filebrowserUploadUrl: "{{route('admin.ckeditor.upload', ['_token' => csrf_token(),'type'=>'file' ])}}",
-				filebrowserImageUploadUrl: "{{route('admin.ckeditor.upload', ['_token' => csrf_token(),'type'=>'image' ])}}",
-				filebrowserUploadMethod: 'form',
-				allowedContent:true
-			});
-		});
-	})
-    @endif
-	$(function(){
-		@include('admin.includes.flash-message')
-	})
     @can('settings_edit')
     @if(Route::has('admin.down'))
 	<form method="POST" action="{{ route('admin.down') }}" id="maintenance-form" class="d-none">
         @csrf
     </form>
+    @endif
+    @endcan
+    <script>
+
+$(function() {
+    if ($.fn.datepicker && $(".datepicker").length) {
+        $(".datepicker").datepicker({
+            minDate : 0,
+            dateFormat: 'yy-mm-dd',
+        });
+    }
+});
+    $(function() {
+        if (window.AdminRichEditor && typeof window.AdminRichEditor.initAll === 'function') {
+            window.AdminRichEditor.initAll('.editor');
+        }
+    });
+	$(function(){
+		if (window.Message && typeof window.Message.init === 'function') {
+			window.Message.init({life: 5000, timeOut: 250});
+		}
+	})
+    @can('settings_edit')
+    @if(Route::has('admin.down'))
 	function maintenance(){
 	    if(!confirm('Do you want to proceed site under maintenance?')){
 	        return false;

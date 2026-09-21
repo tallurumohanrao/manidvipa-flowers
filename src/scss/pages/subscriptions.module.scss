@@ -294,6 +294,19 @@
   }
 }
 
+.planDescription {
+  color: #65473f;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0 0 16px;
+
+  p:last-child,
+  ul:last-child,
+  ol:last-child {
+    margin-bottom: 0;
+  }
+}
+
 .planTypeRow {
   display: flex;
   flex-wrap: wrap;

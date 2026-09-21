@@ -7,6 +7,7 @@ use App\Http\Requests\StoreSubscriptionPlanRequest;
 use App\Models\Admin\SubscriptionPlan;
 use App\Traits\RedirectTrait;
 use App\Traits\StoreImageTrait;
+use App\Support\PriceVisibility;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
@@ -28,6 +29,7 @@ class SubscriptionPlanController extends Controller
         View::share('subscriptionTypes', $this->subscriptionTypes());
         View::share('flowerGrades', $this->flowerGrades());
         View::share('billingCycles', $this->billingCycles());
+        View::share('priceVisibilityModes', PriceVisibility::subscriptionModes());
     }
 
     public function index(Request $request)
@@ -190,6 +192,8 @@ class SubscriptionPlanController extends Controller
         $formInput['slug'] = $slug;
         $formInput['subscription_type'] = $request->subscription_type ?: 'Premium Arrangements';
         $formInput['price_suffix'] = $request->price_suffix ?: '/ month';
+        $formInput['price_visibility'] = $request->price_visibility ?: PriceVisibility::INHERIT;
+        $formInput['price_visible_from'] = $request->filled('price_visible_from') ? $request->price_visible_from : null;
         $formInput['cta_label'] = $request->cta_label ?: 'Request Plan';
         $formInput['sort_order'] = (int) ($request->sort_order ?: 0);
         $formInput['is_featured'] = (int) $request->is_featured;

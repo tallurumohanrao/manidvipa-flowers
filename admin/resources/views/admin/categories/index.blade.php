@@ -1,7 +1,7 @@
 @extends('admin.layouts.app')
 @push('styles')
 <style>
-    .category-guide-card {
+    .category-index-page .category-guide-card {
         border: 1px solid #ead8dd;
         border-radius: 12px;
         background: #fffaf7;
@@ -9,7 +9,7 @@
         height: 100%;
     }
 
-    .category-guide-card .guide-title {
+    .category-index-page .category-guide-card .guide-title {
         color: #8f1235;
         font-size: 13px;
         font-weight: 800;
@@ -18,59 +18,64 @@
         margin-bottom: 4px;
     }
 
-    .category-guide-card .guide-text {
+    .category-index-page .category-guide-card .guide-text {
         color: #5f4a4f;
         font-size: 13px;
         margin-bottom: 0;
     }
 
-    .category-tree-table th {
+    .category-index-page .category-tree-table th {
         white-space: nowrap;
         color: #4c3038;
         font-size: 13px;
     }
 
-    .category-tree-table td {
+    .category-index-page .category-tree-table td {
         vertical-align: middle;
     }
 
-    .category-parent-row {
-        background: #fff9f1;
+    .category-index-page .category-tree-table tr.category-parent-row > td {
+        background-color: #fff9f1 !important;
     }
 
-    .category-child-row {
-        background: #ffffff;
+    .category-index-page .category-tree-table tr.category-child-row > td {
+        background-color: #ffffff !important;
     }
 
-    .category-structure {
+    .category-index-page .category-tree-table tr.category-parent-row:hover > td,
+    .category-index-page .category-tree-table tr.category-child-row:hover > td {
+        background-color: #fff3e5 !important;
+    }
+
+    .category-index-page .category-structure {
         display: flex;
         align-items: flex-start;
         gap: 10px;
         min-width: 260px;
     }
 
-    .category-branch {
+    .category-index-page .category-branch {
         color: #b0133d;
         font-size: 20px;
         line-height: 1.2;
         margin-left: 18px;
     }
 
-    .category-title {
+    .category-index-page .category-title {
         color: #24161a;
         font-weight: 800;
         font-size: 15px;
         line-height: 1.25;
     }
 
-    .category-parent-title {
+    .category-index-page .category-parent-title {
         color: #84646c;
         display: block;
         font-size: 12px;
         margin-top: 2px;
     }
 
-    .category-badge {
+    .category-index-page .category-badge {
         border-radius: 999px;
         display: inline-block;
         font-size: 11px;
@@ -80,27 +85,27 @@
         text-transform: uppercase;
     }
 
-    .category-badge-main {
-        background: #8f1235;
-        color: #ffffff;
+    .category-index-page .category-badge-main {
+        background: #8f1235 !important;
+        color: #ffffff !important;
     }
 
-    .category-badge-child {
-        background: #fff0d9;
-        color: #9b4a00;
+    .category-index-page .category-badge-child {
+        background: #fff0d9 !important;
+        color: #9b4a00 !important;
     }
 
-    .category-badge-home {
-        background: #e7f6ee;
-        color: #10763a;
+    .category-index-page .category-badge-home {
+        background: #e7f6ee !important;
+        color: #10763a !important;
     }
 
-    .category-badge-muted {
-        background: #f1eef0;
-        color: #76626a;
+    .category-index-page .category-badge-muted {
+        background: #f1eef0 !important;
+        color: #76626a !important;
     }
 
-    .category-image {
+    .category-index-page .category-image {
         border-radius: 10px;
         height: 58px;
         object-fit: cover;
@@ -109,7 +114,7 @@
 </style>
 @endpush
 @section('content')
-<section class="content">
+<section class="content category-index-page">
     <div class="container-fluid">
 		<div class="card shadow mb-4">
             <div class="card-body">
@@ -158,7 +163,7 @@
             	<div class="row">
             		<div class="col-sm-12">
             		<div class="table-responsive">
-                        <table class="table table-bordered table-hover tablegrid category-tree-table">
+                        <table class="table table-bordered table-hover category-tree-table">
                             <thead>
                                 <tr role="row">
                                     <th>
@@ -229,8 +234,19 @@
                                         @endif
                                     </td>
                                     <td>
-                                        @if(@$row->image)
-                                            {{ html()->img(asset('storage/'.$module.'/'. @$row->image ), null)->attributes(array('title' => @$row->title ,'class' => 'category-image')) }}
+                                        @php
+                                            $categoryImagePath = @$row->image ? $module.'/'.@$row->image : null;
+                                            $categoryImagePublic = $categoryImagePath && File::exists(public_path('storage/'.$categoryImagePath));
+                                            $categoryImageStored = $categoryImagePath && File::exists(storage_path('app/public/'.$categoryImagePath));
+                                            $categoryImageUrl = $categoryImagePublic
+                                                ? asset('storage/'.$categoryImagePath)
+                                                : ($categoryImageStored ? route('admin.media.show', ['path' => $categoryImagePath]) : null);
+                                        @endphp
+                                        @if($categoryImageUrl)
+                                            {{ html()->img($categoryImageUrl, @$row->title)->attributes(array('title' => @$row->title ,'class' => 'category-image')) }}
+                                        @elseif(@$row->image)
+                                            <span class="text-danger small d-block">Missing file</span>
+                                            <small class="text-muted">{{ @$row->image }}</small>
                                         @else
                                             <span class="text-muted">No image</span>
                                         @endif
@@ -274,3 +290,21 @@
 	</div>
 </section>
 @endsection
+@push('script')
+<script>
+$(function() {
+    const $categoryTable = $('.category-tree-table');
+    const $selectAll = $('#selectAll');
+
+    $selectAll.off('click.categoryTree').on('click.categoryTree', function() {
+        $categoryTable.find('tbody .sub_chk input:checkbox').prop('checked', this.checked);
+    });
+
+    $categoryTable.off('change.categoryTree').on('change.categoryTree', 'tbody .sub_chk input:checkbox', function() {
+        const total = $categoryTable.find('tbody .sub_chk input:checkbox').length;
+        const checked = $categoryTable.find('tbody .sub_chk input:checkbox:checked').length;
+        $selectAll.prop('checked', total > 0 && total === checked);
+    });
+});
+</script>
+@endpush

@@ -26,7 +26,7 @@ $(".custom-file-input").on("change", function() {
 });
 
 $("#rolesAll").click(function(){
-    $("input[type=checkbox]").prop('checked', $(this).prop('checked'));
+    $(".role-permission-checkbox").prop('checked', $(this).prop('checked'));
 
 });
 

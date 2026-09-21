@@ -202,11 +202,6 @@ export function buildMetadata({
     alternates: {
       canonical: finalPath,
     },
-    icons: {
-      icon: "/favicon.ico",
-      shortcut: "/favicon.ico",
-      apple: "/favicon.ico",
-    },
     openGraph: {
       title: finalTitle,
       description: finalDescription,
@@ -348,6 +343,7 @@ function applyDirectSeoMetadata(options, seoData, { preserveRobots = false } = {
     description: seoData.meta_description || options.description,
     keywords: seoData.meta_keywords || options.keywords,
     robots: preserveRobots ? options.robots : seoData.robots || options.robots,
+    path: seoData.url || options.path,
   };
 }
 
@@ -446,7 +442,7 @@ export function buildBreadcrumbSchema(items = []) {
   };
 }
 
-export function buildProductSchema(productDetails, slug) {
+export function buildProductSchema(productDetails, slug, path = `/flowers/${slug}`) {
   const product = productDetails?.data;
   if (!product) return null;
 
@@ -476,10 +472,10 @@ export function buildProductSchema(productDetails, slug) {
       "@type": "Brand",
       name: SITE_NAME,
     },
-    offers: price
+    offers: product?.show_price !== false && product?.can_purchase !== false && price
       ? {
           "@type": "Offer",
-          url: canonicalUrl(`/flowers/${slug}`),
+          url: canonicalUrl(path),
           priceCurrency: "INR",
           price,
           availability,
@@ -517,7 +513,7 @@ export function buildFaqPageSchema(faqs = [], path = "/") {
   };
 }
 
-export function buildItemListSchema(products = [], path = "/flowers") {
+export function buildItemListSchema(products = [], path = "/flowers", routeMap = new Map()) {
   const list = Array.isArray(products) ? products : [];
   return {
     "@context": "https://schema.org",
@@ -528,7 +524,10 @@ export function buildItemListSchema(products = [], path = "/flowers") {
       .map((product, index) => ({
         "@type": "ListItem",
         position: index + 1,
-        url: canonicalUrl(`/flowers/${product.slug}`),
+        url: canonicalUrl(
+          routeMap.get(normalizePath(`/flowers/${product.slug}`)) ||
+            `/flowers/${product.slug}`
+        ),
         name: product.title,
       })),
     url: canonicalUrl(path),

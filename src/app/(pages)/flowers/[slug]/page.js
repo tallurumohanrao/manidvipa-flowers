@@ -12,7 +12,12 @@ import {
   jsonLdScriptContent,
   unpackPaginatedProducts,
 } from "@/lib/seo";
-import { fetchFirstSeoMetadata } from "@/lib/metadata";
+import {
+  buildPublicSeoRouteMap,
+  fetchEditableSeoRoutes,
+  fetchFirstSeoMetadata,
+  resolvePublicSeoPath,
+} from "@/lib/metadata";
 
 const fetchAboutData = async (query, userToken) => {
   try {
@@ -69,17 +74,22 @@ function buildFallbackProductDetails(slug) {
       slug,
       description:
         "Fresh flower availability can change daily. Please contact Manidvipa Flowers to confirm this item and delivery timing.",
-      sell_price: sellPrice,
-      list_price: sellPrice,
+      sell_price: null,
+      list_price: null,
       unit,
+      price_visibility: "enquiry_only",
+      show_price: false,
+      can_purchase: false,
+      price_message: "Contact us for price",
+      price_cta_label: "Enquire Now",
     },
     images: [{ name: image }],
     weights: [
       {
         id: null,
         name: `1 ${unit}`,
-        sell_price: sellPrice,
-        list_price: sellPrice,
+        sell_price: null,
+        list_price: null,
       },
     ],
   };
@@ -133,6 +143,13 @@ function buildProductDetailsFromListingProduct(product, slug) {
       sell_price: product.sell_price,
       list_price: product.list_price,
       unit: product.weight_name,
+      price_visibility: product.price_visibility,
+      configured_price_visibility: product.configured_price_visibility,
+      price_visible_from: product.price_visible_from,
+      show_price: product.show_price,
+      can_purchase: product.can_purchase,
+      price_message: product.price_message,
+      price_cta_label: product.price_cta_label,
     },
     images,
     weights,
@@ -242,16 +259,28 @@ export default async function Page({ params }) {
 
   const produtsDetails = await resolveProductDetails(slug, userToken || "");
 
+  const [seoData, editableRoutes] = await Promise.all([
+    fetchFirstSeoMetadata([
+      `/flowers/${slug}`,
+      `/product-details/${slug}`,
+      `/productDetails/${slug}`,
+      `/${slug}`,
+    ]),
+    fetchEditableSeoRoutes(),
+  ]);
+  const publicPath = seoData?.url || `/flowers/${slug}`;
+  const publicRouteMap = buildPublicSeoRouteMap(editableRoutes);
+
   const produtsReviews = produtsDetails?.data?.id
     ? await fetchAboutData(`reviews?product_id=${produtsDetails.data.id}`, userToken)
     : { success: true, data: [] };
   const siteSettings = await fetchSiteSettingsData(userToken);
   const productTitle = produtsDetails?.data?.title || titleFromSlug(slug);
-  const productSchema = buildProductSchema(produtsDetails, slug);
+  const productSchema = buildProductSchema(produtsDetails, slug, publicPath);
   const breadcrumbSchema = buildBreadcrumbSchema([
-    { name: "Home", path: "/" },
-    { name: "Flowers", path: "/flowers" },
-    { name: productTitle, path: `/flowers/${slug}` },
+    { name: "Home", path: resolvePublicSeoPath("/", publicRouteMap) },
+    { name: "Flowers", path: resolvePublicSeoPath("/flowers", publicRouteMap) },
+    { name: productTitle, path: publicPath },
   ]);
 
   return (

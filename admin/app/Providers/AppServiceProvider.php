@@ -26,10 +26,6 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind('cartdata',function($app){
             return new CartData;
         });
-
-        if(session('session_cart') == null){
-            session()->put('session_cart',uniqid());
-        }
         //Validator::extend('recaptcha', 'App\\Validators\\ReCaptcha@validate');
 
         Paginator::useBootstrap();
@@ -39,6 +35,10 @@ class AppServiceProvider extends ServiceProvider
 
         if ($this->app->runningInConsole()) {
             return;
+        }
+
+        if (! request()->is('admin*') && ! request()->is('api/*') && session('session_cart') === null) {
+            session()->put('session_cart', uniqid());
         }
 
         $settings = Cache::rememberForever('configurations', function () {

@@ -5,8 +5,11 @@ namespace Tests\Feature;
 use App\Models\Admin\Admin;
 use App\Models\Admin\Role;
 use App\Notifications\Admin\ResetAdminPassword;
+use App\Http\Middleware\AdminOperationFeedback;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Http\Request;
+use Illuminate\Support\MessageBag;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -15,6 +18,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use App\Http\Middleware\VerifyCsrfToken;
+use Illuminate\Support\ViewErrorBag;
 use Tests\TestCase;
 
 class AdminAccessTest extends TestCase
@@ -67,6 +71,45 @@ class AdminAccessTest extends TestCase
             ->get('/admin/admins/create')
             ->assertOk()
             ->assertSee('roles[]', false);
+    }
+
+    public function test_product_identity_is_cleaned_and_blank_sku_is_generated(): void
+    {
+        $suffix = Str::lower(Str::random(10));
+        $categoryId = DB::table('categories')->insertGetId([
+            'name' => 'Identity Test Category '.$suffix,
+            'title' => 'Identity Test Category '.$suffix,
+            'slug' => 'identity-test-category-'.$suffix,
+            'status' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $admin = $this->createAdminWithAbilities(['products_create']);
+
+        $this->withoutMiddleware(VerifyCsrfToken::class)
+            ->actingAs($admin, 'admin')
+            ->post(route('admin.products.store'), [
+                'title' => '  New   Seasonal Flower  ',
+                'sku' => '',
+                'product_category' => [$categoryId],
+                'qty' => '100 bunches',
+                'priority' => 1,
+                'status' => 1,
+                'price_visibility' => 'inherit',
+                'seo' => [
+                    'url' => 'new-seasonal-flower-'.$suffix,
+                    'page_title' => 'New Seasonal Flower',
+                    'meta_description' => 'New Seasonal Flower',
+                    'robots' => 'index,follow',
+                ],
+                'FormButton' => 'SAVE',
+            ])
+            ->assertRedirect(route('admin.products.index'));
+
+        $this->assertDatabaseHas('products', [
+            'title' => 'New Seasonal Flower',
+            'sku' => 'MF-NEW-SEASONAL-FLOWER',
+        ]);
     }
 
     public function test_removed_blank_and_get_mutation_routes_are_not_available(): void
@@ -512,6 +555,7 @@ class AdminAccessTest extends TestCase
         ]);
 
         $admin = $this->createAdminWithAbilities(['products_view', 'products_edit']);
+        Cache::put('unrelated_product_cache', 'keep-me', now()->addMinutes(5));
 
         $this->withoutMiddleware(VerifyCsrfToken::class)
             ->actingAs($admin, 'admin')
@@ -521,6 +565,7 @@ class AdminAccessTest extends TestCase
                 'qty' => '100 bunches',
                 'product_category' => [$categoryId],
                 'priority' => 1,
+                'price_visibility' => 'inherit',
                 'status' => 1,
                 'seo' => [
                     'old_url' => '/quantity-save-'.$suffix,
@@ -535,27 +580,172 @@ class AdminAccessTest extends TestCase
             ])
             ->assertRedirect(route('admin.products.index'));
 
+        $this->assertSame('keep-me', Cache::get('unrelated_product_cache'));
+
         $this->assertDatabaseHas('products', [
             'id' => $productId,
             'qty' => '100 bunches',
         ]);
 
         $this->assertDatabaseHas('seo_urls', [
-            'url' => '/product-details/quantity-save-'.$suffix,
+            'url' => '/quantity-save-'.$suffix,
+            'alias' => '/flowers/quantity-save-'.$suffix,
             'page_title' => 'Quantity Save Test Flower',
             'meta_keywords' => 'quantity save test, flowers',
             'schema_markup' => '{"@context":"https://schema.org","@type":"Product","name":"Quantity Save Test Flower"}',
         ]);
 
         $this->assertDatabaseMissing('seo_urls', [
-            'url' => '/quantity-save-'.$suffix,
-            'page_title' => 'Quantity Save Test Flower',
+            'url' => '/product-details/quantity-save-'.$suffix,
         ]);
 
         $this->actingAs($admin, 'admin')
             ->get(route('admin.products.index', ['title' => 'Quantity Save Test Flower '.$suffix]))
             ->assertOk()
             ->assertSee('100 bunches');
+    }
+
+    public function test_admin_can_save_automatic_structured_selling_option_and_custom_quantity_range(): void
+    {
+        $suffix = Str::lower(Str::random(10));
+        $productId = DB::table('products')->insertGetId([
+            'title' => 'Structured Lotus '.$suffix,
+            'sku' => 'structured-lotus-'.$suffix,
+            'slug' => 'structured-lotus-'.$suffix,
+            'status' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $admin = $this->createAdminWithAbilities(['products_view', 'products_edit']);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.products.weights', ['id' => $productId]))
+            ->assertOk()
+            ->assertSee('Add selling option')
+            ->assertSee('Allow customer custom quantity');
+
+        $flowerUnitId = DB::table('measurement_units')->where('code', 'flower')->value('id');
+        $this->withoutMiddleware(VerifyCsrfToken::class)
+            ->actingAs($admin, 'admin')
+            ->post(route('admin.products.inventorystore', ['id' => $productId]), [
+                'Inventory' => [[
+                    'unit_id' => $flowerUnitId,
+                    'qty' => 2000,
+                    'track_stock' => 1,
+                    'status' => 1,
+                ]],
+            ])->assertRedirect()->assertSessionHas('success');
+        $inventoryPoolId = DB::table('product_inventory_pools')->where('product_id', $productId)->value('id');
+
+        $this->withoutMiddleware(VerifyCsrfToken::class)
+            ->actingAs($admin, 'admin')
+            ->post(route('admin.products.weightsstore', ['id' => $productId]), [
+                'Weight' => [[
+                    'name' => '',
+                    'quantity_value' => 108,
+                    'unit_id' => $flowerUnitId,
+                    'inventory_pool_id' => $inventoryPoolId,
+                    'pricing_mode' => 'automatic',
+                    'unit_sell_price' => 5,
+                    'unit_list_price' => 6,
+                    'unit_cost_price' => 3,
+                    'allow_custom_quantity' => 1,
+                    'minimum_custom_quantity' => 1,
+                    'maximum_custom_quantity' => 1008,
+                    'custom_quantity_step' => 1,
+                    'status' => 1,
+                ]],
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseHas('product_weights', [
+            'product_id' => $productId,
+            'name' => '108 Flowers',
+            'quantity_value' => 108,
+            'quantity_unit' => 'flower',
+            'pricing_mode' => 'automatic',
+            'sell_price' => 540,
+            'list_price' => 648,
+            'cost_price' => 324,
+            'allow_custom_quantity' => 1,
+            'maximum_custom_quantity' => 1008,
+            'unit_id' => $flowerUnitId,
+            'inventory_pool_id' => $inventoryPoolId,
+            'qty' => 2000,
+        ]);
+        $this->assertDatabaseHas('product_inventory_pools', [
+            'id' => $inventoryPoolId,
+            'qty' => 2000,
+        ]);
+    }
+
+    public function test_units_master_creates_conversions_and_protects_units_used_by_inventory(): void
+    {
+        $suffix = Str::lower(Str::random(8));
+        $admin = $this->createAdminWithAbilities(['units_view', 'units_create', 'units_edit', 'units_delete']);
+
+        $this->withoutMiddleware(VerifyCsrfToken::class)
+            ->actingAs($admin, 'admin')
+            ->post(route('admin.units.store'), [
+                'singular_name' => 'Dozen '.$suffix,
+                'plural_name' => 'Dozens '.$suffix,
+                'code' => 'dozen-'.$suffix,
+                'type' => 'count',
+                'base_code' => 'piece',
+                'conversion_factor' => 12,
+                'allows_decimal' => 0,
+                'priority' => 130,
+                'status' => 1,
+                'FormButton' => 'SAVE',
+            ])->assertRedirect()->assertSessionHas('success');
+
+        $unit = DB::table('measurement_units')->where('code', 'dozen-'.$suffix)->first();
+        $this->assertNotNull($unit);
+        $this->assertSame('piece', $unit->base_code);
+        $this->assertEquals(12, $unit->conversion_factor);
+
+        $productId = DB::table('products')->insertGetId([
+            'title' => 'Unit Protection '.$suffix,
+            'sku' => 'unit-protection-'.$suffix,
+            'slug' => 'unit-protection-'.$suffix,
+            'status' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $pieceUnitId = DB::table('measurement_units')->where('code', 'piece')->value('id');
+        $poolId = DB::table('product_inventory_pools')->insertGetId([
+            'product_id' => $productId,
+            'unit_id' => $pieceUnitId,
+            'qty' => 120,
+            'track_stock' => 1,
+            'status' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('product_weights')->insert([
+            'product_id' => $productId,
+            'name' => '1 Dozen',
+            'quantity_value' => 1,
+            'quantity_unit' => $unit->code,
+            'unit_id' => $unit->id,
+            'inventory_pool_id' => $poolId,
+            'pricing_mode' => 'manual',
+            'sell_price' => 100,
+            'list_price' => 120,
+            'qty' => 120,
+            'stock' => 1,
+            'status' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->withoutMiddleware(VerifyCsrfToken::class)
+            ->actingAs($admin, 'admin')
+            ->deleteJson(route('admin.units.destroy', ['unit' => $unit->id]))
+            ->assertStatus(422)
+            ->assertJsonPath('success', false);
+        $this->assertDatabaseHas('measurement_units', ['id' => $unit->id]);
     }
 
     public function test_seo_metadata_api_resolves_frontend_paths_from_legacy_admin_urls(): void
@@ -622,7 +812,15 @@ class AdminAccessTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $admin = $this->createAdminWithAbilities(['dailyprices_edit']);
+        $admin = $this->createAdminWithAbilities(['dailyprices_view', 'dailyprices_edit']);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.dailyprices.index'))
+            ->assertOk()
+            ->assertSee('id="voice-price-apply"', false)
+            ->assertSee('Save Price Changes')
+            ->assertSee('Speaking creates the preview automatically.')
+            ->assertSee('await previewVoiceCommand();', false);
 
         $this->withoutMiddleware(VerifyCsrfToken::class)
             ->actingAs($admin, 'admin')
@@ -657,6 +855,11 @@ class AdminAccessTest extends TestCase
         $weightId = DB::table('product_weights')->insertGetId([
             'product_id' => $productId,
             'name' => 'Each Bunch',
+            'quantity_value' => 1,
+            'quantity_unit' => 'bunch',
+            'pricing_mode' => 'automatic',
+            'unit_sell_price' => 200,
+            'unit_list_price' => 260,
             'sell_price' => 200,
             'list_price' => 260,
             'cost_price' => 120,
@@ -685,6 +888,8 @@ class AdminAccessTest extends TestCase
             'id' => $weightId,
             'sell_price' => 220,
             'list_price' => 260,
+            'unit_sell_price' => 220,
+            'unit_list_price' => 260,
         ]);
 
         $this->assertDatabaseHas('price_update_logs', [
@@ -837,6 +1042,211 @@ class AdminAccessTest extends TestCase
             ->assertJsonPath('data.last_updated_relative', '1 day ago');
 
         Carbon::setTestNow();
+    }
+
+    public function test_tracking_settings_are_validated_saved_and_exposed_to_the_storefront(): void
+    {
+        $admin = $this->createAdminWithAbilities(['settings_view', 'settings_edit']);
+        Cache::put('unrelated_settings_cache', 'keep-me', now()->addMinutes(5));
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.settings.index'))
+            ->assertOk()
+            ->assertSee('Site[GOOGLE_TAG_MANAGER_ID]', false)
+            ->assertSee('Site[META_PIXEL_ID]', false);
+
+        foreach ([
+            'GOOGLE_ANALYTICS_ID',
+            'GOOGLE_SEARCH_CONSOLE_VERIFICATION',
+            'GOOGLE_TAG_MANAGER_ID',
+            'META_PIXEL_ID',
+        ] as $trackingKey) {
+            $this->assertDatabaseHas('settings', [
+                'key' => $trackingKey,
+                'input' => 'textarea',
+            ]);
+        }
+
+        $this->withoutMiddleware(VerifyCsrfToken::class)
+            ->actingAs($admin, 'admin')
+            ->post(route('admin.settings.store'), [
+                'Site' => [
+                    'GOOGLE_TAG_MANAGER_ID' => 'not-a-container',
+                    'META_PIXEL_ID' => 'not-a-pixel',
+                ],
+            ])
+            ->assertSessionHasErrors([
+                'Site.GOOGLE_TAG_MANAGER_ID',
+                'Site.META_PIXEL_ID',
+            ]);
+
+        $this->withoutMiddleware(VerifyCsrfToken::class)
+            ->actingAs($admin, 'admin')
+            ->post(route('admin.settings.store'), [
+                'Site' => [
+                    'GOOGLE_ANALYTICS_ID' => 'G-TEST123456',
+                    'GOOGLE_SEARCH_CONSOLE_VERIFICATION' => 'search-console-test-token',
+                    'GOOGLE_TAG_MANAGER_ID' => 'GTM-TEST123',
+                    'META_PIXEL_ID' => '123456789012345',
+                ],
+            ])
+            ->assertRedirect(route('admin.settings.index'));
+
+        $this->assertSame('keep-me', Cache::get('unrelated_settings_cache'));
+
+        $this->assertDatabaseHas('settings', [
+            'key' => 'GOOGLE_TAG_MANAGER_ID',
+            'value' => 'GTM-TEST123',
+        ]);
+        $this->assertDatabaseHas('settings', [
+            'key' => 'META_PIXEL_ID',
+            'value' => '123456789012345',
+        ]);
+
+        $this->getJson('/api/settings')
+            ->assertOk()
+            ->assertJsonPath('data.GOOGLE_TAG_MANAGER_ID', 'GTM-TEST123')
+            ->assertJsonPath('data.META_PIXEL_ID', '123456789012345');
+    }
+
+    public function test_admin_can_edit_a_public_url_and_preserve_the_old_url_redirect(): void
+    {
+        $suffix = Str::lower(Str::random(10));
+        $oldUrl = '/editable-old-'.$suffix;
+        $newUrl = '/puja-flowers/editable-new-'.$suffix;
+        $alias = '/content/editable-page-'.$suffix;
+        $seoId = DB::table('seo_urls')->insertGetId([
+            'url' => $oldUrl,
+            'alias' => $alias,
+            'page_title' => 'Editable route test',
+            'robots' => 'index,follow',
+            'status' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $admin = $this->createAdminWithAbilities(['seo_edit']);
+
+        $this->withoutMiddleware(VerifyCsrfToken::class)
+            ->actingAs($admin, 'admin')
+            ->patch(route('admin.seo.update', $seoId), [
+                'url' => 'https://www.manidvipaflowers.com'.$newUrl,
+                'alias' => $alias,
+                'page_title' => 'Updated editable route test',
+                'meta_keywords' => 'editable URL, route test',
+                'meta_description' => 'Updated SEO description for the editable public route.',
+                'robots' => 'index,follow',
+                'status' => 1,
+                'FormButton' => 'SAVEEDIT',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('seo_urls', [
+            'id' => $seoId,
+            'url' => $newUrl,
+            'alias' => $alias,
+            'meta_keywords' => 'editable URL, route test',
+            'meta_description' => 'Updated SEO description for the editable public route.',
+        ]);
+        $this->assertDatabaseHas('seo_url_redirects', [
+            'from_url' => $oldUrl,
+            'to_url' => $newUrl,
+            'status' => 1,
+        ]);
+
+        $this->getJson('/api/seo-routes')
+            ->assertOk()
+            ->assertJsonFragment(['url' => $newUrl, 'alias' => $alias])
+            ->assertJsonFragment(['from_url' => $oldUrl, 'to_url' => $newUrl]);
+
+        $this->getJson('/api/seo-meta-data?url='.urlencode($alias))
+            ->assertOk()
+            ->assertJsonPath('data.url', $newUrl)
+            ->assertJsonPath('data.alias', $alias);
+    }
+
+    public function test_admin_can_create_a_content_page_with_a_custom_public_url(): void
+    {
+        $suffix = Str::lower(Str::random(10));
+        $name = 'Custom Content Page '.$suffix;
+        $slug = Str::slug($name);
+        $publicUrl = '/information/'.$suffix;
+        $admin = $this->createAdminWithAbilities(['pages_create']);
+
+        $this->withoutMiddleware(VerifyCsrfToken::class)
+            ->actingAs($admin, 'admin')
+            ->post(route('admin.pages.store'), [
+                'name' => $name,
+                'url' => 'https://www.manidvipaflowers.com'.$publicUrl,
+                'description' => '<p>Custom page content.</p>',
+                'status' => 1,
+                'FormButton' => 'SAVE',
+            ])
+            ->assertRedirect(route('admin.pages.index'));
+
+        $this->assertDatabaseHas('pages', [
+            'name' => $name,
+            'slug' => $slug,
+            'status' => 1,
+        ]);
+        $this->assertDatabaseHas('seo_urls', [
+            'url' => $publicUrl,
+            'alias' => '/content/'.$slug,
+            'page_title' => $name,
+            'status' => 1,
+        ]);
+
+        $this->getJson('/api/seo-routes')
+            ->assertOk()
+            ->assertJsonFragment([
+                'url' => $publicUrl,
+                'alias' => '/content/'.$slug,
+            ]);
+    }
+
+    public function test_shared_admin_layout_displays_all_operation_feedback(): void
+    {
+        $admin = $this->createAdminWithAbilities([]);
+
+        $this->actingAs($admin, 'admin')
+            ->withSession(['success' => 'Saved feedback is visible.'])
+            ->get(route('admin.index'))
+            ->assertOk()
+            ->assertSee('Saved feedback is visible.')
+            ->assertSee('alert-success', false);
+
+        $this->actingAs($admin, 'admin')
+            ->withSession(['fail' => 'Failed feedback is visible.'])
+            ->get(route('admin.index'))
+            ->assertOk()
+            ->assertSee('Failed feedback is visible.')
+            ->assertSee('alert-danger', false);
+
+        $validationErrors = (new ViewErrorBag())->put(
+            'changePasswordForm',
+            new MessageBag(['current_password' => ['Current password is incorrect.']])
+        );
+
+        $this->actingAs($admin, 'admin')
+            ->withSession(['errors' => $validationErrors])
+            ->get(route('admin.index'))
+            ->assertOk()
+            ->assertSee('Please correct the following:')
+            ->assertSee('Current password is incorrect.');
+    }
+
+    public function test_admin_mutation_redirect_gets_fallback_success_feedback(): void
+    {
+        $request = Request::create('/admin/example', 'POST');
+        $request->setLaravelSession(app('session')->driver());
+
+        $response = (new AdminOperationFeedback())->handle(
+            $request,
+            fn () => redirect('/admin')
+        );
+
+        $this->assertTrue($response->isRedirect());
+        $this->assertStringEndsWith('/admin', $response->headers->get('Location'));
+        $this->assertSame('Operation completed successfully.', $request->session()->get('success'));
     }
 
     private function createAdminWithAbilities(array $abilities): Admin

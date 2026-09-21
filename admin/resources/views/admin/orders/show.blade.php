@@ -24,6 +24,11 @@
     .order-text-muted {
         color: #6c757d;
     }
+
+    .order-missing {
+        color: #b36b00;
+        font-weight: 600;
+    }
 </style>
 @endpush
 @section('content')
@@ -69,6 +74,14 @@ $statusTextClass = function ($status) {
 
     return 'order-text-muted';
 };
+$sourceLabels = [
+    'whatsapp' => 'WhatsApp',
+    'website' => 'Website',
+    'phone' => 'Phone',
+    'manual' => 'Manual',
+    'unknown' => 'Unknown',
+];
+$orderSource = $sourceLabels[$order->source ?? 'unknown'] ?? 'Unknown';
 @endphp
 
 <section class="content">
@@ -80,7 +93,14 @@ $statusTextClass = function ($status) {
                 <div class="row">
                     <div class="col-md-12">
                         <p>Order Status : <span id="BookingHtml" class="order-status-text {{ $statusTextClass($order->order_status) }}">{{ $order->order_status ?: 'Pending' }}</span>
+                            <span class="badge badge-info ml-2">Source: {{ $orderSource }}</span>
                             <a href="{{ route('admin.'.$module.'.index') }}" class="btn btn-danger float-right">Back to Orders</a></p>
+                        @if($order->price_locked_at)
+                        <p class="small text-success mb-2">
+                            <strong>Price locked:</strong> {{ date(config('app.datetime'), strtotime($order->price_locked_at)) }}.
+                            The confirmed product prices and delivery charge stay fixed for the selected delivery date.
+                        </p>
+                        @endif
                         @can($module.'_edit')
                         <button type="button" class="btn-primary" data-toggle="modal" data-target="#BookingModalCenter">Change</button>
                         <button type="button" class="btn btn-success btn-sm ml-2" data-toggle="modal" data-target="#WorkflowModalCenter">Manage Workflow</button>
@@ -136,10 +156,16 @@ $statusTextClass = function ($status) {
                 </div>
                 <div class="row">
                     <div class="col-md-3 col-sm-6">
-                        <p><strong class="muted">Customer Information </strong></p>
+                        <p>
+                            <strong class="muted">Customer Information</strong>
+                            @can($module.'_edit')
+                            <button type="button" class="btn-primary" data-toggle="modal" data-target="#CustomerDetailsModalCenter">Change</button>
+                            @endcan
+                        </p>
                         <address>
-                            <strong>{{ $order->name }}</strong> <br />
-                            {{ $order->email }}
+                            <strong>{{ $order->name ?: 'Name not provided' }}</strong><br />
+                            Email: <span class="{{ $order->email ? '' : 'order-missing' }}">{{ $order->email ?: 'Missing' }}</span><br />
+                            Phone: <span class="{{ $order->contact_number ? '' : 'order-missing' }}">{{ $order->contact_number ?: 'Missing' }}</span>
                         </address>
                         <p>
                             <strong class="muted">Order Date</strong>
@@ -183,18 +209,27 @@ $statusTextClass = function ($status) {
                         </address>
                     </div>
                     <div class="col-md-3 col-sm-6">
-                        @if($billing)
-                        <p><strong class="muted">Billing Address</strong></p>
+                        <p>
+                            <strong class="muted">Shipping Address</strong>
+                            @can($module.'_edit')
+                            <button type="button" class="btn-primary" data-toggle="modal" data-target="#CustomerDetailsModalCenter">Change</button>
+                            @endcan
+                        </p>
+                        @if($shippingaddress)
                         <address>
-                            <strong>{{ $billingaddress->full_name ?? '' }}</strong><br />
-                            <p>{!! $billing !!}</p>
+                            <strong>{{ $shippingaddress->full_name ?: ($order->name ?: 'Name not provided') }}</strong><br />
+                            Phone: <span class="{{ $shippingaddress->phone_number ? '' : 'order-missing' }}">{{ $shippingaddress->phone_number ?: 'Missing' }}</span><br />
+                            Email: <span class="{{ $shippingaddress->email ? '' : 'order-missing' }}">{{ $shippingaddress->email ?: 'Missing' }}</span><br />
+                            {{ collect([$shippingaddress->address_line1, $shippingaddress->address_line2, $shippingaddress->landmark, $shippingaddress->city, $shippingaddress->state, $shippingaddress->pincode, $shippingaddress->country])->filter()->implode(', ') ?: 'Address details missing' }}
                         </address>
+                        @else
+                        <div class="order-missing">Delivery address missing. Use Change to add it.</div>
                         @endif
-                        @if($shipping)
-                        <p><strong class="muted">Shipping Address</strong></p>
+                        @if($billingaddress)
+                        <p class="mt-3"><strong class="muted">Billing Address</strong></p>
                         <address>
-                            <strong>{{ $shippingaddress->full_name ?? '' }}</strong><br />
-                            <p>{!! $shipping !!}</p>
+                            <strong>{{ $billingaddress->full_name ?: ($order->name ?: 'Name not provided') }}</strong><br />
+                            {{ collect([$billingaddress->address_line1, $billingaddress->address_line2, $billingaddress->landmark, $billingaddress->city, $billingaddress->state, $billingaddress->pincode, $billingaddress->country])->filter()->implode(', ') ?: 'Address details missing' }}
                         </address>
                         @endif
                     </div>
@@ -535,6 +570,97 @@ $statusTextClass = function ($status) {
       </div>
     </div>
   </div>
+
+  <div class="modal fade" id="CustomerDetailsModalCenter" tabindex="-1" role="dialog" aria-labelledby="customerDetailsModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="customerDetailsModalTitle">Customer &amp; Delivery Details</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-info py-2">Use this form for WhatsApp, phone, or manually created orders. Add the details needed by packing and delivery staff.</div>
+          <form action="{{ route('admin.'.$module.'.updateCustomerDetails', ['id'=>$order->id]) }}" method="POST" id="CustomerDetailsForm">
+            @csrf
+            @method('PATCH')
+            <h6 class="border-bottom pb-2">Customer contact</h6>
+            <div class="row">
+              <div class="col-md-4">
+                <label class="col-form-label" for="customer_name">Customer name <span class="text-danger">*</span></label>
+                <input type="text" name="name" id="customer_name" class="form-control" value="{{ $order->name }}" required>
+              </div>
+              <div class="col-md-4">
+                <label class="col-form-label" for="customer_email">Email</label>
+                <input type="email" name="email" id="customer_email" class="form-control" value="{{ $order->email }}">
+              </div>
+              <div class="col-md-4">
+                <label class="col-form-label" for="customer_phone">Phone number</label>
+                <input type="text" name="contact_number" id="customer_phone" class="form-control" value="{{ $order->contact_number ?: ($shippingaddress->phone_number ?? '') }}" placeholder="10 digit or international number">
+              </div>
+              <div class="col-md-4">
+                <label class="col-form-label" for="order_source">Order source</label>
+                <select name="source" id="order_source" class="form-control">
+                  @foreach(['whatsapp' => 'WhatsApp', 'website' => 'Website', 'phone' => 'Phone', 'manual' => 'Manual', 'unknown' => 'Unknown'] as $sourceKey => $sourceLabel)
+                    <option value="{{ $sourceKey }}" @selected(($order->source ?? 'unknown') === $sourceKey)>{{ $sourceLabel }}</option>
+                  @endforeach
+                </select>
+              </div>
+            </div>
+            <h6 class="border-bottom pb-2 mt-3">Delivery address</h6>
+            <div class="row">
+              <div class="col-md-4">
+                <label class="col-form-label" for="shipping_full_name">Recipient name</label>
+                <input type="text" name="shipping_full_name" id="shipping_full_name" class="form-control" value="{{ $shippingaddress->full_name ?? $order->name }}">
+              </div>
+              <div class="col-md-4">
+                <label class="col-form-label" for="shipping_phone_number">Delivery phone</label>
+                <input type="text" name="shipping_phone_number" id="shipping_phone_number" class="form-control" value="{{ $shippingaddress->phone_number ?? $order->contact_number }}">
+              </div>
+              <div class="col-md-4">
+                <label class="col-form-label" for="shipping_email">Delivery email</label>
+                <input type="email" name="shipping_email" id="shipping_email" class="form-control" value="{{ $shippingaddress->email ?? $order->email }}">
+              </div>
+              <div class="col-md-6">
+                <label class="col-form-label" for="shipping_address_line1">Address line 1</label>
+                <input type="text" name="shipping_address_line1" id="shipping_address_line1" class="form-control" value="{{ $shippingaddress->address_line1 ?? '' }}">
+              </div>
+              <div class="col-md-6">
+                <label class="col-form-label" for="shipping_address_line2">Address line 2</label>
+                <input type="text" name="shipping_address_line2" id="shipping_address_line2" class="form-control" value="{{ $shippingaddress->address_line2 ?? '' }}">
+              </div>
+              <div class="col-md-4">
+                <label class="col-form-label" for="shipping_landmark">Landmark</label>
+                <input type="text" name="shipping_landmark" id="shipping_landmark" class="form-control" value="{{ $shippingaddress->landmark ?? '' }}">
+              </div>
+              <div class="col-md-4">
+                <label class="col-form-label" for="shipping_city">City</label>
+                <input type="text" name="shipping_city" id="shipping_city" class="form-control" value="{{ $shippingaddress->city ?? '' }}">
+              </div>
+              <div class="col-md-4">
+                <label class="col-form-label" for="shipping_state">State</label>
+                <input type="text" name="shipping_state" id="shipping_state" class="form-control" value="{{ $shippingaddress->state ?? '' }}">
+              </div>
+              <div class="col-md-4">
+                <label class="col-form-label" for="shipping_pincode">Pincode</label>
+                <input type="text" name="shipping_pincode" id="shipping_pincode" class="form-control" value="{{ $shippingaddress->pincode ?? '' }}">
+              </div>
+              <div class="col-md-4">
+                <label class="col-form-label" for="shipping_country">Country</label>
+                <input type="text" name="shipping_country" id="shipping_country" class="form-control" value="{{ $shippingaddress->country ?? 'India' }}">
+              </div>
+              <div class="col-md-12 mt-2">
+                <label class="mb-0"><input type="checkbox" name="same_as_billing" value="1"> Use this delivery address as the billing address</label>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+          <button type="submit" form="CustomerDetailsForm" class="btn btn-primary">Save customer details</button>
+        </div>
+      </div>
+    </div>
+  </div>
 @stop
 
 
@@ -665,6 +791,39 @@ $("#DeliveryPreferenceForm").submit(function (event) {
                 message = response.responseJSON.message;
             }
             Message.add(message, {type: 'error'});
+        }
+    });
+});
+
+$("#CustomerDetailsForm").submit(function (event) {
+    event.preventDefault();
+    const form = this;
+    const button = $(form).find('button[type="submit"]');
+    button.prop('disabled', true).text('Saving...');
+    $.ajax({
+        url: $(form).attr('action'),
+        method: "POST",
+        data: new FormData(form),
+        cache: false,
+        contentType: false,
+        processData: false,
+        success: function (response) {
+            if(response.success === true){
+                $("#CustomerDetailsModalCenter").modal('hide');
+                Message.add(response.message, {type: 'success'});
+                location.reload(true);
+            }else{
+                Message.add(response.message || 'Unable to save customer details.', {type: 'error'});
+            }
+        },
+        error: function (response) {
+            const message = response.responseJSON && response.responseJSON.message
+                ? response.responseJSON.message
+                : 'Unable to save customer details.';
+            Message.add(message, {type: 'error'});
+        },
+        complete: function () {
+            button.prop('disabled', false).text('Save customer details');
         }
     });
 });

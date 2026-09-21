@@ -75,6 +75,14 @@ export default function ThankYou({ orderData }) {
               <span className={styles.text_danger}>{deliveryTime}</span>
             </p>
           ) : null}
+          {orderSucces?.order?.price_locked_at ? (
+            <p>
+              Price locked on:{" "}
+              <span className={styles.text_danger}>
+                {formatDisplayDateTime(orderSucces.order.price_locked_at)}
+              </span>
+            </p>
+          ) : null}
         </div>
       </div>
 

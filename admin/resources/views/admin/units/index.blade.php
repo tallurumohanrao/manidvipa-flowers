@@ -33,7 +33,11 @@
                                         </div>
                                     </th>
                                     <th>S.No</th>
-                                    <th>Name</th>
+                                    <th>Unit</th>
+                                    <th>Code</th>
+                                    <th>Type</th>
+                                    <th>Inventory Conversion</th>
+                                    <th>Decimals</th>
                                     <th>Status</th>
                                     <th>Created At</th>
                                     <th>Actions</th>
@@ -50,11 +54,15 @@
                                         </div>
                                     </td>
                                     <td>{{ $loop->iteration }}</td>
-                                    <td>{{ $row->name }}</td>
+                                    <td><strong>{{ $row->singular_name }}</strong><br><small class="text-muted">{{ $row->plural_name }}</small></td>
+                                    <td><code>{{ $row->code }}</code></td>
+                                    <td>{{ ucfirst($row->type) }}</td>
+                                    <td>1 {{ $row->singular_name }} = {{ rtrim(rtrim(number_format((float)$row->conversion_factor, 6, '.', ''), '0'), '.') }} {{ $row->base_code }}</td>
+                                    <td>{{ $row->allows_decimal ? 'Allowed' : 'Whole numbers' }}</td>
                                     <td>
                                         @can('units_edit')
                                         <label class="switch">
-                                        {{ html()->checkbox('status', $row->status, null)->class('status')->id('status_'.$row->id)->attributes(['aria-label'=>'Toggle status for '.$row->name, 'data-id'=>$row->id,'data-url'=>route('admin.units.update.status',['id'=>$row->id])]) }}
+                                        {{ html()->checkbox('status', $row->status, null)->class('status')->id('status_'.$row->id)->attributes(['aria-label'=>'Toggle status for '.$row->singular_name, 'data-id'=>$row->id,'data-url'=>route('admin.units.update.status',['id'=>$row->id])]) }}
                                         <span class="slider round"></span>
                                         </label>
                                         @else <span class="badge badge-{{ $row->status ? 'success' : 'secondary' }}">{{ $row->status ? 'Enabled' : 'Disabled' }}</span> @endcan

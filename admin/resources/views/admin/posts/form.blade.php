@@ -43,7 +43,7 @@
                     <div class="col-md-6">
                         <div class="form-floating">
                             <label for="short_description">Short Description</label>
-                            {{ html()->textarea('short_description')->class('form-control')->rows(2)->placeholder('Short Description') }}
+                            {{ html()->textarea('short_description')->id('short_description')->class('form-control editor')->rows(5)->placeholder('Short Description') }}
                             <span class="text-danger">{{ $errors->first('short_description') }}</span>
                         </div>
                     </div>
@@ -116,4 +116,3 @@
         </div>
     </div>
 </div>
-

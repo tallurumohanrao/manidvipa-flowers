@@ -154,8 +154,8 @@ class HomeController extends Controller
             }
         }
         $create['subject'] = $request->filled('subject') ? implode(',',$create['subject']) : null;
-        $create['created_at'] = date('Y-m-d H:i:s');
-        DB::table('contacts')->insert($create);
+        $create['created_at'] = $now = date('Y-m-d H:i:s');
+        $create['updated_at'] = $now;
         $adminBodyHtml = (string)view('emails.admin-contact',compact('create'));
         $customerBodyHtml = (string)view('emails.contact',compact('create'));
 

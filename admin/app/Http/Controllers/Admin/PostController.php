@@ -32,6 +32,14 @@ class PostController extends Controller
         abort_if(Gate::denies($this->module.'_view'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
         $perPage = $request->input('perPage') ?: config('perPage');
         $search = $this->model::query();
+        if ($request->filled('q')) {
+            $term = '%'.$request->input('q').'%';
+            $search->where(function ($query) use ($term) {
+                $query->where('title', 'like', $term)
+                    ->orWhere('category', 'like', $term)
+                    ->orWhere('slug', 'like', $term);
+            });
+        }
         $data = $search->orderByDesc('id')->paginate($perPage)->withQueryString();
         return view('admin.posts.index', compact('data'));
     }

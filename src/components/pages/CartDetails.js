@@ -178,7 +178,7 @@ function normalizeWeightOption(weight) {
   return {
     ...weight,
     id: Number(weight?.id || weight?.weight_id),
-    name: weight?.name || weight?.weight_name || "Selected quantity",
+    name: weight?.display_name || weight?.name || weight?.weight_name || "Selected quantity",
     sell_price: parseAmount(weight?.sell_price),
     list_price: parseAmount(weight?.list_price || weight?.sell_price),
   };
@@ -196,10 +196,10 @@ function normalizeCartItem(item) {
   return {
     ...item,
     weight_id: selectedWeightId || item?.weight_id,
-    weight: selectedWeight?.name || item?.weight,
+    weight: item?.is_custom_quantity ? item?.weight : (selectedWeight?.name || item?.weight),
     quantity: Math.max(1, Number(item?.quantity) || 1),
-    sell_price: selectedWeight ? selectedWeight.sell_price : parseAmount(item?.sell_price),
-    list_price: selectedWeight
+    sell_price: selectedWeight && !item?.is_custom_quantity ? selectedWeight.sell_price : parseAmount(item?.sell_price),
+    list_price: selectedWeight && !item?.is_custom_quantity
       ? selectedWeight.list_price
       : parseAmount(item?.list_price || item?.sell_price),
     available_weights: availableWeights,
@@ -457,6 +457,7 @@ export default function CartDetails({
               product_title: item.product_title,
               quantity: Math.max(1, Number(item.quantity) || 1),
               weight_id: item.weight_id,
+              custom_quantity: item.is_custom_quantity ? item.custom_quantity : null,
             })),
           }),
         });
@@ -513,6 +514,8 @@ export default function CartDetails({
             weight: selectedWeight.name,
             sell_price: selectedWeight.sell_price,
             list_price: selectedWeight.list_price,
+            custom_quantity: null,
+            is_custom_quantity: false,
           }
         : item
     );

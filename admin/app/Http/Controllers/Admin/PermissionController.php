@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Permission;
+use App\Support\AdminAccessCache;
 use App\Traits\RedirectTrait;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -24,10 +25,19 @@ class PermissionController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function index()
+    public function index(Request $request)
     {
         abort_if(Gate::denies($this->module.'_view'), Response::HTTP_FORBIDDEN, 'THIS ACTION IS UNAUTHORIZED.');
-        $data = $this->model::paginate(config('PER_PAGE'));
+        $query = $this->model::query();
+        if ($request->filled('q')) {
+            $term = '%'.$request->input('q').'%';
+            $query->where(function ($search) use ($term) {
+                $search->where('group_name', 'like', $term)
+                    ->orWhere('module', 'like', $term)
+                    ->orWhere('route_name', 'like', $term);
+            });
+        }
+        $data = $query->orderBy('group_sort_order')->orderBy('module_sort_order')->paginate($request->input('per_page') ?: config('PER_PAGE'))->withQueryString();
         return view('admin.'.$this->module.'.index', compact('data'));
     }
 
@@ -58,6 +68,7 @@ class PermissionController extends Controller
         $input['edit'] = $module.'_edit';
         $input['delete'] = $module.'_delete';
         $model = $this->model::create($input);
+        AdminAccessCache::invalidate();
         return $this->redirectAfterSave($request->FormButton, $model->id);
     }
 
@@ -122,6 +133,8 @@ class PermissionController extends Controller
             }
         });
 
+        AdminAccessCache::invalidate();
+
         return $this->redirectAfterSave($request->FormButton, $permission->id);
     }
 
@@ -148,6 +161,7 @@ class PermissionController extends Controller
             return response()->json(['status' => 'error', 'message' => 'The core Permissions module cannot be disabled.'], 422);
         }
         $permission->update(['status' => $request->boolean('status')]);
+        AdminAccessCache::invalidate();
 
         return response()->json(['status' => 'success', 'message' => 'Permission status updated.']);
     }
@@ -190,5 +204,7 @@ class PermissionController extends Controller
             DB::table('role_permissions')->whereIn('permission', $abilities)->delete();
             $permission->delete();
         });
+
+        AdminAccessCache::invalidate();
     }
 }

@@ -9,6 +9,8 @@ use Auth,Validator,DB;
 use App\Traits\GetCartTrait;
 use App\Traits\GoogleDistanceTrait;
 use App\Traits\ShippingChargeTrait;
+use App\Support\PriceVisibility;
+use App\Support\SellingOption;
 
 class CartController extends BaseController
 {
@@ -47,25 +49,48 @@ class CartController extends BaseController
             if(!$product){
                 continue;
             }
+            if(! PriceVisibility::productCanPurchase($product)){
+                continue;
+            }
             #$size = DB::table('sizes')->where('id',$value->size_id)->first(); 
             $weight = DB::table('product_weights')->where(['id'=>$value->weight_id,'product_id'=>$product->id])->where('status', 1)->first();
             if(!$weight){
                 continue;
             }
-            $availableWeights = DB::table('product_weights')
-                ->select('id','name','sell_price','list_price','stock','qty')
+            SellingOption::hydrateInventory($weight);
+            $availableWeights = SellingOption::hydrateInventoryCollection(DB::table('product_weights')
+                ->select(
+                    'id','name','sell_price','list_price','stock','qty','quantity_value','quantity_unit',
+                    'unit_id','inventory_pool_id','is_default',
+                    'pricing_mode','unit_sell_price','unit_list_price','allow_custom_quantity',
+                    'minimum_custom_quantity','maximum_custom_quantity','custom_quantity_step'
+                )
                 ->where('product_id',$product->id)
                 ->where('status', 1)
+                ->orderByRaw('CASE WHEN stock = 1 AND qty < COALESCE(quantity_value, 1) THEN 1 ELSE 0 END')
                 ->orderByRaw('CAST(sell_price AS DECIMAL(10,2)) ASC')
                 ->orderBy('id')
-                ->get();
+                ->get())
+                ->map(fn ($option) => SellingOption::publicData($option))
+                ;
+            $availableWeights = SellingOption::sortOptions($availableWeights);
             $image = null;
             $productImage = DB::table('product_images')->where('product_id',$value->product_id)->where('status', 1)->orderBy('priority')->first();
             if($productImage){ 
                 $image = $productImage->name;
             }
-            $products[] = ['cart_id'=>$value->id,'user_id'=>$value->user_id,'product_id'=>$product->id,'product_slug'=>$product->slug,'weight_id'=>$weight->id,'weight'=>$weight->name,'product_title'=>$product->title,'image'=>$image,'sell_price'=>$weight->sell_price,'list_price'=> $weight->list_price,'quantity'=>$value->quantity,'available_weights'=>$availableWeights];
-            $subTotal += ( $weight->sell_price * $value->quantity );
+            $customQuantity = $value->custom_quantity ?? null;
+            $sellPrice = SellingOption::price($weight, 'sell', $customQuantity);
+            $listPrice = SellingOption::price($weight, 'list', $customQuantity);
+            $products[] = [
+                'cart_id'=>$value->id,'user_id'=>$value->user_id,'product_id'=>$product->id,
+                'product_slug'=>$product->slug,'weight_id'=>$weight->id,
+                'weight'=>SellingOption::label($weight, $customQuantity),'product_title'=>$product->title,
+                'image'=>$image,'sell_price'=>$sellPrice,'list_price'=>$listPrice,
+                'quantity'=>$value->quantity,'custom_quantity'=>$customQuantity,
+                'is_custom_quantity'=>$customQuantity !== null,'available_weights'=>$availableWeights,
+            ];
+            $subTotal += ($sellPrice * $value->quantity);
         endforeach;
         $coupon_row = null;
         $cart_coupon = DB::table('cart_line_items')->where(['cart_session'=>$cart_session,'value_name'=>'coupon'])->first(); 
@@ -139,9 +164,10 @@ class CartController extends BaseController
         $input = $request->all();
         $validator = Validator::make($input, [
             'product_id' => 'required|integer',
-            'quantity' => 'required|integer|min:1|max:99',
+            'quantity' => 'required|integer|min:1|max:9999',
             'weight_id' => 'required|integer',
             'cart_session' => 'nullable|string|max:50',
+            'custom_quantity' => 'nullable|numeric|gt:0|max:1000000',
         ],['product_id.required'=>'Product is required.','quantity.required'=>'Quantity is required.','weight_id.required'=>'Weight is required.']);
    
         if($validator->fails()){
@@ -159,17 +185,26 @@ class CartController extends BaseController
             'product_id' => (int) $request->product_id,
             'weight_id' => (int) $request->weight_id,
             'quantity' => (int) $request->quantity,
+            'custom_quantity' => $request->filled('custom_quantity') ? (float) $request->custom_quantity : null,
         ];
         
         $weight = null;
         if($data['product_id']){
-            $productIsActive = DB::table('products')->where('id', $data['product_id'])->where('status', 1)->exists();
+            $product = DB::table('products')->where('id', $data['product_id'])->where('status', 1)->first();
             $weight = DB::table('product_weights')
                 ->where(['id'=>$data['weight_id'],'product_id'=>$data['product_id']])
                 ->where('status', 1)
                 ->first();
-            if(! $productIsActive || empty($weight)){
+            if(! $product || empty($weight)){
                 return response()->json(['success'=>false,'message'=>'Product not available.'],422);exit;
+            }
+            SellingOption::hydrateInventory($weight);
+            if(! PriceVisibility::productCanPurchase($product)){
+                $control = PriceVisibility::forProduct($product, 'cart');
+                return response()->json(['success'=>false,'message'=>$control['message'] ?: 'This product is not available for online ordering.'],422);
+            }
+            if($customError = SellingOption::customQuantityError($weight, $data['custom_quantity'])){
+                return response()->json(['success'=>false,'message'=>$customError],422);
             }
         }
         //'session'=>$cart_session
@@ -178,13 +213,15 @@ class CartController extends BaseController
             ->when($user_id, fn ($query) => $query->where('user_id', $user_id))
             ->when(! $user_id, fn ($query) => $query->where('cart_session', $cart_session))
             ->where($criteria)
+            ->when($data['custom_quantity'] === null, fn ($query) => $query->whereNull('custom_quantity'))
+            ->when($data['custom_quantity'] !== null, fn ($query) => $query->where('custom_quantity', $data['custom_quantity']))
             ->first();
         if($cart_row){
             $incomingQuantity = max(1, (int) $data['quantity']);
             $data['quantity'] = max(0, (int) $cart_row->quantity) + $incomingQuantity;
 
-            if($weight && $weight->stock && ($weight->qty < $data['quantity'])){
-                $message = 'Out of stock. Available stock ('.$weight->qty .').';
+            if($weight && ! SellingOption::hasAvailableStock($weight, $data['quantity'], $data['custom_quantity'])){
+                $message = $this->stockMessage($weight);
                 return response()->json(['success'=>false,'message'=>$message],200);exit;
             }
 
@@ -194,8 +231,8 @@ class CartController extends BaseController
                 return response()->json(['success'=>true,'message'=>"You haven't changed anything in the cart."],200); 
             }
         }else{
-            if($weight && $weight->stock && ($weight->qty < $data['quantity'])){
-                $message = 'Out of stock. Available stock ('.$weight->qty .').';
+            if($weight && ! SellingOption::hasAvailableStock($weight, $data['quantity'], $data['custom_quantity'])){
+                $message = $this->stockMessage($weight);
                 return response()->json(['success'=>false,'message'=>$message],200);exit;
             }
 
@@ -211,6 +248,17 @@ class CartController extends BaseController
     
     public function update(Request $request){
         $errors = null;
+        $validator = Validator::make($request->all(), [
+            'products' => ['required','array'],
+            'products.*.cart_id' => ['required','integer'],
+            'products.*.quantity' => ['nullable','integer','min:0','max:9999'],
+            'products.*.weight_id' => ['nullable','integer'],
+            'products.*.custom_quantity' => ['nullable','numeric','gt:0','max:1000000'],
+            'cart_session' => ['nullable','string','max:50'],
+        ]);
+        if($validator->fails()){
+            return $this->sendError('Validation Error.', $validator->errors());
+        }
         $user_id = null;
         if(auth('sanctum')->check()){
             $user = auth('sanctum')->user();
@@ -234,6 +282,11 @@ class CartController extends BaseController
 
             if($cart = DB::table('carts')->where('id',$product['cart_id'])->where($ownerScope)->first()){
                 if($cart->product_id){
+                    $cartProduct = DB::table('products')->where('id', $cart->product_id)->where('status', 1)->first();
+                    if(! $cartProduct || ! PriceVisibility::productCanPurchase($cartProduct)){
+                        $errors[$cart->id][] = ($product['product_title'] ?? 'Product').' is not available for online ordering.';
+                        continue;
+                    }
                     $quantity = isset($product['quantity']) ? (int) $product['quantity'] : 1;
                     if($quantity < 1){
                         DB::table('carts')->where('id',$cart->id)->delete();
@@ -247,15 +300,26 @@ class CartController extends BaseController
                         $errors[$cart->id][] = $product_title.' selected weight is not available.';
                         continue;
                     }
+                    SellingOption::hydrateInventory($weight);
 
                     $quantity = max(1, $quantity);
+                    $weightChanged = (int) $targetWeightId !== (int) $cart->weight_id;
+                    $customQuantity = array_key_exists('custom_quantity', $product)
+                        ? ($product['custom_quantity'] !== null && $product['custom_quantity'] !== '' ? (float) $product['custom_quantity'] : null)
+                        : ($weightChanged ? null : ($cart->custom_quantity ?? null));
+                    if($customError = SellingOption::customQuantityError($weight, $customQuantity)){
+                        $errors[$cart->id][] = $customError;
+                        continue;
+                    }
                     $duplicateCart = null;
                     $stockCheckQuantity = $quantity;
-                    if((int) $targetWeightId !== (int) $cart->weight_id){
+                    if($weightChanged || (float)($cart->custom_quantity ?? 0) !== (float)($customQuantity ?? 0)){
                         $duplicateCart = DB::table('carts')
                             ->where($ownerScope)
                             ->where('product_id',$cart->product_id)
                             ->where('weight_id',$targetWeightId)
+                            ->when($customQuantity === null, fn ($query) => $query->whereNull('custom_quantity'))
+                            ->when($customQuantity !== null, fn ($query) => $query->where('custom_quantity',$customQuantity))
                             ->where('id','<>',$cart->id)
                             ->first();
                         if($duplicateCart){
@@ -263,18 +327,18 @@ class CartController extends BaseController
                         }
                     }
 
-                    if($weight->stock && ($weight->qty < $stockCheckQuantity)){
+                    if(! SellingOption::hasAvailableStock($weight, $stockCheckQuantity, $customQuantity)){
                         $product_title = $product['product_title'] ?? 'Product';
-                        $errors[$cart->id][] = $product_title.' with weight '.$weight->name.' stock not available. Available stock is ('.$weight->qty .').';
+                        $errors[$cart->id][] = $product_title.': '.$this->stockMessage($weight);
                         continue;
                     }
 
                     if($duplicateCart){
-                        DB::table('carts')->where('id',$duplicateCart->id)->update(['quantity'=>$stockCheckQuantity]);
+                        DB::table('carts')->where('id',$duplicateCart->id)->update(['quantity'=>$stockCheckQuantity,'custom_quantity'=>$customQuantity]);
                         DB::table('carts')->where('id',$cart->id)->delete();
                         $mergedCartIdsToSkip[$duplicateCart->id] = true;
                     }else{
-                        DB::table('carts')->where('id',$cart->id)->update(['quantity'=>$quantity,'weight_id'=>$targetWeightId]);
+                        DB::table('carts')->where('id',$cart->id)->update(['quantity'=>$quantity,'weight_id'=>$targetWeightId,'custom_quantity'=>$customQuantity]);
                     }
                 }
             }
@@ -311,6 +375,15 @@ class CartController extends BaseController
             return response()->json(['success'=>true,'message'=>"Cart updated successfully."]);
         else
             return response()->json(['success'=>false,'message'=>"No changes done to your cart."]);
+    }
+
+    private function stockMessage(object $weight): string
+    {
+        $available = SellingOption::availableStock($weight);
+        $quantity = SellingOption::formatNumber($available);
+        $unit = SellingOption::inventoryUnitLabel($weight, $available);
+
+        return 'Out of stock. Available stock: '.$quantity.' '.$unit.'.';
     }
     
     public function destroy(Request $request)
@@ -405,19 +478,7 @@ class CartController extends BaseController
         //min amount
         $subTotal = 0;
         if($coupon->minimum_purchage_amount){
-            #$carts = DB::table('carts')->where('cart_session',$cart_session)->get();
-            $carts = DB::table('carts')->where($this->cartOwnerScope($cart_session,$user_id))->get();
-            foreach($carts as $value) :
-                $product = DB::table('products')->where('id',$value->product_id)->first();
-                if(!$product){
-                    continue;
-                }
-                $weight = DB::table('product_weights')->where(['id'=>$value->weight_id,'product_id'=>$product->id])->first();
-                if(!$weight){
-                    continue;
-                }
-                $subTotal += ( $weight->sell_price * $value->quantity );
-            endforeach;
+            $subTotal = $this->getSubTotal($cart_session, $user_id);
             
             if($subTotal < $coupon->minimum_purchage_amount ){
                 $status = 0;

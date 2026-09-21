@@ -13,6 +13,7 @@ import {
   fetchListingData,
   getCartCount,
 } from "../../../hook/userCookie";
+import { getPriceVisibility } from "@/lib/priceVisibility";
 
 const IMG_URL = process.env.NEXT_PUBLIC_IMG_URL;
 const DEFAULT_CATEGORY = "all-flowers";
@@ -404,7 +405,7 @@ function getProductId(product) {
 }
 
 function getWeightName(weight, fallback) {
-  return weight?.name || weight?.weight || weight?.title || weight?.label || weight?.value || fallback;
+  return weight?.display_name || weight?.name || weight?.weight || weight?.title || weight?.label || weight?.value || fallback;
 }
 
 function getWeightId(weight, product) {
@@ -421,6 +422,9 @@ function buildWeightOptions(product) {
       sellPrice: parsePriceValue(weight?.sell_price || weight?.price || product?.sell_price),
       listPrice: parsePriceValue(weight?.list_price || weight?.mrp || product?.list_price),
       weightId: getWeightId(weight, product),
+      isOutOfStock: weight?.is_out_of_stock != null
+        ? Boolean(weight.is_out_of_stock)
+        : Number(weight?.stock) > 0 && Number(weight?.qty) < (Number(weight?.quantity_value) || 1),
     }));
   }
 
@@ -659,7 +663,8 @@ function CategoryProductCard({ product, userToken }) {
   const productOriginalPrice = selectedWeight?.listPrice || getProductOriginalPrice(cartProduct);
   const productUnit = selectedWeight?.label || getProductUnit(cartProduct);
   const productHref = product?.slug ? `/flowers/${product.slug}` : "#";
-  const canAttemptCart = Boolean(productId || product?.slug);
+  const priceVisibility = getPriceVisibility(product);
+  const canAttemptCart = priceVisibility.showPrice && priceVisibility.canPurchase && Boolean(productId || product?.slug);
   const rating = getRatingValue(product);
   const badges = getProductBadges(product);
   const displayQuantity = quantity > 0 ? quantity : 1;
@@ -733,6 +738,11 @@ function CategoryProductCard({ product, userToken }) {
   const handleAddToCart = async (event) => {
     event.preventDefault();
 
+    if (!priceVisibility.showPrice || !priceVisibility.canPurchase) {
+      showToast(priceVisibility.message || "Please open the product to continue.", "error");
+      return;
+    }
+
     if (!guestSession) {
       showToast("Please wait while your cart is getting ready.", "error");
       return;
@@ -740,6 +750,11 @@ function CategoryProductCard({ product, userToken }) {
 
     if (isResolvingWeights) {
       showToast("Please wait while product options are loading.", "error");
+      return;
+    }
+
+    if (selectedWeight?.isOutOfStock) {
+      showToast(`${selectedWeight.label} is currently out of stock.`, "error");
       return;
     }
 
@@ -833,16 +848,16 @@ function CategoryProductCard({ product, userToken }) {
           </div>
         )}
 
-        <p className={styles.productPrice}>
+        {priceVisibility.showPrice ? <p className={styles.productPrice}>
           {hasDiscount && <del>{formatRupees(totalOriginalPrice)}</del>}
           <strong>{formatRupees(totalProductPrice)}</strong>
           <span className={styles.priceMeta}>{priceMetaText}</span>
           <span>
             {quantity > 1 ? ` total • ${formatRupees(productPrice)} / ${productUnit}` : `/ ${productUnit}`}
           </span>
-        </p>
+        </p> : <p className={styles.productPrice}><strong>{priceVisibility.message}</strong></p>}
 
-        {weightOptions.length > 0 && (
+        {canAttemptCart && weightOptions.length > 0 && (
           <select
             className={styles.weightSelect}
             value={selectedWeightIndex}
@@ -851,14 +866,14 @@ function CategoryProductCard({ product, userToken }) {
             aria-label={`Select weight for ${productTitle}`}
           >
             {weightOptions.map((weight, index) => (
-              <option key={weight.key} value={index}>
-                {weight.label}
+              <option key={weight.key} value={index} disabled={weight.isOutOfStock}>
+                {weight.label}{weight.isOutOfStock ? " — Sold out" : ""}
               </option>
             ))}
           </select>
         )}
 
-        <div className={styles.quantityRow}>
+        {canAttemptCart ? <div className={styles.quantityRow}>
           <button
             type="button"
             onClick={() => updateQuantity(quantity - 1)}
@@ -885,10 +900,10 @@ function CategoryProductCard({ product, userToken }) {
           >
             +
           </button>
-        </div>
+        </div> : null}
 
         <div className={styles.cardActions}>
-          <button
+          {canAttemptCart ? <button
             type="button"
             className={`${styles.addToCartButton} ${wasAdded ? styles.addedToCartButton : ""}`}
             onClick={handleAddToCart}
@@ -897,9 +912,9 @@ function CategoryProductCard({ product, userToken }) {
           >
             <FaShoppingBasket />
             {wasAdded ? "ADDED" : isAdding ? "ADDING..." : isResolvingWeights ? "LOADING..." : "ADD"}
-          </button>
+          </button> : null}
           <Link href={productHref} className={styles.viewDetailsButton}>
-            VIEW DETAILS
+            {priceVisibility.showPrice ? "VIEW DETAILS" : priceVisibility.ctaLabel.toUpperCase()}
           </Link>
         </div>
       </div>
