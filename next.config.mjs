@@ -20,7 +20,7 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "admin.manidvipastore.com",
+        hostname: "admin.manidvipaflowers.com",
         pathname: "/storage/banners/**",
       },
       {
