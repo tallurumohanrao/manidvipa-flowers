@@ -25,7 +25,7 @@ const nextConfig = {
       },
       {
         protocol: "https",
-        hostname: "admin.manidvipastore.com",
+        hostname: "admin.manidvipaflowers.com",
         pathname: "/storage/**",
         // pathname: "/storage/products/**",
       },
