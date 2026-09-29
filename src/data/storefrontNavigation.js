@@ -87,10 +87,10 @@ export const productCategoryPageConfigs = {
   },
   gifts: {
     key: "gifts",
-    label: "Gifts",
+    label: "Bouquets & Gifts",
     href: "/gifts",
     categorySlug: "gifts",
-    title: "Flower Gifts",
+    title: "Flower Bouquets & Gifts",
     description:
       "Fresh bouquets, premium flower baskets and gifting-ready flowers for birthdays, visits and celebrations.",
     metaTitle: "Flower Gifts Online in Hyderabad | Manidvipa Flowers",

@@ -42,12 +42,14 @@ export async function fetchListingData(
       typeof endpoint === "string" ? endpoint.split("?")[0] : "";
     const noStoreEndpointPaths = new Set([
       "banners",
+      "categories",
       "home-featured-products",
       "products-by-category",
       "product-details",
       "search",
       "static-page",
       "faqs",
+      "navigation",
     ]);
     const shouldUseNoStore = noStoreEndpointPaths.has(endpointPath);
     const fetchOptions =

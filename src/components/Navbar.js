@@ -59,6 +59,26 @@ const getWhatsAppHref = (value) => {
   return phone ? `https://wa.me/${phone}` : "#";
 };
 
+const normalizeNavigationHref = (value) => {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (/^https?:\/\//i.test(raw)) return raw;
+
+  const [path, query = ""] = raw.split("?");
+  const normalizedPath = `/${path.replace(/^\/+|\/+$/g, "")}`.replace(
+    /\/{2,}/g,
+    "/"
+  );
+  const cleanPath = normalizedPath === "/" ? "/" : normalizedPath;
+  return query ? `${cleanPath}?${query}` : cleanPath;
+};
+
+const navigationKey = (value) => {
+  const normalized = normalizeNavigationHref(value);
+  if (!normalized) return "";
+  return normalized.split("?")[0].toLowerCase();
+};
+
 const fetchData = async (guestSession, userToken, setCartCount) => {
   if (!guestSession) return null;
 
@@ -132,6 +152,8 @@ const fetchDailyPriceStatus = async (setDailyPriceStatus) => {
 };
 
 const Navbar = ({
+  categories = [],
+  navigationItems = [],
   siteSettings,
   guestSession,
   userToken,
@@ -142,7 +164,28 @@ const Navbar = ({
   );
   const helpPhone = contactUs?.SITE_PHONE || contactUs?.SITE_WHATSAPP || "+91 73375 25445";
 
-  const primaryNavItems = storefrontNavItems;
+  const primaryNavItems = useMemo(() => {
+    if (!Array.isArray(navigationItems) || navigationItems.length === 0) {
+      return storefrontNavItems;
+    }
+
+    const seenHrefs = new Set();
+    return navigationItems
+      .filter((item) => {
+        const href = normalizeNavigationHref(item?.href);
+        const key = navigationKey(href);
+        if (!item?.label || !href || !key || seenHrefs.has(key)) {
+          return false;
+        }
+        seenHrefs.add(key);
+        return true;
+      })
+      .map((item) => ({
+        key: item.id || item.href,
+        label: item.label,
+        href: normalizeNavigationHref(item.href),
+      }));
+  }, [navigationItems]);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { isAuthenticated, guestSession: clientGuestSession } = useUser();
   const activeGuestSession = clientGuestSession || guestSession;
@@ -439,7 +482,7 @@ const Navbar = ({
               <ul className={`${styles.list} list`}>
                 {primaryNavItems.map((item) => (
                   <li
-                    key={item.label}
+                    key={item.key || navigationKey(item.href)}
                     className={`${styles.nav_item} ${
                       isActiveNavItem(item.href) ? styles.active_nav_item : ""
                     } nav-item`}
@@ -560,7 +603,7 @@ const Navbar = ({
               <div className="nav-links">
                 {primaryNavItems.map((item) => (
                   <li
-                    key={item.label}
+                    key={item.key || navigationKey(item.href)}
                     className={`${styles.nav_item} ${
                       isActiveNavItem(item.href) ? styles.active_nav_item : ""
                     } nav-item`}

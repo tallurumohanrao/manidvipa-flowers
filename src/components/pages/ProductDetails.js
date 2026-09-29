@@ -4,7 +4,6 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import {
-  FaChevronDown,
   FaGift,
   FaHeart,
   FaLeaf,
@@ -276,6 +275,7 @@ export default function ProductDetails({
     getDateInputValue(1)
   );
   const [selectedDeliverySlot, setSelectedDeliverySlot] = useState("6-9");
+  const [activeInfoTab, setActiveInfoTab] = useState("description");
   const { setCartCount } = useCartCount();
   const { addWatchlistCount, decreaseWatchlistCount } = useWatchlistCount();
 
@@ -837,28 +837,110 @@ export default function ProductDetails({
             <div><FaLeaf /><strong>Fresh & Quality</strong><span>Guaranteed</span></div>
           </div>
 
-          <div className={styles.accordionList}>
-            <details open className={styles.accordionItem}>
-              <summary>
-                <span>Product Description</span>
-                <FaChevronDown />
-              </summary>
-              <div dangerouslySetInnerHTML={{ __html: productDescription }} />
-            </details>
+          <section className={styles.productInfo} aria-label="Product information">
+            <div className={styles.infoTabs} role="tablist" aria-label="Product information tabs">
+              <button
+                type="button"
+                id="product-description-tab"
+                role="tab"
+                aria-selected={activeInfoTab === "description"}
+                aria-controls="product-description-panel"
+                tabIndex={activeInfoTab === "description" ? 0 : -1}
+                className={activeInfoTab === "description" ? styles.activeInfoTab : ""}
+                onClick={() => setActiveInfoTab("description")}
+              >
+                Description
+              </button>
+              <button
+                type="button"
+                id="product-care-tab"
+                role="tab"
+                aria-selected={activeInfoTab === "care"}
+                aria-controls="product-care-panel"
+                tabIndex={activeInfoTab === "care" ? 0 : -1}
+                className={activeInfoTab === "care" ? styles.activeInfoTab : ""}
+                onClick={() => setActiveInfoTab("care")}
+              >
+                Care Instructions
+              </button>
+              <button
+                type="button"
+                id="product-delivery-tab"
+                role="tab"
+                aria-selected={activeInfoTab === "delivery"}
+                aria-controls="product-delivery-panel"
+                tabIndex={activeInfoTab === "delivery" ? 0 : -1}
+                className={activeInfoTab === "delivery" ? styles.activeInfoTab : ""}
+                onClick={() => setActiveInfoTab("delivery")}
+              >
+                Delivery & Ordering
+              </button>
+              <button
+                type="button"
+                id="product-reviews-tab"
+                role="tab"
+                aria-selected={activeInfoTab === "reviews"}
+                aria-controls="product-reviews-panel"
+                tabIndex={activeInfoTab === "reviews" ? 0 : -1}
+                className={activeInfoTab === "reviews" ? styles.activeInfoTab : ""}
+                onClick={() => setActiveInfoTab("reviews")}
+              >
+                Reviews ({reviewSummary.count})
+              </button>
+            </div>
 
-            <details className={styles.accordionItem}>
-              <summary>
-                <span>Care Instructions</span>
-                <FaChevronDown />
-              </summary>
-              <p>Keep flowers in a cool place, sprinkle light water if needed, and use them on the same day for best freshness.</p>
-            </details>
+            <div
+              id="product-description-panel"
+              role="tabpanel"
+              aria-labelledby="product-description-tab"
+              hidden={activeInfoTab !== "description"}
+              className={styles.infoPanel}
+            >
+              <div
+                className={styles.descriptionContent}
+                dangerouslySetInnerHTML={{ __html: productDescription }}
+              />
+            </div>
 
-            <details className={styles.accordionItem}>
-              <summary>
-                <span>Reviews ({reviewSummary.count})</span>
-                <FaChevronDown />
-              </summary>
+            <div
+              id="product-care-panel"
+              role="tabpanel"
+              aria-labelledby="product-care-tab"
+              hidden={activeInfoTab !== "care"}
+              className={styles.infoPanel}
+            >
+              <div className={styles.simpleInfoContent}>
+                <h2>Care Instructions</h2>
+                <p>Keep flowers in a cool place and use them on the same day for the best freshness.</p>
+                <ul>
+                  <li>Handle gently and keep away from direct sunlight and heat.</li>
+                  <li>Follow any product-specific handling instructions shown in the description.</li>
+                  <li>Keep flowers separate from food unless the product is specifically marked edible.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div
+              id="product-delivery-panel"
+              role="tabpanel"
+              aria-labelledby="product-delivery-tab"
+              hidden={activeInfoTab !== "delivery"}
+              className={styles.infoPanel}
+            >
+              <div className={styles.simpleInfoContent}>
+                <h2>Delivery & Ordering</h2>
+                <p>Choose your delivery address, date and time slot during checkout. Delivery availability and charges are calculated from the selected address.</p>
+                <p className={styles.priceNotice}><strong>Price notice:</strong> Flower prices can change daily with market supply. The price shown today may change for a future delivery date; the final price will be confirmed before delivery.</p>
+              </div>
+            </div>
+
+            <div
+              id="product-reviews-panel"
+              role="tabpanel"
+              aria-labelledby="product-reviews-tab"
+              hidden={activeInfoTab !== "reviews"}
+              className={styles.infoPanel}
+            >
               <div className={styles.reviewList}>
                 {customerReview?.length ? (
                   customerReview.map((review, index) => (
@@ -900,8 +982,8 @@ export default function ProductDetails({
                 <textarea name="comment" rows={4} placeholder="Your review" onChange={handleChange} required />
                 <button type="submit">Submit Review</button>
               </form>
-            </details>
-          </div>
+            </div>
+          </section>
         </div>
       </section>
       <Toast />

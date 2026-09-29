@@ -59,6 +59,12 @@ const reservedTopLevelRoutes = new Set([
   "watchlist",
 ]);
 
+const legacyCategorySlugAliases = new Map([
+  ["puja-flowers", "pooja-flowers"],
+  ["daily-puja-flowers", "pooja-flowers"],
+  ["daily-pooja-flowers", "pooja-flowers"],
+]);
+
 function normalizePathSegments(categoryPath) {
   return (Array.isArray(categoryPath) ? categoryPath : [categoryPath])
     .map((segment) => normalizeCategorySlug(segment))
@@ -116,6 +122,19 @@ async function getCategoryContext(params) {
   const category = findCategoryBySlug(categories, categorySlug);
 
   if (!category && categorySlug !== "all-flowers") {
+    const parentSlug = segments.length > 1 ? segments[segments.length - 2] : "";
+    const parentCategory = parentSlug
+      ? findCategoryBySlug(categories, parentSlug) ||
+        findCategoryBySlug(categories, legacyCategorySlugAliases.get(parentSlug))
+      : null;
+
+    // A child can be disabled from Admin while an older URL is still open or
+    // indexed. Send that stale child URL to its active parent instead of
+    // leaving the customer on a dead 404 page.
+    if (parentCategory) {
+      permanentRedirect(buildCategoryUrl(parentCategory, categories));
+    }
+
     notFound();
   }
 

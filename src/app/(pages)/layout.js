@@ -39,19 +39,25 @@ export default async function RootLayout({ children }) {
       console.error("Failed to parse userSession cookie:", error);
     }
   }
-  const categories = await fetchAboutData(userToken);
-  const siteSettings = await fetchSiteSettingsData(userToken);
-  const watchListData = await fetchListingData("GET", "wishlist", userToken);
-  const cartSessionData = await fetchCartSessionData(
-    `get-cart?cart_session=${guestSession}`,
-    userToken ? userToken : undefined
-  );
+  const [categoriesResponse, siteSettings, navigationResponse, watchListData, cartSessionData] =
+    await Promise.all([
+      fetchAboutData(userToken),
+      fetchSiteSettingsData(userToken),
+      fetchListingData("GET", "navigation", userToken),
+      fetchListingData("GET", "wishlist", userToken),
+      fetchCartSessionData(
+        `get-cart?cart_session=${guestSession}`,
+        userToken ? userToken : undefined
+      ),
+    ]);
+  const categories = categoriesResponse || [];
 
   // const categories = await fetchCategoryData();
   return (
     <UserProvider>
       <Navbar
         categories={categories}
+        navigationItems={navigationResponse?.data || []}
         siteSettings={siteSettings}
         watchListData={watchListData?.data?.length}
         cartSessionData={cartSessionData?.data?.length}

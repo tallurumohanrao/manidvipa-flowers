@@ -1,3 +1,5 @@
+import { CUSTOM_BOUQUET_ENABLED } from "@/lib/features";
+
 export const SITE_NAME = "Manidvipa Flowers";
 export const CANONICAL_SITE_URL = "https://www.manidvipaflowers.com";
 
@@ -36,21 +38,15 @@ export const PRODUCT_IMAGE_BASE_URL = cleanUrl(
 
 export const PUBLIC_SITEMAP_ROUTES = [
   { path: "/", changeFrequency: "daily", priority: 1 },
-  { path: "/flowers", changeFrequency: "daily", priority: 0.95 },
-  { path: "/puja-flowers", changeFrequency: "daily", priority: 0.95 },
   { path: "/subscriptions", changeFrequency: "weekly", priority: 0.9 },
-  { path: "/premium-flowers", changeFrequency: "daily", priority: 0.9 },
-  { path: "/rare-flowers", changeFrequency: "daily", priority: 0.9 },
-  { path: "/garlands", changeFrequency: "daily", priority: 0.85 },
   { path: "/decorations", changeFrequency: "weekly", priority: 0.85 },
-  { path: "/gifts", changeFrequency: "daily", priority: 0.85 },
+  ...(CUSTOM_BOUQUET_ENABLED
+    ? [{ path: "/create-bouquet", changeFrequency: "monthly", priority: 0.85 }]
+    : []),
   { path: "/offers", changeFrequency: "daily", priority: 0.8 },
   { path: "/about", changeFrequency: "monthly", priority: 0.6 },
   { path: "/contact-us", changeFrequency: "monthly", priority: 0.7 },
   { path: "/testimonials", changeFrequency: "monthly", priority: 0.5 },
-  { path: "/privacy-policy", changeFrequency: "yearly", priority: 0.3 },
-  { path: "/terms-conditions", changeFrequency: "yearly", priority: 0.3 },
-  { path: "/refund-cancellation", changeFrequency: "yearly", priority: 0.3 },
 ];
 
 const NOINDEX_PREFIXES = [

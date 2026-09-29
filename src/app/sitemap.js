@@ -54,8 +54,10 @@ function normalizePriority(value, fallback = 0.5) {
 }
 
 function normalizeLastModified(value) {
-  const date = value ? new Date(value) : new Date();
-  return Number.isNaN(date.getTime()) ? new Date() : date;
+  if (!value) return undefined;
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date;
 }
 
 function normalizeSitemapPath(value) {
@@ -103,32 +105,74 @@ function buildCategorySitemapPath(category, categories = []) {
   return parentSlug && parentSlug !== slug ? `/${parentSlug}/${slug}` : `/${slug}`;
 }
 
-function addEntry(entries, pathOrUrl, options = {}, editableRoutes = new Map()) {
-  const normalizedPath = normalizeSitemapPath(pathOrUrl);
-  const path = editableRoutes.get(normalizedPath) || normalizedPath;
+function resolveSitemapPath(
+  pathOrUrl,
+  editableRoutes = new Map(),
+  redirects = new Map()
+) {
+  let path = normalizeSitemapPath(pathOrUrl);
+  const visited = new Set();
+
+  while (!visited.has(path)) {
+    visited.add(path);
+    const nextPath = editableRoutes.get(path) || redirects.get(path);
+    if (!nextPath) break;
+    path = normalizeSitemapPath(nextPath);
+  }
+
+  return path;
+}
+
+function addEntry(
+  entries,
+  pathOrUrl,
+  options = {},
+  editableRoutes = new Map(),
+  redirects = new Map()
+) {
+  const path = resolveSitemapPath(pathOrUrl, editableRoutes, redirects);
   if (isNoIndexPath(path)) return;
 
   const url = canonicalUrl(path);
   if (entries.has(url)) return;
 
-  entries.set(url, {
+  const entry = {
     url,
-    lastModified: normalizeLastModified(options.lastModified),
     changeFrequency: normalizeChangeFrequency(options.changeFrequency),
     priority: normalizePriority(options.priority),
-  });
+  };
+  const lastModified = normalizeLastModified(options.lastModified);
+
+  if (lastModified) entry.lastModified = lastModified;
+  entries.set(url, entry);
 }
 
 function extractProducts(productsResponse) {
   return unpackPaginatedProducts(productsResponse?.data || productsResponse);
 }
 
+async function fetchAllProducts() {
+  const endpoint = "products-by-category?category_slug=all-flowers&per_page=200";
+  const firstPage = await fetchApi(`${endpoint}&page=1`);
+  const lastPage = Math.max(1, Number(firstPage?.data?.last_page) || 1);
+
+  if (lastPage === 1) return extractProducts(firstPage);
+
+  const remainingPages = await Promise.all(
+    Array.from({ length: lastPage - 1 }, (_, index) =>
+      fetchApi(`${endpoint}&page=${index + 2}`)
+    )
+  );
+
+  return [firstPage, ...remainingPages].flatMap(extractProducts);
+}
+
 export default async function sitemap() {
   const entries = new Map();
-  const [routesResponse, categoriesResponse, productsResponse] = await Promise.all([
+  const [routesResponse, categoriesResponse, products] = await Promise.all([
     fetchApi("seo-routes"),
     fetchApi("categories"),
-    fetchApi("products-by-category?category_slug=all-flowers&per_page=200"),
+    fetchAllProducts(),
   ]);
   const editableRouteRows = Array.isArray(routesResponse?.data?.routes)
     ? routesResponse.data.routes
@@ -139,17 +183,18 @@ export default async function sitemap() {
       normalizeSitemapPath(route.url),
     ])
   );
+  const redirectRows = Array.isArray(routesResponse?.data?.redirects)
+    ? routesResponse.data.redirects
+    : [];
+  const redirects = new Map(
+    redirectRows.map((redirect) => [
+      normalizeSitemapPath(redirect.from_url),
+      normalizeSitemapPath(redirect.to_url),
+    ])
+  );
 
   PUBLIC_SITEMAP_ROUTES.forEach((route) => {
-    addEntry(entries, route.path, route, editableRoutes);
-  });
-
-  editableRouteRows.forEach((route) => {
-    addEntry(entries, route.url, {
-      lastModified: route.updated_at,
-      changeFrequency: "weekly",
-      priority: 0.6,
-    }, editableRoutes);
+    addEntry(entries, route.path, route, editableRoutes, redirects);
   });
 
   const categories = Array.isArray(categoriesResponse?.data) ? categoriesResponse.data : [];
@@ -161,16 +206,16 @@ export default async function sitemap() {
       lastModified: category.updated_at || category.created_at,
       changeFrequency: "daily",
       priority: category.parent_id ? 0.75 : 0.8,
-    }, editableRoutes);
+    }, editableRoutes, redirects);
   });
 
-  extractProducts(productsResponse).forEach((product) => {
+  products.forEach((product) => {
     if (!product?.slug) return;
     addEntry(entries, `/flowers/${product.slug}`, {
       lastModified: product.updated_at || product.created_at,
       changeFrequency: "daily",
       priority: 0.72,
-    }, editableRoutes);
+    }, editableRoutes, redirects);
   });
 
   return Array.from(entries.values());

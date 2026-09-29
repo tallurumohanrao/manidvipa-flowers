@@ -504,7 +504,7 @@
   }
 }
 
-.accordionList {
+.productInfo {
   background: #fff;
   border: 1px solid #f0dce0;
   border-radius: 18px;
@@ -513,44 +513,204 @@
   overflow: hidden;
 }
 
-.accordionItem {
-  border-bottom: 1px solid #f1e1e4;
-  padding: 0 18px;
+.infoTabs {
+  align-items: stretch;
+  background: #fffaf7;
+  border-bottom: 1px solid #f0dce0;
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 8px 10px 0;
+  scrollbar-width: none;
 
-  &:last-child {
-    border-bottom: 0;
+  &::-webkit-scrollbar {
+    display: none;
   }
 
-  summary {
-    align-items: center;
-    color: #2b1519;
+  button {
+    background: transparent;
+    border: 0;
+    border-bottom: 3px solid transparent;
+    color: #765b61;
     cursor: pointer;
-    display: flex;
-    font-size: 15px;
-    font-weight: 900;
-    justify-content: space-between;
-    list-style: none;
-    padding: 18px 0;
-
-    &::-webkit-details-marker {
-      display: none;
-    }
-
-    svg {
-      color: #9b1436;
-      transition: transform 0.2s ease;
-    }
-  }
-
-  &[open] summary svg {
-    transform: rotate(180deg);
-  }
-
-  p,
-  div {
-    color: #60484d;
+    flex: 0 0 auto;
     font-size: 14px;
-    line-height: 1.7;
+    font-weight: 800;
+    padding: 13px 15px 12px;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+
+    &:hover {
+      background: #fff3f1;
+      color: #9b1436;
+    }
+  }
+}
+
+.activeInfoTab {
+  background: #fff !important;
+  border-bottom-color: #9b1436 !important;
+  color: #9b1436 !important;
+}
+
+.infoPanel {
+  padding: 22px 20px 20px;
+
+  &[hidden] {
+    display: none;
+  }
+}
+
+.simpleInfoContent {
+  color: #60484d;
+  font-size: 15px;
+  line-height: 1.72;
+  margin: 0;
+  max-width: none;
+
+  h2 {
+    color: #3a252a;
+    font-size: clamp(20px, 2vw, 27px);
+    line-height: 1.25;
+    margin: 0 0 12px;
+  }
+
+  p {
+    margin: 0 0 12px;
+  }
+
+  ul {
+    margin: 0;
+    padding-left: 22px;
+  }
+
+  li {
+    margin: 5px 0;
+  }
+}
+
+.priceNotice {
+  background: #fff8e8;
+  border-left: 4px solid #e0a23b;
+  border-radius: 0 8px 8px 0;
+  padding: 12px 14px;
+}
+
+.descriptionContent {
+  color: #60484d;
+  font-size: 15px;
+  line-height: 1.72;
+  margin: 0;
+  max-width: none;
+  padding: 2px 0 10px;
+
+  section {
+    margin: 0 0 24px;
+
+    &:last-child {
+      margin-bottom: 8px;
+    }
+  }
+
+  section:first-child {
+    background: #fffaf5;
+    border-left: 4px solid #c43b5d;
+    border-radius: 0 10px 10px 0;
+    margin-bottom: 28px;
+    padding: 14px 18px;
+  }
+
+  p {
+    color: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    margin: 0 0 12px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  h2,
+  h3,
+  h4 {
+    color: #3a252a;
+    font-family: inherit;
+    font-weight: 800;
+    line-height: 1.25;
+    margin: 0 0 10px;
+  }
+
+  h2 {
+    border-bottom: 1px solid #f2e2e4;
+    font-size: clamp(20px, 2vw, 27px);
+    letter-spacing: 0;
+    padding-bottom: 8px;
+  }
+
+  h3 {
+    font-size: 19px;
+  }
+
+  h4 {
+    font-size: 16px;
+  }
+
+  ul,
+  ol {
+    margin: 0 0 14px;
+    padding-left: 22px;
+  }
+
+  li {
+    color: inherit;
+    margin: 5px 0;
+    padding-left: 3px;
+  }
+
+  strong {
+    color: #3a252a;
+    font-weight: 800;
+  }
+
+  a {
+    color: #9b1436;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  blockquote {
+    border-left: 3px solid #e2a0af;
+    color: #765b61;
+    margin: 16px 0;
+    padding: 4px 16px;
+  }
+
+  img {
+    border-radius: 10px;
+    height: auto;
+    max-width: 100%;
+  }
+
+  table {
+    border-collapse: collapse;
+    display: block;
+    margin: 14px 0;
+    max-width: 100%;
+    overflow-x: auto;
+    width: 100%;
+  }
+
+  th,
+  td {
+    border: 1px solid #ecdfe1;
+    padding: 9px 10px;
+    text-align: left;
+  }
+
+  th {
+    background: #fff7f1;
+    color: #3a252a;
+    font-weight: 800;
   }
 }
 
@@ -636,6 +796,52 @@
     border-radius: 16px;
     gap: 22px;
     padding: 14px;
+  }
+
+  .descriptionContent {
+    font-size: 14px;
+    line-height: 1.65;
+
+    section {
+      margin-bottom: 20px;
+    }
+
+    section:first-child {
+      margin-bottom: 22px;
+      padding: 12px 14px;
+    }
+
+    h2 {
+      font-size: 20px;
+      padding-bottom: 6px;
+    }
+
+    h3 {
+      font-size: 17px;
+    }
+  }
+
+  .infoPanel {
+    padding: 18px 14px 16px;
+  }
+
+  .infoTabs {
+    gap: 0;
+    padding: 6px 6px 0;
+
+    button {
+      font-size: 13px;
+      padding: 11px 12px 10px;
+    }
+  }
+
+  .simpleInfoContent {
+    font-size: 14px;
+    line-height: 1.65;
+
+    h2 {
+      font-size: 20px;
+    }
   }
 
   .mainImageWrap {

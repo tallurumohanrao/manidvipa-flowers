@@ -1,5 +1,6 @@
 import ProductDetails from "@/components/pages/ProductDetails";
 import { cookies } from "next/headers";
+import { notFound } from "next/navigation";
 import React, { cache } from "react";
 import {
   fetchListingData,
@@ -258,6 +259,13 @@ export default async function Page({ params }) {
   }
 
   const produtsDetails = await resolveProductDetails(slug, userToken || "");
+
+  // A product URL must represent a real active catalog record. Returning a
+  // fallback product for an unknown slug creates thin, indexable duplicate
+  // pages and makes stale URLs look valid to search engines.
+  if (!produtsDetails?.data?.id) {
+    notFound();
+  }
 
   const [seoData, editableRoutes] = await Promise.all([
     fetchFirstSeoMetadata([

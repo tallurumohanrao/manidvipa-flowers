@@ -1,0 +1,2 @@
+export const CUSTOM_BOUQUET_ENABLED =
+  process.env.NEXT_PUBLIC_CUSTOM_BOUQUET_ENABLED === "true";

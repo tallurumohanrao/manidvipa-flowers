@@ -14,6 +14,7 @@ import {
   getCartCount,
 } from "../../../hook/userCookie";
 import { getPriceVisibility } from "@/lib/priceVisibility";
+import { CUSTOM_BOUQUET_ENABLED } from "@/lib/features";
 
 const IMG_URL = process.env.NEXT_PUBLIC_IMG_URL;
 const DEFAULT_CATEGORY = "all-flowers";
@@ -37,12 +38,18 @@ const categorySlugAliasMap = {
   mala: "garlands",
   "flower-garlands": "garlands",
   "temple-garlands": "garlands",
-  "pooja-flowers": "puja-flowers",
-  "daily-puja-flowers": "puja-flowers",
-  "daily-pooja-flowers": "puja-flowers",
+  "puja-flowers": "pooja-flowers",
+  "daily-puja-flowers": "pooja-flowers",
+  "daily-pooja-flowers": "pooja-flowers",
   "patri-and-leaves": "patri-leaves",
   patri: "patri-leaves",
   leaves: "patri-leaves",
+  gifts: "bouquets-gifts",
+  gift: "bouquets-gifts",
+  "bouquets-gifting": "bouquets-gifts",
+  bouquet: "bouquets-gifts",
+  bouquets: "bouquets-gifts",
+  "flower-gifts": "bouquets-gifts",
 };
 
 const fallbackCategoryOptions = [
@@ -87,7 +94,7 @@ const fallbackCategoryOptions = [
   { value: "other-flowers", label: "Other Flowers", keywords: ["mixed", "assorted", "other"] },
   { value: "patri-leaves", label: "Patri & Leaves", keywords: ["patri", "leaves", "leaf", "tulasi", "bilva", "mango leaves", "betel"] },
   { value: "garlands", label: "Garlands", keywords: ["garland", "garlands", "mala", "temple", "pooja", "puja"] },
-  { value: "bouquets-gifting", label: "Bouquets & Gifting", keywords: ["bouquet", "bouquets", "gift", "gifting"] },
+  { value: "bouquets-gifts", label: "Bouquets & Gifting", keywords: ["bouquet", "bouquets", "gift", "gifting"] },
   { value: "temple-pooja", label: "Temple & Pooja", keywords: ["temple", "pooja", "puja", "ritual"] },
 ];
 
@@ -99,41 +106,9 @@ const priceOptions = [
   { value: "1000-plus", label: "₹1000+", min: 1000, max: Infinity },
 ];
 
-const collectionOptions = [
-  { value: "fresh-today", label: "Fresh Today", keywords: ["fresh today", "fresh", "today"], flags: ["isFreshToday", "is_fresh_today"] },
-  { value: "premium", label: "Premium", keywords: ["premium", "imported", "exotic"], flags: ["isPremium", "is_premium"] },
-  { value: "rare", label: "Rare", keywords: ["rare", "limited"], flags: ["isRare", "is_rare"] },
-  { value: "seasonal", label: "Seasonal", keywords: ["seasonal"], flags: ["isSeasonal", "is_seasonal"] },
-  { value: "best-seller", label: "Best Seller", keywords: ["best seller", "bestseller"], flags: ["isBestSeller", "is_best_seller", "is_bestseller"] },
-  { value: "new-arrival", label: "New Arrival", keywords: ["new arrival", "new"], flags: ["isNewArrival", "is_new_arrival", "isNew", "is_new"] },
-  { value: "puja", label: "Puja Flowers", keywords: ["puja", "pooja", "temple", "ritual"], flags: ["isPujaFlower", "is_puja_flower"] },
-];
-
-const colorOptions = [
-  { label: "White", value: "white", color: "#f8f4e8" },
-  { label: "Red", value: "red", color: "#c20d25" },
-  { label: "Yellow", value: "yellow", color: "#f4c20d" },
-  { label: "Orange", value: "orange", color: "#ff8a00" },
-  { label: "Pink", value: "pink", color: "#ef4aa7" },
-  { label: "Purple", value: "purple", color: "#7b45b5" },
-  { label: "Green", value: "green", color: "#2ab060" },
-  { label: "Mixed", value: "mixed", color: "linear-gradient(135deg, #c20d25 0 25%, #f4c20d 25% 50%, #2ab060 50% 75%, #ef4aa7 75% 100%)" },
-];
-
-const flowerTypeOptions = [
-  { value: "loose-flowers", label: "Loose Flowers", keywords: ["loose", "loose flowers"] },
-  { value: "garlands", label: "Garlands", keywords: ["garland", "garlands", "mala"] },
-  { value: "bouquets", label: "Bouquets", keywords: ["bouquet", "bouquets"] },
-  { value: "bunches", label: "Bunches", keywords: ["bunch", "bunches"] },
-  { value: "leaves-patri", label: "Leaves / Patri", keywords: ["leaf", "leaves", "patri", "tulasi", "bilva"] },
-  { value: "puja-sets", label: "Puja Sets", keywords: ["puja set", "pooja set", "ritual set"] },
-  { value: "decoration-flowers", label: "Decoration Flowers", keywords: ["decoration", "decor", "wedding", "event"] },
-];
-
 const availabilityOptions = [
-  { value: "in-stock", label: "In Stock", keywords: ["in stock", "available"], flags: ["isAvailable", "is_available"] },
-  { value: "available-today", label: "Available Today", keywords: ["available today", "today"], flags: ["availableToday", "available_today"] },
-  { value: "pre-order", label: "Pre-Order", keywords: ["pre-order", "preorder", "pre order"], flags: ["isPreOrder", "is_pre_order", "pre_order"] },
+  { value: "in-stock", label: "In Stock" },
+  { value: "out-of-stock", label: "Out of Stock" },
 ];
 
 const sortOptions = [
@@ -239,9 +214,16 @@ function buildCategoryOptions(categories = []) {
     });
   };
 
-  fallbackCategoryOptions.forEach((option) => addOption(option));
-
   const dynamicCategories = Array.isArray(categories) ? categories : [];
+
+  // Admin categories are the source of truth. Static options are used only
+  // when the category API is unavailable, so disabled or deleted categories
+  // never remain as clickable storefront links.
+  if (dynamicCategories.length) {
+    addOption({ value: DEFAULT_CATEGORY, label: "All Flowers", keywords: [], children: [] });
+  } else {
+    fallbackCategoryOptions.forEach((option) => addOption(option));
+  }
 
   dynamicCategories.forEach((category) => {
     addOption({
@@ -381,25 +363,6 @@ function hasAnyFlag(product, flags = []) {
   return flags.some((flag) => isTruthyField(product?.[flag]) || isTruthyField(product?.meta?.[flag]));
 }
 
-function matchesKeywords(product, keywords = []) {
-  if (!keywords.length) return true;
-  const searchableText = getSearchableProductText(product);
-  return keywords.some((keyword) => searchableText.includes(normalizeText(keyword)));
-}
-
-function matchesLogicalOption(product, option) {
-  if (!option) return true;
-  if (!option.keywords?.length && !option.flags?.length && !option.collections?.length) return true;
-
-  const keywordMatch = option.keywords?.length ? matchesKeywords(product, option.keywords) : false;
-  const flagMatch = option.flags?.length ? hasAnyFlag(product, option.flags) : false;
-  const collectionMatch = option.collections?.length
-    ? option.collections.some((collection) => matchesKeywords(product, [collection]))
-    : false;
-
-  return keywordMatch || flagMatch || collectionMatch;
-}
-
 function getProductId(product) {
   return product?.product_id || product?.id || product?.data?.id || null;
 }
@@ -425,6 +388,7 @@ function buildWeightOptions(product) {
       isOutOfStock: weight?.is_out_of_stock != null
         ? Boolean(weight.is_out_of_stock)
         : Number(weight?.stock) > 0 && Number(weight?.qty) < (Number(weight?.quantity_value) || 1),
+      tracksStock: Number(weight?.stock) > 0,
     }));
   }
 
@@ -438,6 +402,7 @@ function buildWeightOptions(product) {
       sellPrice: parsePriceValue(product?.sell_price || product?.price),
       listPrice: parsePriceValue(product?.list_price || product?.mrp || product?.price),
       weightId: fallbackWeightId,
+      tracksStock: Number(product?.stock) > 0,
     },
   ];
 }
@@ -494,22 +459,30 @@ function getSalesValue(product) {
   return parsePriceValue(product?.sales_count || product?.sold_count || product?.orders_count || product?.purchase_count);
 }
 
+function hasVisibleProductPrice(product) {
+  return getPriceVisibility(product).showPrice && getProductPrice(product) > 0;
+}
+
 function getAvailabilityValue(product) {
-  const text = getSearchableProductText(product);
+  const priceVisibility = getPriceVisibility(product);
+  if (!priceVisibility.showPrice || !priceVisibility.canPurchase) return "";
 
-  if (hasAnyFlag(product, ["isPreOrder", "is_pre_order", "pre_order"]) || text.includes("pre-order") || text.includes("preorder")) {
-    return "pre-order";
-  }
+  const trackedWeightOptions = buildWeightOptions(product).filter((weight) => weight.tracksStock);
+  if (!trackedWeightOptions.length) return "";
 
-  if (hasAnyFlag(product, ["availableToday", "available_today"]) || text.includes("available today")) {
-    return "available-today";
-  }
+  return trackedWeightOptions.some((weight) => !weight.isOutOfStock)
+    ? "in-stock"
+    : "out-of-stock";
+}
 
-  if (hasAnyFlag(product, ["isAvailable", "is_available"]) || text.includes("in stock") || text.includes("available")) {
-    return "in-stock";
-  }
+function compareProductsByVisiblePrice(leftProduct, rightProduct, direction) {
+  const leftHasPrice = hasVisibleProductPrice(leftProduct);
+  const rightHasPrice = hasVisibleProductPrice(rightProduct);
 
-  return "";
+  if (leftHasPrice !== rightHasPrice) return leftHasPrice ? -1 : 1;
+  if (!leftHasPrice) return 0;
+
+  return (getProductPrice(leftProduct) - getProductPrice(rightProduct)) * direction;
 }
 
 function getProductBadges(product) {
@@ -956,14 +929,10 @@ export default function CategoryProducts({
     normalizeCategoryValue(initialCategoryValue || DEFAULT_CATEGORY)
   );
   const [selectedPrices, setSelectedPrices] = useState(() => parseListParam(searchParams, "price"));
-  const [selectedCollections, setSelectedCollections] = useState(() => parseListParam(searchParams, "collection"));
-  const [selectedColor, setSelectedColor] = useState(normalizeParamValue(searchParams.get("color") || ""));
-  const [selectedTypes, setSelectedTypes] = useState(() => parseListParam(searchParams, "type"));
   const [selectedAvailability, setSelectedAvailability] = useState(() => parseListParam(searchParams, "availability"));
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [openCategoryGroups, setOpenCategoryGroups] = useState([]);
   const hasMountedFiltersRef = useRef(false);
-  const hasInitializedCategoryGroupsRef = useRef(false);
 
   const categoryFilterOptions = useMemo(
     () => buildCategoryOptions(categories),
@@ -984,6 +953,11 @@ export default function CategoryProducts({
         : null,
     [activeCategoryOption, categoryFilterOptions]
   );
+  const activeCategoryGroupValue = useMemo(() => {
+    if (activeParentCategoryOption?.value) return activeParentCategoryOption.value;
+    if (activeCategoryOption?.children?.length) return activeCategoryOption.value;
+    return null;
+  }, [activeCategoryOption, activeParentCategoryOption]);
   const openCategoryGroupValues = useMemo(
     () => new Set(openCategoryGroups),
     [openCategoryGroups]
@@ -1000,25 +974,46 @@ export default function CategoryProducts({
       : "Explore our wide range of fresh flowers for every occasion and ritual.";
   const finalBreadcrumbLabel =
     breadcrumbLabel && isInitialCategoryView ? breadcrumbLabel : pageTitle || "All Flowers";
+  const isBouquetView = normalizeCategoryValue(activeCategory) === "bouquets-gifts";
+  const showBouquetBuilder = isBouquetView && CUSTOM_BOUQUET_ENABLED;
   const whatsappHref = useMemo(() => {
     const settings = siteSettings?.data || siteSettings || {};
     const baseHref = normalizeWhatsApp(settings?.SITE_WHATSAPP || settings?.SITE_PHONE);
     return appendWhatsAppMessage(baseHref, REQUEST_FLOWER_MESSAGE);
   }, [siteSettings]);
+  const visiblePriceOptions = useMemo(
+    () =>
+      priceOptions.filter((priceOption) =>
+        productCategory.some((product) => {
+          if (!hasVisibleProductPrice(product)) return false;
+          const price = getProductPrice(product);
+          return price >= priceOption.min && price <= priceOption.max;
+        })
+      ),
+    [productCategory]
+  );
+  const visibleAvailabilityOptions = useMemo(
+    () =>
+      availabilityOptions.filter((availabilityOption) =>
+        productCategory.some(
+          (product) => getAvailabilityValue(product) === availabilityOption.value
+        )
+      ),
+    [productCategory]
+  );
+  const hasProductFilters =
+    visiblePriceOptions.length > 0 || visibleAvailabilityOptions.length > 0;
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     setLoadError("");
+    setProductCategory([]);
 
     try {
       const requestCategory = activeCategory || category_slug || DEFAULT_CATEGORY;
       const products = await fetchCategoryProducts(requestCategory, userToken, { sortOption });
 
-      if (products.length) {
-        setProductCategory(products);
-      } else {
-        setProductCategory((currentProducts) => (currentProducts.length ? currentProducts : []));
-      }
+      setProductCategory(products);
     } catch (error) {
       console.error("Unable to fetch category products:", error);
       setLoadError("Unable to load flowers right now.");
@@ -1032,28 +1027,17 @@ export default function CategoryProducts({
   }, [fetchData]);
 
   useEffect(() => {
-    if (hasInitializedCategoryGroupsRef.current) return;
-
-    const defaultOpenGroups = categoryTreeOptions.parents
-      .filter((category) => category.children?.length)
-      .map((category) => category.value);
-
-    if (defaultOpenGroups.length) {
-      setOpenCategoryGroups(defaultOpenGroups);
-      hasInitializedCategoryGroupsRef.current = true;
+    if (!activeCategoryGroupValue) {
+      setOpenCategoryGroups([]);
+      return;
     }
-  }, [categoryTreeOptions.parents]);
-
-  useEffect(() => {
-    if (!activeParentCategoryOption?.value) return;
 
     setOpenCategoryGroups((currentGroups) =>
-      currentGroups.includes(activeParentCategoryOption.value)
+      currentGroups.length === 1 && currentGroups[0] === activeCategoryGroupValue
         ? currentGroups
-        : [...currentGroups, activeParentCategoryOption.value]
+        : [activeCategoryGroupValue]
     );
-  }, [activeParentCategoryOption?.value]);
-
+  }, [activeCategoryGroupValue]);
   useEffect(() => {
     if (!hasMountedFiltersRef.current) {
       hasMountedFiltersRef.current = true;
@@ -1061,15 +1045,12 @@ export default function CategoryProducts({
     }
 
     setCurrentPage(1);
-  }, [activeCategory, selectedPrices, selectedCollections, selectedColor, selectedTypes, selectedAvailability, sortOption, pageSize]);
+  }, [activeCategory, selectedPrices, selectedAvailability, sortOption, pageSize]);
 
   useEffect(() => {
     const nextParams = new URLSearchParams();
 
-    if (selectedCollections.length) nextParams.set("collection", selectedCollections.join(","));
     if (selectedPrices.length) nextParams.set("price", selectedPrices.join(","));
-    if (selectedColor) nextParams.set("color", selectedColor);
-    if (selectedTypes.length) nextParams.set("type", selectedTypes.join(","));
     if (selectedAvailability.length) nextParams.set("availability", selectedAvailability.join(","));
     if (sortOption !== DEFAULT_SORT) nextParams.set("sort", sortOption);
     if (pageSize !== DEFAULT_PAGE_SIZE) nextParams.set("show", String(pageSize));
@@ -1096,10 +1077,7 @@ export default function CategoryProducts({
     router,
     searchParams,
     selectedAvailability,
-    selectedCollections,
-    selectedColor,
     selectedPrices,
-    selectedTypes,
     sortOption,
   ]);
 
@@ -1120,16 +1098,16 @@ export default function CategoryProducts({
   }, []);
 
   const clearFilters = () => {
-    setActiveCategory(DEFAULT_CATEGORY);
     setSelectedPrices([]);
-    setSelectedCollections([]);
-    setSelectedColor("");
-    setSelectedTypes([]);
     setSelectedAvailability([]);
-    setSortOption(DEFAULT_SORT);
-    setPageSize(DEFAULT_PAGE_SIZE);
     setCurrentPage(1);
     closeMobileFilters();
+  };
+
+  const selectCategory = (categoryValue) => {
+    setActiveCategory(categoryValue);
+    setSelectedPrices([]);
+    setSelectedAvailability([]);
   };
 
   const toggleCategoryGroup = (categoryValue) => {
@@ -1141,64 +1119,31 @@ export default function CategoryProducts({
   };
 
   const filteredProducts = useMemo(() => {
-    const selectedPriceOptions = priceOptions.filter((price) => selectedPrices.includes(price.value));
-    const selectedCollectionOptions = collectionOptions.filter((collection) => selectedCollections.includes(collection.value));
-    const selectedTypeOptions = flowerTypeOptions.filter((type) => selectedTypes.includes(type.value));
+    const selectedPriceOptions = priceOptions.filter((price) =>
+      selectedPrices.includes(price.value)
+    );
     const selectedAvailabilityOptions = availabilityOptions.filter((availability) =>
       selectedAvailability.includes(availability.value)
     );
 
     return productCategory.filter((product) => {
-      const searchableText = getSearchableProductText(product);
       const price = getProductPrice(product);
-
-      const matchesCategory =
-        activeCategory === DEFAULT_CATEGORY
-          ? true
-          : activeCategoryOption
-          ? matchesLogicalOption(product, activeCategoryOption)
-          : false;
       const matchesPrice =
         !selectedPriceOptions.length ||
-        selectedPriceOptions.some((priceOption) => price >= priceOption.min && price <= priceOption.max);
-      const matchesCollection =
-        !selectedCollectionOptions.length ||
-        selectedCollectionOptions.some((collection) => matchesLogicalOption(product, collection));
-      const matchesColor =
-        !selectedColor ||
-        searchableText.includes(selectedColor) ||
-        normalizeParamValue(product?.color) === selectedColor;
-      const matchesType =
-        !selectedTypeOptions.length ||
-        selectedTypeOptions.some((type) => matchesKeywords(product, type.keywords));
+        (hasVisibleProductPrice(product) &&
+          selectedPriceOptions.some(
+            (priceOption) => price >= priceOption.min && price <= priceOption.max
+          ));
       const productAvailability = getAvailabilityValue(product);
       const matchesAvailability =
         !selectedAvailabilityOptions.length ||
         selectedAvailabilityOptions.some(
-          (availability) =>
-            productAvailability === availability.value ||
-            matchesLogicalOption(product, availability)
+          (availability) => productAvailability === availability.value
         );
 
-      return (
-        matchesCategory &&
-        matchesPrice &&
-        matchesCollection &&
-        matchesColor &&
-        matchesType &&
-        matchesAvailability
-      );
+      return matchesPrice && matchesAvailability;
     });
-  }, [
-    activeCategory,
-    activeCategoryOption,
-    productCategory,
-    selectedAvailability,
-    selectedCollections,
-    selectedColor,
-    selectedPrices,
-    selectedTypes,
-  ]);
+  }, [productCategory, selectedAvailability, selectedPrices]);
 
   const sortedProducts = useMemo(() => {
     const products = [...filteredProducts];
@@ -1206,9 +1151,9 @@ export default function CategoryProducts({
     if (sortOption === "newest" || sortOption === "recently-added") {
       products.sort((a, b) => getDateValue(b) - getDateValue(a));
     } else if (sortOption === "price-low") {
-      products.sort((a, b) => getProductPrice(a) - getProductPrice(b));
+      products.sort((a, b) => compareProductsByVisiblePrice(a, b, 1));
     } else if (sortOption === "price-high") {
-      products.sort((a, b) => getProductPrice(b) - getProductPrice(a));
+      products.sort((a, b) => compareProductsByVisiblePrice(a, b, -1));
     } else if (sortOption === "best-selling") {
       products.sort((a, b) => getSalesValue(b) - getSalesValue(a));
     }
@@ -1243,7 +1188,7 @@ export default function CategoryProducts({
         className={className}
         aria-expanded={hasChildren ? isOpen : undefined}
         onClick={() => {
-          setActiveCategory(category.value);
+          selectCategory(category.value);
           if (hasChildren) toggleCategoryGroup(category.value);
           if (!hasChildren) closeMobileFilters();
         }}
@@ -1281,70 +1226,42 @@ export default function CategoryProducts({
         </div>
       </div>
 
-      <div className={styles.filterBlock}>
-        <h2>Filter By</h2>
+      {hasProductFilters ? (
+        <div className={styles.filterBlock}>
+          <h2>Filter By</h2>
 
-        <div className={styles.filterGroup}>
-          <h3>Price</h3>
-          <FilterCheckboxGroup
-            options={priceOptions}
-            selectedValues={selectedPrices}
-            onToggle={toggleListValue(setSelectedPrices)}
-          />
-        </div>
-
-        <div className={styles.filterGroup}>
-          <h3>Collection</h3>
-          <FilterCheckboxGroup
-            options={collectionOptions}
-            selectedValues={selectedCollections}
-            onToggle={toggleListValue(setSelectedCollections)}
-          />
-        </div>
-
-        <div className={styles.filterGroup}>
-          <h3>Color</h3>
-          <div className={styles.colorSwatches}>
-            {colorOptions.map((color) => (
-              <button
-                type="button"
-                key={color.value}
-                aria-label={color.label}
-                title={color.label}
-                className={selectedColor === color.value ? styles.activeColor : ""}
-                style={{ "--swatch-color": color.color }}
-                onClick={() =>
-                  setSelectedColor((currentColor) =>
-                    currentColor === color.value ? "" : color.value
-                  )
-                }
+          {visiblePriceOptions.length > 0 ? (
+            <div className={styles.filterGroup}>
+              <h3>Price</h3>
+              <FilterCheckboxGroup
+                options={visiblePriceOptions}
+                selectedValues={selectedPrices}
+                onToggle={toggleListValue(setSelectedPrices)}
               />
-            ))}
-          </div>
-        </div>
+            </div>
+          ) : null}
 
-        <div className={styles.filterGroup}>
-          <h3>Flower Type</h3>
-          <FilterCheckboxGroup
-            options={flowerTypeOptions}
-            selectedValues={selectedTypes}
-            onToggle={toggleListValue(setSelectedTypes)}
-          />
-        </div>
+          {visibleAvailabilityOptions.length > 0 ? (
+            <div className={styles.filterGroup}>
+              <h3>Availability</h3>
+              <FilterCheckboxGroup
+                options={visibleAvailabilityOptions}
+                selectedValues={selectedAvailability}
+                onToggle={toggleListValue(setSelectedAvailability)}
+              />
+            </div>
+          ) : null}
 
-        <div className={styles.filterGroup}>
-          <h3>Availability</h3>
-          <FilterCheckboxGroup
-            options={availabilityOptions}
-            selectedValues={selectedAvailability}
-            onToggle={toggleListValue(setSelectedAvailability)}
-          />
+          <button
+            type="button"
+            className={styles.clearButton}
+            onClick={clearFilters}
+            disabled={!selectedPrices.length && !selectedAvailability.length}
+          >
+            CLEAR FILTERS
+          </button>
         </div>
-
-        <button type="button" className={styles.clearButton} onClick={clearFilters}>
-          CLEAR FILTERS
-        </button>
-      </div>
+      ) : null}
     </>
   );
 
@@ -1362,7 +1279,7 @@ export default function CategoryProducts({
                 <button
                   type="button"
                   className={styles.breadcrumbButton}
-                  onClick={() => setActiveCategory(activeParentCategoryOption.value)}
+                  onClick={() => selectCategory(activeParentCategoryOption.value)}
                 >
                   {activeParentCategoryOption.label}
                 </button>
@@ -1377,6 +1294,11 @@ export default function CategoryProducts({
               <h1>{pageTitle || "All Flowers"}</h1>
               <p>{pageCopy}</p>
             </div>
+            {showBouquetBuilder ? (
+              <Link href="/create-bouquet" className={styles.builderLink}>
+                CREATE YOUR BOUQUET
+              </Link>
+            ) : null}
           </header>
 
           <div className={styles.mobileToolbar}>
@@ -1528,18 +1450,28 @@ export default function CategoryProducts({
 
           <section className={styles.requestCta}>
             <div>
-              <p>Can&apos;t find the flower you&apos;re looking for?</p>
-              <h2>Request a Flower</h2>
-              <span>Share the flower name or photo. We&apos;ll try to source it for you.</span>
+              <p>{showBouquetBuilder ? "Want something made just for you?" : "Can't find the flower you're looking for?"}</p>
+              <h2>{showBouquetBuilder ? "Create Your Own Bouquet" : "Request a Flower"}</h2>
+              <span>
+                {showBouquetBuilder
+                  ? "Choose flowers, colours, size and add-ons, then request a final quotation."
+                  : "Share the flower name or photo. We'll try to source it for you."}
+              </span>
             </div>
-            <Link
-              href={whatsappHref}
-              target={whatsappHref.startsWith("http") ? "_blank" : undefined}
-              rel={whatsappHref.startsWith("http") ? "noopener noreferrer" : undefined}
-              className={styles.requestButton}
-            >
-              REQUEST NOW
-            </Link>
+            {showBouquetBuilder ? (
+              <Link href="/create-bouquet" className={styles.requestButton}>
+                START CREATING
+              </Link>
+            ) : (
+              <Link
+                href={whatsappHref}
+                target={whatsappHref.startsWith("http") ? "_blank" : undefined}
+                rel={whatsappHref.startsWith("http") ? "noopener noreferrer" : undefined}
+                className={styles.requestButton}
+              >
+                REQUEST NOW
+              </Link>
+            )}
             <Image
               src="/assets/images/home-v2/cta-basket-flowers.png"
               alt="Fresh flower basket"

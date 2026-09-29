@@ -29,6 +29,20 @@
   margin: 0 auto;
 }
 
+// Keep the header and menu aligned with the storefront content shell. The
+// storefront sections use a 1680px maximum width with 24px side gutters.
+.topStripInner {
+  max-width: 1680px;
+}
+
+.headerShell :global(.container.py-2),
+.second_nav :global(.container) {
+  width: calc(100% - 48px);
+  max-width: 1680px;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
 .topStripText,
 .topStripHelp {
   display: flex;
@@ -393,6 +407,7 @@
 
   :global(.nav-exapnd-lg) {
     min-height: 46px;
+    height: auto;
     justify-content: center;
   }
 
@@ -400,7 +415,13 @@
     width: 100%;
     justify-content: center;
     gap: $m-8;
-    overflow-x: auto;
+    flex-wrap: wrap;
+    overflow: hidden;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
   }
 
   li {
@@ -810,8 +831,12 @@
   }
 
   .headerShell :global(.container.py-2) {
+    width: calc(100% - 24px);
+    max-width: none;
     padding-bottom: 4px !important;
     padding-top: 4px !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
   }
 
   nav {

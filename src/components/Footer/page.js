@@ -11,6 +11,7 @@ import {
 } from "react-icons/bs";
 import Link from "next/link";
 import Image from "next/image";
+import { CUSTOM_BOUQUET_ENABLED } from "@/lib/features";
 
 function cleanCategorySlug(value) {
   return String(value || "")
@@ -110,6 +111,11 @@ const Footer = ({ categories, siteSettings }) => {
                 <li>
                   <Link href="/contact-us">Contact Us</Link>
                 </li>
+                {CUSTOM_BOUQUET_ENABLED ? (
+                  <li>
+                    <Link href="/create-bouquet">Create Your Bouquet</Link>
+                  </li>
+                ) : null}
                 <li>
                   <Link href="/refund-cancellation">Refund Cancellation</Link>
                 </li>
