@@ -47,3 +47,6 @@ next-env.d.ts
 
 # Laravel admin is maintained in its own Git repository
 /admin/
+
+# Local catalog/staging files
+.catalog-staging/
