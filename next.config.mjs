@@ -15,8 +15,14 @@ const nextConfig = {
       },
     ];
   },
+
   images: {
+    // Disable Next.js server-side image optimization
+    // because product images are served from the Laravel admin domain.
+    unoptimized: true,
+
     dangerouslyAllowLocalIP: process.env.NODE_ENV !== "production",
+
     remotePatterns: [
       {
         protocol: "https",
@@ -27,7 +33,6 @@ const nextConfig = {
         protocol: "https",
         hostname: "admin.manidvipaflowers.com",
         pathname: "/storage/**",
-        // pathname: "/storage/products/**",
       },
       {
         protocol: "http",
