@@ -12,25 +12,7 @@ import {
 import Link from "next/link";
 import Image from "next/image";
 import { CUSTOM_BOUQUET_ENABLED } from "@/lib/features";
-
-function cleanCategorySlug(value) {
-  return String(value || "")
-    .toLowerCase()
-    .trim()
-    .replace(/&/g, " and ")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
-function buildCategoryHref(category) {
-  const slug = cleanCategorySlug(category?.route_slug || category?.slug || category?.title);
-  const parentSlug = cleanCategorySlug(
-    category?.parent_route_slug || category?.parent_slug || category?.parent_title
-  );
-
-  if (!slug || slug === "all-flowers") return "/flowers";
-  return parentSlug && parentSlug !== slug ? `/${parentSlug}/${slug}` : `/${slug}`;
-}
+import { buildCategoryNavigationHref } from "@/lib/navigation";
 
 const Footer = ({ categories, siteSettings }) => {
   const categoriesData = categories;
@@ -126,7 +108,7 @@ const Footer = ({ categories, siteSettings }) => {
               <ul>
                 {footerCategories.map((item, index) => (
                   <li key={index}>
-                    <Link href={buildCategoryHref(item)}>{item.title}</Link>
+                    <Link href={buildCategoryNavigationHref(item)}>{item.title}</Link>
                   </li>
                 ))}
                 <li>
@@ -146,10 +128,14 @@ const Footer = ({ categories, siteSettings }) => {
                   </Link>
                 </li>
                 <li>
-                  <Link href="">{contactUs?.SITE_EMAIL}</Link>
+                  <a href={`mailto:${contactUs?.SITE_EMAIL || ""}`}>
+                    {contactUs?.SITE_EMAIL}
+                  </a>
                 </li>
                 <li>
-                  <Link href="">{contactUs?.SITE_PHONE}</Link>
+                  <a href={`tel:${String(contactUs?.SITE_PHONE || "").replace(/\D/g, "")}`}>
+                    {contactUs?.SITE_PHONE}
+                  </a>
                 </li>
                 {validSocialIcons.length > 0 && (
                   <div className="d-xs-flex justify-content-center flex-column">
@@ -157,7 +143,7 @@ const Footer = ({ categories, siteSettings }) => {
                     <ul className="d-flex mt-2">
                       {validSocialIcons.map((iconItem, iconIndex) => (
                         <li key={iconIndex}>
-                          <Link href={iconItem.href} target="_blank">
+                          <Link href={iconItem.href} target="_blank" rel="noopener noreferrer">
                             {iconItem.icon}
                           </Link>
                         </li>

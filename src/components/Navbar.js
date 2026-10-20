@@ -1,291 +1,317 @@
 "use client";
-import React, {
-  useEffect,
-  useState,
-  useMemo,
-  useRef,
-  useCallback,
-} from "react";
-import styles from "@/scss/components/navbar.module.scss";
+
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
-import { useUser } from "@/context/UserContext";
-import { FaPhoneAlt } from "react-icons/fa";
-import { BsCart } from "react-icons/bs";
-import { BsWhatsapp } from "react-icons/bs";
-import { useCartCount } from "@/context/UserContext";
-import { useWatchlistCount } from "@/context/UserContext";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { BsCart, BsWhatsapp } from "react-icons/bs";
+import { FaPhoneAlt } from "react-icons/fa";
+import {
+  IoChevronDown,
+  IoClose,
+  IoLocationOutline,
+  IoMenu,
+  IoSearch,
+} from "react-icons/io5";
 import { MdPerson } from "react-icons/md";
-import { IoChevronDown, IoLocationOutline, IoSearch } from "react-icons/io5";
-import { getCartCount } from "../../hook/userCookie";
+
+import { useCartCount, useUser, useWatchlistCount } from "@/context/UserContext";
 import { storefrontNavItems } from "@/data/storefrontNavigation";
+import {
+  isExternalNavigationHref,
+  isNavigationItemActive,
+  navigationKey,
+  prepareNavigationItems,
+} from "@/lib/navigation";
+import styles from "@/scss/components/navbar.module.scss";
+import { getCartCount } from "../../hook/userCookie";
 
-const url = process.env.NEXT_PUBLIC_MANIDVIPA_URL;
+const apiUrl = process.env.NEXT_PUBLIC_MANIDVIPA_URL;
 
-const buildSearchPath = (value) => {
+function buildSearchPath(value) {
   const slug = String(value || "")
     .toLowerCase()
     .trim()
     .replace(/&/g, " and ")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-
   return slug ? `/search/${slug}` : "/search/all";
-};
+}
 
-const debouncedHandleSearch = async (searchInput, router) => {
-  if (!searchInput) return;
-
+async function searchProducts(searchInput, router) {
+  if (!searchInput.trim()) return;
   try {
-    const searchParams = new URLSearchParams({ q: searchInput });
-    const res = await fetch(`${url}/search?${searchParams.toString()}`);
-    const result = await res.json();
-
-    if (result?.data?.data?.length === 1) {
-      router.push(`/flowers/${result.data.data[0].slug}`);
-    } else if (result?.data?.data?.length > 1) {
-      router.push(buildSearchPath(searchInput));
-    } else {
-      router.push(`/search/all`);
-    }
+    const params = new URLSearchParams({ q: searchInput.trim() });
+    const response = await fetch(`${apiUrl}/search?${params.toString()}`);
+    const result = await response.json();
+    const products = result?.data?.data || [];
+    if (products.length === 1) router.push(`/flowers/${products[0].slug}`);
+    else if (products.length > 1) router.push(buildSearchPath(searchInput));
+    else router.push("/search/all");
   } catch (error) {
     console.error("Error fetching search results:", error);
   }
-};
+}
 
-const getWhatsAppHref = (value) => {
+function getWhatsAppHref(value) {
   const phone = String(value || "").replace(/\D/g, "");
-  return phone ? `https://wa.me/${phone}` : "#";
-};
+  return phone ? `https://wa.me/${phone}` : "/contact-us";
+}
 
-const normalizeNavigationHref = (value) => {
-  const raw = String(value || "").trim();
-  if (!raw) return "";
-  if (/^https?:\/\//i.test(raw)) return raw;
-
-  const [path, query = ""] = raw.split("?");
-  const normalizedPath = `/${path.replace(/^\/+|\/+$/g, "")}`.replace(
-    /\/{2,}/g,
-    "/"
-  );
-  const cleanPath = normalizedPath === "/" ? "/" : normalizedPath;
-  return query ? `${cleanPath}?${query}` : cleanPath;
-};
-
-const navigationKey = (value) => {
-  const normalized = normalizeNavigationHref(value);
-  if (!normalized) return "";
-  return normalized.split("?")[0].toLowerCase();
-};
-
-const fetchData = async (guestSession, userToken, setCartCount) => {
-  if (!guestSession) return null;
-
+async function fetchCart(guestSession, userToken, setCartCount) {
+  if (!guestSession) return;
   try {
-    const res = await fetch(`${url}/get-cart?cart_session=${guestSession}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        ...(userToken && { Authorization: `Bearer ${userToken}` }),
-      },
-      cache: "no-store",
-    });
-
-    if (!res.ok) {
-      const errorData = await res.text();
-      console.error("Fetch Error:", errorData);
-      throw new Error(`Failed to fetch cart data: ${errorData}`);
-    }
-
-    const result = await res.json();
-    setCartCount(getCartCount(result));
+    const response = await fetch(
+      `${apiUrl}/get-cart?cart_session=${guestSession}`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          ...(userToken && { Authorization: `Bearer ${userToken}` }),
+        },
+        cache: "no-store",
+      }
+    );
+    if (response.ok) setCartCount(getCartCount(await response.json()));
   } catch (error) {
     console.error("Error fetching cart data:", error);
   }
-};
+}
 
-const fetchWatchlist = async (userToken, setWatchlistCount) => {
+async function fetchWatchlist(userToken, setWatchlistCount) {
   if (!userToken) return;
-
   try {
-    const res = await fetch(`${url}/wishlist`, {
-      method: "GET",
+    const response = await fetch(`${apiUrl}/wishlist`, {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${userToken}`,
       },
-      next: { revalidate: 200 },
-      // cache: "no-store",
+      cache: "no-store",
     });
-
-    if (!res.ok) {
-      const errorData = await res.text();
-      console.error("Fetch Error:", errorData);
-      throw new Error(`Failed to fetch watchlist data: ${errorData}`);
-    }
-
-    const result = await res.json();
+    if (!response.ok) return;
+    const result = await response.json();
     setWatchlistCount(result?.data?.length || 0);
   } catch (error) {
     console.error("Error fetching watchlist data:", error);
   }
-};
+}
 
-const fetchDailyPriceStatus = async (setDailyPriceStatus) => {
+async function fetchDailyPriceStatus(setDailyPriceStatus) {
   try {
-    const res = await fetch(`${url}/daily-price-status`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
+    const response = await fetch(`${apiUrl}/daily-price-status`, {
+      headers: { "Content-Type": "application/json" },
       cache: "no-store",
     });
-
-    if (!res.ok) return;
-
-    const result = await res.json();
+    if (!response.ok) return;
+    const result = await response.json();
     setDailyPriceStatus(result?.data || null);
   } catch (error) {
     console.error("Error fetching daily price status:", error);
   }
-};
+}
 
-const Navbar = ({
-  categories = [],
+function NavigationLink({ item, active, className, onClick, children }) {
+  const content = children || item.label;
+  if (isExternalNavigationHref(item.href)) {
+    return (
+      <a
+        href={item.href}
+        className={className}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={onClick}
+      >
+        {content}
+      </a>
+    );
+  }
+  return (
+    <Link
+      href={item.href}
+      className={className}
+      aria-current={active ? "page" : undefined}
+      onClick={onClick}
+    >
+      {content}
+    </Link>
+  );
+}
+
+export default function Navbar({
   navigationItems = [],
   siteSettings,
   guestSession,
   userToken,
-}) => {
+}) {
   const contactUs = siteSettings?.data;
   const whatsappHref = getWhatsAppHref(
     contactUs?.SITE_WHATSAPP || contactUs?.SITE_PHONE
   );
-  const helpPhone = contactUs?.SITE_PHONE || contactUs?.SITE_WHATSAPP || "+91 73375 25445";
+  const helpPhone =
+    contactUs?.SITE_PHONE || contactUs?.SITE_WHATSAPP || "+91 73375 25445";
+  const phoneHref = `tel:${String(helpPhone).replace(/\D/g, "")}`;
+  const primaryNavItems = useMemo(
+    () => prepareNavigationItems(navigationItems, storefrontNavItems),
+    [navigationItems]
+  );
 
-  const primaryNavItems = useMemo(() => {
-    if (!Array.isArray(navigationItems) || navigationItems.length === 0) {
-      return storefrontNavItems;
-    }
-
-    const seenHrefs = new Set();
-    return navigationItems
-      .filter((item) => {
-        const href = normalizeNavigationHref(item?.href);
-        const key = navigationKey(href);
-        if (!item?.label || !href || !key || seenHrefs.has(key)) {
-          return false;
-        }
-        seenHrefs.add(key);
-        return true;
-      })
-      .map((item) => ({
-        key: item.id || item.href,
-        label: item.label,
-        href: normalizeNavigationHref(item.href),
-      }));
-  }, [navigationItems]);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { isAuthenticated, guestSession: clientGuestSession } = useUser();
-  const activeGuestSession = clientGuestSession || guestSession;
-  const { cartCount, setCartCount } = useCartCount();
-  const { watchlistCount, setWatchlistCount } = useWatchlistCount();
   const router = useRouter();
   const pathname = usePathname();
+  const { isAuthenticated, guestSession: clientGuestSession } = useUser();
+  const { cartCount, setCartCount } = useCartCount();
+  const { watchlistCount, setWatchlistCount } = useWatchlistCount();
+  const activeGuestSession = clientGuestSession || guestSession;
+
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [openDesktopMenu, setOpenDesktopMenu] = useState(null);
+  const [expandedMobileMenus, setExpandedMobileMenus] = useState({});
   const [searchInput, setSearchInput] = useState("");
-  const [allsuggestions, setAllSuggestions] = useState([]);
+  const [allSuggestions, setAllSuggestions] = useState([]);
   const [inputSuggestions, setInputSuggestions] = useState([]);
   const [isSuggestionVisible, setIsSuggestionVisible] = useState(false);
   const [dailyPriceStatus, setDailyPriceStatus] = useState(null);
-  const inputRef = useRef(null);
-
-  const debouncedFetchData = useCallback(fetchData, []);
-  const debouncedFetchWatchlist = useCallback(fetchWatchlist, []);
-  const debouncedFetchDailyPriceStatus = useCallback(fetchDailyPriceStatus, []);
-
-  useEffect(() => {
-    debouncedFetchData(activeGuestSession, userToken, setCartCount);
-  }, [activeGuestSession, userToken, setCartCount, debouncedFetchData]);
+  const desktopSearchRef = useRef(null);
+  const mobileSearchRef = useRef(null);
+  const desktopNavRef = useRef(null);
+  const mobileCloseRef = useRef(null);
 
   useEffect(() => {
-    debouncedFetchWatchlist(userToken, setWatchlistCount);
-  }, [userToken, setWatchlistCount, debouncedFetchWatchlist]);
+    fetchCart(activeGuestSession, userToken, setCartCount);
+  }, [activeGuestSession, userToken, setCartCount]);
 
   useEffect(() => {
-    debouncedFetchDailyPriceStatus(setDailyPriceStatus);
-    const intervalId = window.setInterval(() => {
-      debouncedFetchDailyPriceStatus(setDailyPriceStatus);
-    }, 300000);
+    fetchWatchlist(userToken, setWatchlistCount);
+  }, [userToken, setWatchlistCount]);
 
+  useEffect(() => {
+    fetchDailyPriceStatus(setDailyPriceStatus);
+    const intervalId = window.setInterval(
+      () => fetchDailyPriceStatus(setDailyPriceStatus),
+      300000
+    );
     return () => window.clearInterval(intervalId);
-  }, [debouncedFetchDailyPriceStatus]);
+  }, []);
 
-  const handleFocus = () => {
-    setIsSuggestionVisible(true);
-  };
-  const handleClickOutside = (e) => {
-    if (inputRef.current && !inputRef.current.contains(e.target)) {
-      setIsSuggestionVisible(false);
+  useEffect(() => {
+    async function loadSuggestions() {
+      try {
+        const response = await fetch(`${apiUrl}/search`);
+        if (!response.ok) return;
+        const result = await response.json();
+        setAllSuggestions(result?.data?.data || []);
+      } catch (error) {
+        console.error("Error fetching search suggestions:", error);
+      }
     }
-  };
-  const handleSearchInput = (e) => {
-    const value = e.target.value;
-    setSearchInput(value === "" ? "" : value);
-    if (value.trim() === "") {
+    loadSuggestions();
+  }, []);
+
+  useEffect(() => {
+    function handleDocumentClick(event) {
+      const outsideDesktop = !desktopSearchRef.current?.contains(event.target);
+      const outsideMobile = !mobileSearchRef.current?.contains(event.target);
+      if (outsideDesktop && outsideMobile) setIsSuggestionVisible(false);
+      if (!desktopNavRef.current?.contains(event.target)) setOpenDesktopMenu(null);
+    }
+    document.addEventListener("pointerdown", handleDocumentClick);
+    return () => document.removeEventListener("pointerdown", handleDocumentClick);
+  }, []);
+
+  useEffect(() => {
+    if (!isMenuOpen) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    mobileCloseRef.current?.focus();
+    function handleKeyDown(event) {
+      if (event.key === "Escape") setIsMenuOpen(false);
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isMenuOpen]);
+
+  const closeMenus = useCallback(() => {
+    setIsMenuOpen(false);
+    setOpenDesktopMenu(null);
+  }, []);
+
+  const handleSearchInput = (event) => {
+    const value = event.target.value;
+    setSearchInput(value);
+    const query = value.trim().toLowerCase();
+    if (!query) {
       setInputSuggestions([]);
       setIsSuggestionVisible(false);
-    } else {
-      const filtered = allsuggestions.filter((item) =>
-        item.title.toLowerCase().includes(e.target.value.toLowerCase())
-      );
-      if (filtered.length > 0) {
-        setIsSuggestionVisible(true);
-      }
-      setInputSuggestions(filtered);
+      return;
     }
+    const matches = allSuggestions
+      .filter((item) => String(item?.title || "").toLowerCase().includes(query))
+      .slice(0, 8);
+    setInputSuggestions(matches);
+    setIsSuggestionVisible(matches.length > 0);
   };
 
   const handleSearch = useCallback(() => {
-    debouncedHandleSearch(searchInput, router);
+    searchProducts(searchInput, router);
     setInputSuggestions([]);
+    setIsSuggestionVisible(false);
   }, [searchInput, router]);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      const res = await fetch(`${url}/search`);
-      const result = await res.json();
-      if (result?.data?.data?.length > 0) {
-        setAllSuggestions(result?.data?.data);
-      }
-    };
-    fetchData();
-  }, []);
+  const renderSearch = (containerRef, mobile = false) => (
+    <div className={mobile ? styles.mobileSearch : styles.search} ref={containerRef}>
+      <div className={styles.searchInputWrap}>
+        <label
+          className={styles.srOnly}
+          htmlFor={mobile ? "mobile-search" : "desktop-search"}
+        >
+          Search flowers
+        </label>
+        <input
+          id={mobile ? "mobile-search" : "desktop-search"}
+          className={styles.searchInput}
+          value={searchInput}
+          onFocus={() => inputSuggestions.length && setIsSuggestionVisible(true)}
+          onChange={handleSearchInput}
+          onKeyDown={(event) => event.key === "Enter" && handleSearch()}
+          placeholder="Search for flowers, garlands, leaves..."
+          autoComplete="off"
+        />
+        {isSuggestionVisible && inputSuggestions.length > 0 ? (
+          <ul className={styles.suggestionBox} aria-label="Search suggestions">
+            {inputSuggestions.map((item) => (
+              <li key={item.id || item.slug || item.title}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchInput(item.title);
+                    setInputSuggestions([]);
+                    setIsSuggestionVisible(false);
+                  }}
+                >
+                  {item.title}
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+      <button
+        type="button"
+        className={styles.searchButton}
+        onClick={handleSearch}
+        aria-label="Search"
+      >
+        <IoSearch aria-hidden="true" />
+      </button>
+    </div>
+  );
 
-  useEffect(() => {
-    document.addEventListener("click", handleClickOutside);
-    return () => {
-      document.removeEventListener("click", handleClickOutside);
-    };
-  }, []);
-
-  const handleMenuToggle = () => {
-    setIsMenuOpen((prev) => !prev);
-  };
-
-  const handleCloseMenu = () => {
-    setIsMenuOpen(false);
-  };
-
-  const isActiveNavItem = (href) => {
-    if (href === "/") return pathname === "/";
-    return pathname === href || pathname.startsWith(`${href}/`);
-  };
   return (
     <>
-      <section className={styles.sec_Top_nav}>
-        <div className={styles.topStripInner}>
-          <div className={styles.topStripText}>
+      <section className={styles.topBar} aria-label="Store information">
+        <div className={styles.topBarInner}>
+          <div className={styles.topBarMessage}>
             <span
               className={`${styles.priceStatusBadge} ${
                 dailyPriceStatus?.is_updated_today
@@ -294,7 +320,7 @@ const Navbar = ({
               }`}
             >
               <span aria-hidden="true">
-                {dailyPriceStatus?.is_updated_today ? "✅" : "⚠"}
+                {dailyPriceStatus?.is_updated_today ? "✓" : "⚠"}
               </span>
               <span>
                 {dailyPriceStatus?.is_updated_today
@@ -304,321 +330,297 @@ const Navbar = ({
                       dailyPriceStatus?.last_updated_relative,
                     ]
                       .filter(Boolean)
-                      .join(" • ")}
+                      .join(" · ")}
               </span>
             </span>
-            <span className={styles.topStripDivider}>|</span>
-            <span>Same-Day Delivery in Hyderabad</span>
-            <span className={styles.topStripDivider}>|</span>
-            <Link href={whatsappHref} target="_blank" rel="noopener noreferrer">
+            <span className={styles.desktopTopMessage}>
+              Same-Day Delivery in Hyderabad
+            </span>
+            <a href={whatsappHref} target="_blank" rel="noopener noreferrer">
               Order on WhatsApp
-            </Link>
-            <span className={styles.topStripDivider}>|</span>
+            </a>
           </div>
-          <div className={styles.topStripHelp}>
+          <div className={styles.topBarHelp}>
             <span>Need Help?</span>
             <FaPhoneAlt aria-hidden="true" />
-            <Link href={`tel:${String(helpPhone).replace(/\D/g, "")}`}>{helpPhone}</Link>
+            <a href={phoneHref}>{helpPhone}</a>
           </div>
         </div>
       </section>
-      <header className={`${styles.headerShell} header`}>
-        <nav>
-          <div className="container py-2">
-            <div className={`${styles.nav_exapnd_lg} nav-exapnd-lg`}>
-              <div className="logo">
-                <Link href="/" className={styles.top_logo}>
-                  <Image
-                    src={
-                      siteSettings?.data?.SITE_LOGO ||
-                      "/assets/images/manidvpa-flowers-2.png"
-                    }
-                    className={styles.logo}
-                    alt="Manidvipa Flowers"
-                    width={0}
-                    height={0}
-                    sizes="100vw"
-                    priority
-                  />
-                </Link>
-              </div>
-              <Link href="/contact-us" className={styles.deliveryLocation}>
-                <span className={styles.locationIcon}>
-                  <IoLocationOutline aria-hidden="true" />
-                </span>
-                <span className={styles.locationCopy}>
-                  <span>Delivering to</span>
-                  <strong>Hyderabad, TS</strong>
-                </span>
-                <IoChevronDown className={styles.locationChevron} aria-hidden="true" />
-              </Link>
-              <div className={`${styles.search_input} search-input`}>
-                {/* <div className={`${styles.dropdown} dropdown`}>
-                  <button className={styles.dropdown_toggle}>
-                    All Products
-                  </button>
-                </div> */}
-                <div className={`${styles.input} input`}>
-                  <input
-                    className={`${styles.form_input} form_input`}
-                    ref={inputRef}
-                    onFocus={handleFocus}
-                    value={searchInput || ""}
-                    onChange={handleSearchInput}
-                    onKeyDown={(e) => {
-                      if (e.key == "Enter") {
-                        handleSearch();
-                      }
-                    }}
-                    placeholder="Search for flowers, garlands, leaves..."
-                  />
-                  {inputSuggestions && isSuggestionVisible && (
-                    <div className={`${styles.suggestionBox}`}>
-                      <ul>
-                        {inputSuggestions.map((item, index) => (
-                          <li
-                            key={index}
-                            onClick={() => {
-                              setSearchInput(item.title);
-                              setInputSuggestions([]);
-                            }}
-                          >
-                            {item.title}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-                <button
-                  className={styles.search_but}
-                  onClick={handleSearch}
-                  aria-label="Search"
-                >
-                  <IoSearch aria-hidden="true" />
-                </button>
-              </div>
-              <ul className={`${styles.nav_links} nav-links`}>
-                <li>
-                  <Link
-                    href={whatsappHref}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={styles.whatsappOrder}
-                  >
-                    <span className={styles.whatsappCircle}>
-                      <BsWhatsapp aria-hidden="true" />
-                    </span>
-                    <span>
-                      Order on
-                      <strong>WhatsApp</strong>
-                    </span>
-                  </Link>
-                </li>
 
-                <li>
-                  <Link
-                    href={isAuthenticated ? "/my-account" : "/login"}
-                    className={styles.accountLink}
-                  >
-                    <span className={styles.accountIcon}>
-                      <MdPerson aria-hidden="true" />
-                    </span>
-                    <span>{isAuthenticated ? "My Account" : "Login / Sign up"}</span>
-                  </Link>
-                </li>
-
-                <li>
-                  <Link href="/cart" className={styles.cart_link}>
-                    <span className={styles.cartIconWrap}>
-                      <BsCart className={styles.cart_icon} aria-hidden="true" />
-                      {cartCount > 0 ? (
-                        <span className={styles.cart_count}>{cartCount}</span>
-                      ) : null}
-                    </span>
-                    <span>Cart</span>
-                  </Link>
-                </li>
-              </ul>
-              <button
-                className={` menu-toggle`}
-                aria-label="Toggle menu"
-                onClick={handleMenuToggle}
-              >
-                <span className="bar"></span>
-                <span className="bar"></span>
-                <span className="bar"></span>
-              </button>
-            </div>
-            <div
-              className={`offcanvas-menu ${styles.offcanvas_menu}  ${
-                isMenuOpen ? "open" : ""
-              }`}
-            >
-              <div className={`${styles.offecanvas_header} offecanvas-header`}>
-                <Link href="/" as={"logo"}>
-                  <Image
-                    src={
-                      siteSettings?.data?.SITE_LOGO2 ||
-                      "/assets/images/logo2.png"
-                    }
-                    // src="/assets/images/logo2.png"
-                    className="logo w-100"
-                    alt=""
-                    width={220}
-                    height={90}
-                    priority
-                  />
-                </Link>
-                <button
-                  className="close-btn"
-                  aria-label="Close menu"
-                  onClick={handleCloseMenu}
-                >
-                  ✖
-                </button>
-              </div>
-
-              <ul className={`${styles.list} list`}>
-                {primaryNavItems.map((item) => (
-                  <li
-                    key={item.key || navigationKey(item.href)}
-                    className={`${styles.nav_item} ${
-                      isActiveNavItem(item.href) ? styles.active_nav_item : ""
-                    } nav-item`}
-                    onClick={handleCloseMenu}
-                  >
-                    <Link href={item.href}>{item.label}</Link>
-                  </li>
-                ))}
-                <ul className={`${styles.nav_links} nav-links`}>
-                  {isAuthenticated ? (
-                    <>
-                      <li onClick={handleCloseMenu}>
-                        <Link href="/my-account">
-                          {/* <BsPersonFillGear className={styles.watch_icon} /> */}
-                          MyAccount
-                        </Link>
-                      </li>
-                      <li onClick={handleCloseMenu}>
-                        <Link href="/watchlist" className={styles.watch_link}>
-                          {/* <FaRegHeart className={styles.watch_icon} /> */}
-                          Watchlist
-                          {watchlistCount > 0 ? (
-                            <span> ( {watchlistCount} )</span>
-                          ) : null}
-                        </Link>
-                      </li>
-                    </>
-                  ) : (
-                    <>
-                      <li onClick={handleCloseMenu}>
-                        <Link href="/login">
-                          {/* <MdPerson className={styles.watch_icon} /> */}
-                          Login
-                        </Link>
-                      </li>
-                      <li onClick={handleCloseMenu}>
-                        <Link href="/register">
-                          {/* <LuPencilLine className={styles.watch_icon} /> */}
-                          Register
-                        </Link>
-                      </li>
-                    </>
-                  )}
-
-                  <li onClick={handleCloseMenu}>
-                    <Link href="/cart" className={styles.cart_link}>
-                      {/* <BsCart className={styles.cart_icon} /> */}
-                      <span>Cart</span>
-                      {cartCount > 0 ? <span> ( {cartCount} )</span> : null}
-                    </Link>
-                  </li>
-
-                  <li onClick={handleCloseMenu}>
-                    <a
-                      href={whatsappHref}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={styles.whatsapp_icon}
-                    >
-                      {/* <BsWhatsapp /> */}
-                      Chat
-                    </a>
-                  </li>
-                </ul>
-              </ul>
-            </div>
-          </div>
-        </nav>
-        <div className={`${styles.search_input1} search-input`}>
-          {/* <div className={`${styles.dropdown} dropdown`}>
-                  <button className={styles.dropdown_toggle}>
-                    All Products
-                  </button>
-                </div> */}
-          <div className={`${styles.input} input`}>
-            <input
-              className={`${styles.form_input} form_input`}
-              ref={inputRef}
-              onFocus={handleFocus}
-              value={searchInput || ""}
-              onChange={handleSearchInput}
-              onKeyDown={(e) => {
-                if (e.key == "Enter") {
-                  handleSearch();
-                }
-              }}
-              placeholder="Search for flowers, garlands, leaves..."
+      <header className={styles.headerShell}>
+        <div className={styles.mainHeader}>
+          <Link href="/" className={styles.logoLink} aria-label="Manidvipa Flowers home">
+            <Image
+              src={contactUs?.SITE_LOGO || "/assets/images/manidvpa-flowers-2.png"}
+              className={styles.logo}
+              alt="Manidvipa Flowers"
+              width={255}
+              height={82}
+              priority
             />
-            {inputSuggestions && isSuggestionVisible && (
-              <div className={`${styles.suggestionBox}`}>
-                <ul>
-                  {inputSuggestions.map((item, index) => (
-                    <li
-                      key={index}
-                      onClick={() => {
-                        setSearchInput(item.title);
-                        setInputSuggestions([]);
-                      }}
-                    >
-                      {item.title}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
+          </Link>
+
+          <Link href="/contact-us" className={styles.deliveryLocation}>
+            <span className={styles.locationIcon}>
+              <IoLocationOutline aria-hidden="true" />
+            </span>
+            <span>
+              <small>Delivering to</small>
+              <strong>Hyderabad, TS</strong>
+            </span>
+            <IoChevronDown aria-hidden="true" />
+          </Link>
+
+          {renderSearch(desktopSearchRef)}
+
+          <ul className={styles.headerActions} aria-label="Customer shortcuts">
+            <li>
+              <a
+                href={whatsappHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.whatsappOrder}
+              >
+                <span className={styles.whatsappCircle}>
+                  <BsWhatsapp aria-hidden="true" />
+                </span>
+                <span>Order on<strong>WhatsApp</strong></span>
+              </a>
+            </li>
+            <li>
+              <Link
+                href={isAuthenticated ? "/my-account" : "/login"}
+                className={styles.accountLink}
+              >
+                <span className={styles.accountIcon}>
+                  <MdPerson aria-hidden="true" />
+                </span>
+                <span>{isAuthenticated ? "My Account" : "Login / Sign up"}</span>
+              </Link>
+            </li>
+            <li>
+              <Link href="/cart" className={styles.cartLink}>
+                <span className={styles.cartIconWrap}>
+                  <BsCart aria-hidden="true" />
+                  {cartCount > 0 ? (
+                    <span className={styles.cartCount}>{cartCount}</span>
+                  ) : null}
+                </span>
+                <span>Cart</span>
+              </Link>
+            </li>
+          </ul>
+
           <button
-            className={styles.search_but}
-            onClick={handleSearch}
-            aria-label="Search"
+            type="button"
+            className={styles.menuToggle}
+            aria-label="Open navigation menu"
+            aria-expanded={isMenuOpen}
+            aria-controls="mobile-navigation"
+            onClick={() => setIsMenuOpen(true)}
           >
-            <IoSearch aria-hidden="true" />
+            <IoMenu aria-hidden="true" />
           </button>
         </div>
-        <section className={`${styles.second_nav} sticky`}>
-          <div className="container">
-            <div className="nav-exapnd-lg">
-              <div className="nav-links">
-                {primaryNavItems.map((item) => (
-                  <li
-                    key={item.key || navigationKey(item.href)}
-                    className={`${styles.nav_item} ${
-                      isActiveNavItem(item.href) ? styles.active_nav_item : ""
-                    } nav-item`}
-                  >
-                    <Link href={item.href}>{item.label}</Link>
-                  </li>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
+
+        {renderSearch(mobileSearchRef, true)}
+
+        <nav
+          className={styles.desktopNav}
+          aria-label="Primary navigation"
+          ref={desktopNavRef}
+        >
+          <ul className={styles.desktopNavList}>
+            {primaryNavItems.map((item) => {
+              const active = isNavigationItemActive(pathname, item);
+              const hasChildren = item.children.length > 0;
+              const menuId = `desktop-menu-${
+                navigationKey(item.href).replace(/[^a-z0-9]/g, "-") || item.key
+              }`;
+              const isOpen = openDesktopMenu === item.key;
+              return (
+                <li
+                  key={item.key}
+                  className={`${styles.desktopNavItem} ${
+                    active ? styles.activeNavItem : ""
+                  }`}
+                  onMouseEnter={() => hasChildren && setOpenDesktopMenu(item.key)}
+                  onMouseLeave={() => hasChildren && setOpenDesktopMenu(null)}
+                  onFocusCapture={() => hasChildren && setOpenDesktopMenu(item.key)}
+                  onBlurCapture={(event) => {
+                    if (!event.currentTarget.contains(event.relatedTarget)) {
+                      setOpenDesktopMenu(null);
+                    }
+                  }}
+                >
+                  <div className={styles.desktopNavTrigger}>
+                    <NavigationLink item={item} active={active} />
+                    {hasChildren ? (
+                      <button
+                        type="button"
+                        aria-label={`Show ${item.label} categories`}
+                        aria-expanded={isOpen}
+                        aria-controls={menuId}
+                        onClick={() => setOpenDesktopMenu(isOpen ? null : item.key)}
+                      >
+                        <IoChevronDown aria-hidden="true" />
+                      </button>
+                    ) : null}
+                  </div>
+                  {hasChildren ? (
+                    <ul
+                      id={menuId}
+                      className={`${styles.desktopSubmenu} ${
+                        isOpen ? styles.desktopSubmenuOpen : ""
+                      }`}
+                    >
+                      {item.children.map((child) => (
+                        <li key={child.key}>
+                          <NavigationLink
+                            item={child}
+                            active={isNavigationItemActive(pathname, child)}
+                            onClick={closeMenus}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
       </header>
+
+      <button
+        type="button"
+        className={`${styles.mobileBackdrop} ${
+          isMenuOpen ? styles.mobileBackdropOpen : ""
+        }`}
+        aria-label="Close navigation menu"
+        tabIndex={isMenuOpen ? 0 : -1}
+        onClick={closeMenus}
+      />
+      <aside
+        id="mobile-navigation"
+        className={`${styles.mobileDrawer} ${
+          isMenuOpen ? styles.mobileDrawerOpen : ""
+        }`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Navigation menu"
+        aria-hidden={!isMenuOpen}
+      >
+        <div className={styles.mobileDrawerHeader}>
+          <Link href="/" onClick={closeMenus} aria-label="Manidvipa Flowers home">
+            <Image
+              src={contactUs?.SITE_LOGO || "/assets/images/manidvpa-flowers-2.png"}
+              alt="Manidvipa Flowers"
+              width={190}
+              height={62}
+            />
+          </Link>
+          <button
+            ref={mobileCloseRef}
+            type="button"
+            onClick={closeMenus}
+            aria-label="Close navigation menu"
+          >
+            <IoClose aria-hidden="true" />
+          </button>
+        </div>
+
+        <nav className={styles.mobileNav} aria-label="Mobile primary navigation">
+          <ul className={styles.mobileNavList}>
+            {primaryNavItems.map((item) => {
+              const active = isNavigationItemActive(pathname, item);
+              const hasChildren = item.children.length > 0;
+              const expanded = Boolean(expandedMobileMenus[item.key]);
+              const submenuId = `mobile-menu-${
+                navigationKey(item.href).replace(/[^a-z0-9]/g, "-") || item.key
+              }`;
+              return (
+                <li key={item.key} className={active ? styles.mobileActiveItem : ""}>
+                  <div className={styles.mobileNavRow}>
+                    <NavigationLink item={item} active={active} onClick={closeMenus} />
+                    {hasChildren ? (
+                      <button
+                        type="button"
+                        aria-label={`Show ${item.label} categories`}
+                        aria-expanded={expanded}
+                        aria-controls={submenuId}
+                        onClick={() =>
+                          setExpandedMobileMenus((current) => ({
+                            ...current,
+                            [item.key]: !current[item.key],
+                          }))
+                        }
+                      >
+                        <IoChevronDown
+                          className={expanded ? styles.chevronOpen : ""}
+                          aria-hidden="true"
+                        />
+                      </button>
+                    ) : null}
+                  </div>
+                  {hasChildren ? (
+                    <ul
+                      id={submenuId}
+                      className={styles.mobileSubmenu}
+                      hidden={!expanded}
+                    >
+                      {item.children.map((child) => {
+                        const childActive = isNavigationItemActive(pathname, child);
+                        return (
+                          <li
+                            key={child.key}
+                            className={childActive ? styles.mobileChildActive : ""}
+                          >
+                            <NavigationLink
+                              item={child}
+                              active={childActive}
+                              onClick={closeMenus}
+                            />
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        <div className={styles.mobileUtilities}>
+          <Link
+            href={isAuthenticated ? "/my-account" : "/login"}
+            onClick={closeMenus}
+          >
+            <MdPerson aria-hidden="true" />
+            {isAuthenticated ? "My Account" : "Login / Sign up"}
+          </Link>
+          {isAuthenticated ? (
+            <Link href="/watchlist" onClick={closeMenus}>
+              Watchlist{watchlistCount > 0 ? ` (${watchlistCount})` : ""}
+            </Link>
+          ) : null}
+          <Link href="/cart" onClick={closeMenus}>
+            <BsCart aria-hidden="true" />
+            Cart{cartCount > 0 ? ` (${cartCount})` : ""}
+          </Link>
+          <a
+            href={whatsappHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={closeMenus}
+          >
+            <BsWhatsapp aria-hidden="true" />
+            Chat on WhatsApp
+          </a>
+        </div>
+      </aside>
     </>
   );
-};
-
-export default Navbar;
-
+}

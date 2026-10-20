@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "audit:navigation": "node tools/audit-navigation.mjs"
   },
   "dependencies": {
     "js-cookie": "^3.0.8",

@@ -162,6 +162,9 @@ function buildCategoryPath(categoryValue, fallbackPath = "/flowers", options = [
   }
 
   const categoryOption = options.find((option) => option.value === normalizedCategory);
+  if (categoryOption?.publicPath) {
+    return categoryOption.publicPath;
+  }
   const parentValue = normalizeCategoryValue(categoryOption?.parentValue);
 
   if (parentValue && parentValue !== normalizedCategory) {
@@ -209,6 +212,7 @@ function buildCategoryOptions(categories = []) {
           : option?.label || option?.title || existingOption?.label || formatCategoryTitle(value),
       keywords,
       parentValue: parentValue && parentValue !== value ? parentValue : existingOption?.parentValue || null,
+      publicPath: option?.publicPath || option?.public_path || existingOption?.publicPath || null,
       children: existingOption?.children || [],
       isDynamic: existingOption?.isDynamic || Boolean(option?.isDynamic),
     });
@@ -236,6 +240,7 @@ function buildCategoryOptions(categories = []) {
       title: category?.title,
       keywords: [category?.slug, category?.route_slug, category?.title].filter(Boolean),
       parentValue: category?.parent_route_slug || category?.parent_slug || category?.parent_title,
+      publicPath: category?.public_path,
       children: [],
       isDynamic: true,
     });
