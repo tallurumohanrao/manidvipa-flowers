@@ -25,8 +25,10 @@ function getApiBaseUrl() {
 }
 
 async function fetchApi(endpoint) {
+  const url = `${getApiBaseUrl()}/${endpoint.replace(/^\/+/, "")}`;
+
   try {
-    const response = await fetch(`${getApiBaseUrl()}/${endpoint.replace(/^\/+/, "")}`, {
+    const response = await fetch(url, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -34,11 +36,17 @@ async function fetchApi(endpoint) {
       next: { revalidate },
     });
 
-    if (!response.ok) return null;
+    if (!response.ok) {
+      throw new Error(`Sitemap API request failed with ${response.status}: ${url}`);
+    }
+
     return response.json();
   } catch (error) {
     console.error(`Error fetching sitemap data from ${endpoint}:`, error);
-    return null;
+    // Throwing during ISR keeps the last complete sitemap available. Returning
+    // partial data here would replace it with a sitemap missing categories and
+    // products whenever the Admin API is briefly unavailable.
+    throw error;
   }
 }
 
