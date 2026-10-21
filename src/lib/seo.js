@@ -33,7 +33,7 @@ export const DEFAULT_SEO_DESCRIPTION =
 export const DEFAULT_OG_IMAGE = "/assets/images/home-v2/hero-flowers.jpg";
 export const PRODUCT_IMAGE_BASE_URL = cleanUrl(
   process.env.NEXT_PUBLIC_IMG_URL ||
-    `${cleanUrl(process.env.NEXT_PUBLIC_ADMIN_URL || "https://admin.manidvipastore.com")}/storage/products`
+    `${cleanUrl(process.env.NEXT_PUBLIC_ADMIN_URL || "https://admin.manidvipaflowers.com")}/storage/products`
 );
 
 export const PUBLIC_SITEMAP_ROUTES = [

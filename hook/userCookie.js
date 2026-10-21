@@ -1,5 +1,23 @@
 import Cookies from "js-cookie";
 
+const PUBLIC_GET_REVALIDATE_SECONDS = new Map([
+  ["banners", 60],
+  ["categories", 60],
+  ["faqs", 300],
+  ["home-categories", 60],
+  ["home-featured-products", 30],
+  ["home-sections", 30],
+  ["navigation", 60],
+  ["product-details", 30],
+  ["products-by-category", 30],
+  ["search", 60],
+  ["seo-meta-data", 60],
+  ["seo-routes", 60],
+  ["settings", 60],
+  ["static-page", 300],
+  ["subscription-plans", 60],
+]);
+
 export function fetchUser() {
   const userSession = Cookies.get("userSession");
   if (userSession) {
@@ -22,10 +40,18 @@ export async function fetchListingData(
 ) {
   const url = process.env.NEXT_PUBLIC_MANIDVIPA_URL;
   try {
+    const endpointPath =
+      typeof endpoint === "string" ? endpoint.split("?")[0] : "";
+    const publicRevalidateSeconds =
+      req_method === "GET"
+        ? PUBLIC_GET_REVALIDATE_SECONDS.get(endpointPath)
+        : undefined;
     const options = {
       method: req_method,
       headers: {
-        ...(userToken && { Authorization: `Bearer ${userToken}` }),
+        ...(userToken && publicRevalidateSeconds === undefined
+          ? { Authorization: `Bearer ${userToken}` }
+          : {}),
         "Content-Type": "application/json",
       },
       // headers: {
@@ -38,24 +64,14 @@ export async function fetchListingData(
       options.body = JSON.stringify(formData);
     }
 
-    const endpointPath =
-      typeof endpoint === "string" ? endpoint.split("?")[0] : "";
-    const noStoreEndpointPaths = new Set([
-      "banners",
-      "categories",
-      "home-featured-products",
-      "products-by-category",
-      "product-details",
-      "search",
-      "static-page",
-      "faqs",
-      "navigation",
-    ]);
-    const shouldUseNoStore = noStoreEndpointPaths.has(endpointPath);
     const fetchOptions =
       req_method === "GET"
-        ? shouldUseNoStore
-          ? { ...options, cache: "no-store" }
+        ? publicRevalidateSeconds !== undefined
+          ? {
+              ...options,
+              cache: "force-cache",
+              next: { revalidate: publicRevalidateSeconds },
+            }
           : { ...options, next: { revalidate: 60 } }
         : options;
 
@@ -174,10 +190,10 @@ export async function fetchCategoryData(userToken) {
     const response = await fetch(`${PUBLIC_URL}/categories`, {
       method: "GET",
       headers: {
-        ...(userToken && { Authorization: `Bearer ${userToken}` }),
         "Content-Type": "application/json",
       },
-      revalidate: 60,
+      cache: "force-cache",
+      next: { revalidate: 60 },
     });
     const resJson = await response.json();
     return resJson;
@@ -195,10 +211,10 @@ export async function fetchSiteSettingsData(userToken) {
     const response = await fetch(`${PUBLIC_URL}/settings`, {
       method: "GET",
       headers: {
-        ...(userToken && { Authorization: `Bearer ${userToken}` }),
         "Content-Type": "application/json",
       },
-      revalidate: 60,
+      cache: "force-cache",
+      next: { revalidate: 60 },
     });
     const resJson = await response.json();
     return resJson;

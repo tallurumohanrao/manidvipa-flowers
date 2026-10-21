@@ -3,7 +3,7 @@ export async function fetchStaticMetadata(url) {
     try {
       const apiUrl = String(
         process.env.NEXT_PUBLIC_MANIDVIPA_URL ||
-          "https://admin.manidvipastore.com/api"
+          "https://admin.manidvipaflowers.com/api"
       ).replace(/\/+$/, "");
       const res = await fetch(
         `${apiUrl}/seo-meta-data?url=${encodeURIComponent(url)}`,

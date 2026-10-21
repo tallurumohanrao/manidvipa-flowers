@@ -20,7 +20,7 @@ const VALID_CHANGE_FREQUENCIES = new Set([
 
 function getApiBaseUrl() {
   return String(
-    process.env.NEXT_PUBLIC_MANIDVIPA_URL || "https://admin.manidvipastore.com/api"
+    process.env.NEXT_PUBLIC_MANIDVIPA_URL || "https://admin.manidvipaflowers.com/api"
   ).replace(/\/+$/, "");
 }
 

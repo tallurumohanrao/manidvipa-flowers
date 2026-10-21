@@ -1,9 +1,17 @@
 import { NextResponse } from "next/server";
 
+const SEO_ROUTE_CACHE_TTL_MS = 60_000;
+let seoRouteCache = {
+  expiresAt: 0,
+  routes: [],
+  redirects: [],
+};
+let seoRouteRequest = null;
+
 function getApiBaseUrl() {
   return String(
     process.env.NEXT_PUBLIC_MANIDVIPA_URL ||
-      "https://admin.manidvipastore.com/api"
+      "https://admin.manidvipaflowers.com/api"
   ).replace(/\/+$/, "");
 }
 
@@ -18,27 +26,53 @@ function normalizeRoutePath(value) {
 }
 
 async function fetchEditableRoutes() {
-  try {
-    const response = await fetch(`${getApiBaseUrl()}/seo-routes`, {
-      cache: "no-store",
-      headers: {
-        Accept: "application/json",
-        "Cache-Control": "no-cache",
-      },
-    });
-
-    if (!response.ok) return { routes: [], redirects: [] };
-
-    const result = await response.json();
+  if (seoRouteCache.expiresAt > Date.now()) {
     return {
-      routes: Array.isArray(result?.data?.routes) ? result.data.routes : [],
-      redirects: Array.isArray(result?.data?.redirects)
-        ? result.data.redirects
-        : [],
+      routes: seoRouteCache.routes,
+      redirects: seoRouteCache.redirects,
     };
-  } catch {
-    return { routes: [], redirects: [] };
   }
+
+  if (seoRouteRequest) return seoRouteRequest;
+
+  seoRouteRequest = (async () => {
+    try {
+      const response = await fetch(`${getApiBaseUrl()}/seo-routes`, {
+        headers: {
+          Accept: "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        return {
+          routes: seoRouteCache.routes,
+          redirects: seoRouteCache.redirects,
+        };
+      }
+
+      const result = await response.json();
+      const nextValue = {
+        routes: Array.isArray(result?.data?.routes) ? result.data.routes : [],
+        redirects: Array.isArray(result?.data?.redirects)
+          ? result.data.redirects
+          : [],
+      };
+      seoRouteCache = {
+        ...nextValue,
+        expiresAt: Date.now() + SEO_ROUTE_CACHE_TTL_MS,
+      };
+      return nextValue;
+    } catch {
+      return {
+        routes: seoRouteCache.routes,
+        redirects: seoRouteCache.redirects,
+      };
+    } finally {
+      seoRouteRequest = null;
+    }
+  })();
+
+  return seoRouteRequest;
 }
 
 function metadataRequestHeaders(request, pathName) {

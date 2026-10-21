@@ -24,15 +24,15 @@ const fallbackFavicon = "/favicon.jpg";
 function getApiBaseUrl() {
   return String(
     process.env.NEXT_PUBLIC_MANIDVIPA_URL ||
-      "https://admin.manidvipastore.com/api"
+      "https://admin.manidvipaflowers.com/api"
   ).replace(/\/+$/, "");
 }
 
 async function fetchGlobalSiteSettings() {
   try {
     const response = await fetch(`${getApiBaseUrl()}/settings`, {
-      cache: "no-store",
-      headers: { "Cache-Control": "no-cache" },
+      cache: "force-cache",
+      next: { revalidate: 60 },
     });
 
     if (!response.ok) return {};

@@ -4,7 +4,6 @@ import Navbar from "@/components/Navbar";
 import { UserProvider } from "@/context/UserContext";
 import StickyIcons from "@/components/StickyIcons/page";
 import {
-  fetchCartSessionData,
   fetchCategoryData,
   fetchListingData,
   fetchSiteSettingsData,
@@ -39,17 +38,11 @@ export default async function RootLayout({ children }) {
       console.error("Failed to parse userSession cookie:", error);
     }
   }
-  const [categoriesResponse, siteSettings, navigationResponse, watchListData, cartSessionData] =
-    await Promise.all([
-      fetchAboutData(userToken),
-      fetchSiteSettingsData(userToken),
-      fetchListingData("GET", "navigation", userToken),
-      fetchListingData("GET", "wishlist", userToken),
-      fetchCartSessionData(
-        `get-cart?cart_session=${guestSession}`,
-        userToken ? userToken : undefined
-      ),
-    ]);
+  const [categoriesResponse, siteSettings, navigationResponse] = await Promise.all([
+    fetchAboutData(userToken),
+    fetchSiteSettingsData(userToken),
+    fetchListingData("GET", "navigation", userToken),
+  ]);
   const categories = categoriesResponse || [];
 
   // const categories = await fetchCategoryData();
@@ -59,8 +52,6 @@ export default async function RootLayout({ children }) {
         categories={categories}
         navigationItems={navigationResponse?.data || []}
         siteSettings={siteSettings}
-        watchListData={watchListData?.data?.length}
-        cartSessionData={cartSessionData?.data?.length}
         guestSession={guestSession}
         userToken={userToken}
       />
