@@ -25,6 +25,10 @@ function normalizeRoutePath(value) {
   return normalized || "/";
 }
 
+function isCanonicalProductPath(value) {
+  return /^\/flowers\/[^/]+$/.test(normalizeRoutePath(value));
+}
+
 async function fetchEditableRoutes() {
   if (seoRouteCache.expiresAt > Date.now()) {
     return {
@@ -134,9 +138,19 @@ export async function proxy(request) {
     (redirect) => normalizeRoutePath(redirect?.from_url) === currentPath
   );
 
-  if (historicalRedirect?.to_url) {
+  // `/flowers/{slug}` is the permanent product URL. Some older database SEO
+  // rows point that canonical route back to category-nested URLs; ignore those
+  // rows and let the real product page render.
+  if (historicalRedirect?.to_url && !isCanonicalProductPath(currentPath)) {
+    const historicalTarget = normalizeRoutePath(historicalRedirect.to_url);
+    const targetRoute = routeConfig.routes.find(
+      (route) => normalizeRoutePath(route?.url) === historicalTarget
+    );
+    const redirectPath = isCanonicalProductPath(targetRoute?.alias)
+      ? normalizeRoutePath(targetRoute.alias)
+      : historicalTarget;
     const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = normalizeRoutePath(historicalRedirect.to_url);
+    redirectUrl.pathname = redirectPath;
     return NextResponse.redirect(redirectUrl, 308);
   }
 
@@ -148,6 +162,12 @@ export async function proxy(request) {
     const systemPath = normalizeRoutePath(publicRoute.alias);
 
     if (systemPath !== currentPath) {
+      if (isCanonicalProductPath(systemPath)) {
+        const redirectUrl = request.nextUrl.clone();
+        redirectUrl.pathname = systemPath;
+        return NextResponse.redirect(redirectUrl, 308);
+      }
+
       const rewriteUrl = request.nextUrl.clone();
       rewriteUrl.pathname = systemPath;
       return NextResponse.rewrite(rewriteUrl, {
@@ -164,7 +184,7 @@ export async function proxy(request) {
       normalizeRoutePath(route?.url) !== currentPath
   );
 
-  if (systemRoute?.url) {
+  if (systemRoute?.url && !isCanonicalProductPath(currentPath)) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = normalizeRoutePath(systemRoute.url);
     return NextResponse.redirect(redirectUrl, 308);
@@ -178,5 +198,5 @@ export async function proxy(request) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|assets).*)"],
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|llms.txt|assets).*)"],
 };

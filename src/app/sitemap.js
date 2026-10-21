@@ -215,7 +215,7 @@ export default async function sitemap() {
       lastModified: product.updated_at || product.created_at,
       changeFrequency: "daily",
       priority: 0.72,
-    }, editableRoutes, redirects);
+    });
   });
 
   return Array.from(entries.values());

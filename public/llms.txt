@@ -1,0 +1,28 @@
+# Manidvipa Flowers
+
+> Fresh flowers, puja flowers, garlands, bouquets, decorations, and flower subscriptions in Hyderabad, India.
+
+## Main pages
+
+- [Home](https://www.manidvipaflowers.com/)
+- [Puja Flowers](https://www.manidvipaflowers.com/pooja-flowers)
+- [Fragrant Flowers](https://www.manidvipaflowers.com/fragrant-flowers)
+- [Rare Flowers](https://www.manidvipaflowers.com/rare-flowers)
+- [Premium Flowers](https://www.manidvipaflowers.com/premium-flowers)
+- [Seasonal Flowers](https://www.manidvipaflowers.com/seasonal-flowers)
+- [Garlands](https://www.manidvipaflowers.com/garlands)
+- [Bouquets and Gifts](https://www.manidvipaflowers.com/bouquets-gifts)
+- [Subscriptions](https://www.manidvipaflowers.com/subscriptions)
+- [Decorations](https://www.manidvipaflowers.com/decorations)
+- [About](https://www.manidvipaflowers.com/about)
+- [Contact](https://www.manidvipaflowers.com/contact-us)
+
+## Catalog conventions
+
+- Canonical product pages use `https://www.manidvipaflowers.com/flowers/{product-slug}`.
+- Prices and availability can change daily. Use the current product page or contact Manidvipa Flowers for confirmation.
+
+## Discovery
+
+- [XML sitemap](https://www.manidvipaflowers.com/sitemap.xml)
+- [Robots](https://www.manidvipaflowers.com/robots.txt)

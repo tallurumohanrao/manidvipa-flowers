@@ -256,12 +256,14 @@ export function buildProductMetadata(productDetails, slug, seoData = null) {
   const path = `/flowers/${slug}`;
 
   if (!product) {
-    return buildMetadata(applyDirectSeoMetadata({
+    const metadataOptions = applyDirectSeoMetadata({
       title: `${titleFromSlug(slug)} | ${SITE_NAME}`,
       description: "This product is not currently available.",
       path,
       robots: noIndexRobots,
-    }, seoData, { preserveRobots: true }));
+    }, seoData, { preserveRobots: true });
+
+    return buildMetadata({ ...metadataOptions, path });
   }
 
   const fallbackTitle = `${product.title || titleFromSlug(slug)} Online in Hyderabad | ${SITE_NAME}`;
@@ -270,7 +272,7 @@ export function buildProductMetadata(productDetails, slug, seoData = null) {
     `Order ${product.title || titleFromSlug(slug)} fresh flowers online in Hyderabad from ${SITE_NAME}.`;
   const image = resolveProductImageUrl(productDetails?.images?.[0]?.name);
 
-  return buildMetadata(applyDirectSeoMetadata({
+  const metadataOptions = applyDirectSeoMetadata({
     title: fallbackTitle,
     description: fallbackDescription,
     path,
@@ -284,7 +286,11 @@ export function buildProductMetadata(productDetails, slug, seoData = null) {
     ]
       .filter(Boolean)
       .join(", "),
-  }, seoData));
+  }, seoData);
+
+  // Product URLs have one stable public convention. Admin-managed SEO may
+  // change the copy and robots directive, but it must not move the canonical.
+  return buildMetadata({ ...metadataOptions, path });
 }
 
 export function findCategoryBySlug(categories = [], slug) {

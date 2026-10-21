@@ -273,16 +273,8 @@ export default async function Page({ params }) {
     notFound();
   }
 
-  const [seoData, editableRoutes] = await Promise.all([
-    fetchFirstSeoMetadata([
-      `/flowers/${slug}`,
-      `/product-details/${slug}`,
-      `/productDetails/${slug}`,
-      `/${slug}`,
-    ]),
-    fetchEditableSeoRoutes(),
-  ]);
-  const publicPath = seoData?.url || `/flowers/${slug}`;
+  const editableRoutes = await fetchEditableSeoRoutes();
+  const publicPath = `/flowers/${slug}`;
   const publicRouteMap = buildPublicSeoRouteMap(editableRoutes);
 
   const produtsReviews = produtsDetails?.data?.id
