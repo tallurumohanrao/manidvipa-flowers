@@ -338,9 +338,12 @@
 }
 
 .desktopNav {
-  position: relative;
+  position: sticky;
+  top: 0;
+  z-index: 300;
   background: #ff941c;
   border-bottom: 4px solid #a30f3b;
+  box-shadow: 0 5px 14px rgba(63, 20, 31, 0.12);
 }
 
 .desktopNavList {
@@ -664,6 +667,13 @@
 }
 
 @media (max-width: 1279px) {
+  .headerShell {
+    position: sticky;
+    top: 0;
+    z-index: 300;
+    box-shadow: 0 5px 14px rgba(63, 20, 31, 0.12);
+  }
+
   .mainHeader {
     min-height: 96px;
   }

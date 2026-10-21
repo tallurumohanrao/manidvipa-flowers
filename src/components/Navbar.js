@@ -425,73 +425,73 @@ export default function Navbar({
         </div>
 
         {renderSearch(mobileSearchRef, true)}
-
-        <nav
-          className={styles.desktopNav}
-          aria-label="Primary navigation"
-          ref={desktopNavRef}
-        >
-          <ul className={styles.desktopNavList}>
-            {primaryNavItems.map((item) => {
-              const active = isNavigationItemActive(pathname, item);
-              const hasChildren = item.children.length > 0;
-              const menuId = `desktop-menu-${
-                navigationKey(item.href).replace(/[^a-z0-9]/g, "-") || item.key
-              }`;
-              const isOpen = openDesktopMenu === item.key;
-              return (
-                <li
-                  key={item.key}
-                  className={`${styles.desktopNavItem} ${
-                    active ? styles.activeNavItem : ""
-                  }`}
-                  onMouseEnter={() => hasChildren && setOpenDesktopMenu(item.key)}
-                  onMouseLeave={() => hasChildren && setOpenDesktopMenu(null)}
-                  onFocusCapture={() => hasChildren && setOpenDesktopMenu(item.key)}
-                  onBlurCapture={(event) => {
-                    if (!event.currentTarget.contains(event.relatedTarget)) {
-                      setOpenDesktopMenu(null);
-                    }
-                  }}
-                >
-                  <div className={styles.desktopNavTrigger}>
-                    <NavigationLink item={item} active={active} />
-                    {hasChildren ? (
-                      <button
-                        type="button"
-                        aria-label={`Show ${item.label} categories`}
-                        aria-expanded={isOpen}
-                        aria-controls={menuId}
-                        onClick={() => setOpenDesktopMenu(isOpen ? null : item.key)}
-                      >
-                        <IoChevronDown aria-hidden="true" />
-                      </button>
-                    ) : null}
-                  </div>
-                  {hasChildren ? (
-                    <ul
-                      id={menuId}
-                      className={`${styles.desktopSubmenu} ${
-                        isOpen ? styles.desktopSubmenuOpen : ""
-                      }`}
-                    >
-                      {item.children.map((child) => (
-                        <li key={child.key}>
-                          <NavigationLink
-                            item={child}
-                            active={isNavigationItemActive(pathname, child)}
-                            onClick={closeMenus}
-                          />
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
       </header>
+
+      <nav
+        className={styles.desktopNav}
+        aria-label="Primary navigation"
+        ref={desktopNavRef}
+      >
+        <ul className={styles.desktopNavList}>
+          {primaryNavItems.map((item) => {
+            const active = isNavigationItemActive(pathname, item);
+            const hasChildren = item.children.length > 0;
+            const menuId = `desktop-menu-${
+              navigationKey(item.href).replace(/[^a-z0-9]/g, "-") || item.key
+            }`;
+            const isOpen = openDesktopMenu === item.key;
+            return (
+              <li
+                key={item.key}
+                className={`${styles.desktopNavItem} ${
+                  active ? styles.activeNavItem : ""
+                }`}
+                onMouseEnter={() => hasChildren && setOpenDesktopMenu(item.key)}
+                onMouseLeave={() => hasChildren && setOpenDesktopMenu(null)}
+                onFocusCapture={() => hasChildren && setOpenDesktopMenu(item.key)}
+                onBlurCapture={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget)) {
+                    setOpenDesktopMenu(null);
+                  }
+                }}
+              >
+                <div className={styles.desktopNavTrigger}>
+                  <NavigationLink item={item} active={active} />
+                  {hasChildren ? (
+                    <button
+                      type="button"
+                      aria-label={`Show ${item.label} categories`}
+                      aria-expanded={isOpen}
+                      aria-controls={menuId}
+                      onClick={() => setOpenDesktopMenu(isOpen ? null : item.key)}
+                    >
+                      <IoChevronDown aria-hidden="true" />
+                    </button>
+                  ) : null}
+                </div>
+                {hasChildren ? (
+                  <ul
+                    id={menuId}
+                    className={`${styles.desktopSubmenu} ${
+                      isOpen ? styles.desktopSubmenuOpen : ""
+                    }`}
+                  >
+                    {item.children.map((child) => (
+                      <li key={child.key}>
+                        <NavigationLink
+                          item={child}
+                          active={isNavigationItemActive(pathname, child)}
+                          onClick={closeMenus}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
 
       <button
         type="button"
