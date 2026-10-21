@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 const SEO_ROUTE_CACHE_TTL_MS = 60_000;
+const FIXED_STOREFRONT_PATHS = new Set(["/flowers"]);
 let seoRouteCache = {
   expiresAt: 0,
   routes: [],
@@ -141,7 +142,11 @@ export async function proxy(request) {
   // `/flowers/{slug}` is the permanent product URL. Some older database SEO
   // rows point that canonical route back to category-nested URLs; ignore those
   // rows and let the real product page render.
-  if (historicalRedirect?.to_url && !isCanonicalProductPath(currentPath)) {
+  if (
+    historicalRedirect?.to_url &&
+    !isCanonicalProductPath(currentPath) &&
+    !FIXED_STOREFRONT_PATHS.has(currentPath)
+  ) {
     const historicalTarget = normalizeRoutePath(historicalRedirect.to_url);
     const targetRoute = routeConfig.routes.find(
       (route) => normalizeRoutePath(route?.url) === historicalTarget

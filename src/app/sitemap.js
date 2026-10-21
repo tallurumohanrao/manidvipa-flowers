@@ -18,6 +18,7 @@ const VALID_CHANGE_FREQUENCIES = new Set([
   "never",
 ]);
 const IS_PRODUCTION_BUILD = process.env.NEXT_PHASE === "phase-production-build";
+const FIXED_STOREFRONT_PATHS = new Set(["/flowers"]);
 
 function getApiBaseUrl() {
   return String(
@@ -127,6 +128,8 @@ function resolveSitemapPath(
   redirects = new Map()
 ) {
   let path = normalizeSitemapPath(pathOrUrl);
+  if (FIXED_STOREFRONT_PATHS.has(path)) return path;
+
   const visited = new Set();
 
   while (!visited.has(path)) {
