@@ -38,6 +38,7 @@ export const PRODUCT_IMAGE_BASE_URL = cleanUrl(
 
 export const PUBLIC_SITEMAP_ROUTES = [
   { path: "/", changeFrequency: "daily", priority: 1 },
+  { path: "/flowers", changeFrequency: "daily", priority: 0.95 },
   { path: "/subscriptions", changeFrequency: "weekly", priority: 0.9 },
   { path: "/decorations", changeFrequency: "weekly", priority: 0.85 },
   ...(CUSTOM_BOUQUET_ENABLED
