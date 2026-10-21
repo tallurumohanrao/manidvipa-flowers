@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
   FaGift,
@@ -29,6 +30,7 @@ import {
 } from "../../../hook/userCookie";
 import Toast from "@/components/Toast";
 import { getPriceVisibility } from "@/lib/priceVisibility";
+import { resolvePrimaryProductCategory } from "@/lib/productCategory";
 
 const IMG_URL = process.env.NEXT_PUBLIC_IMG_URL;
 
@@ -282,6 +284,10 @@ export default function ProductDetails({
   const productData = productDetails?.data || {};
   const priceVisibility = getPriceVisibility(productData, "detail");
   const productTitle = productData?.title || "Fresh Flowers";
+  const primaryCategory = useMemo(
+    () => resolvePrimaryProductCategory(productDetails),
+    [productDetails]
+  );
   const priceOptions = useMemo(() => buildPriceOptions(productDetails), [productDetails]);
   const selectedPriceOption =
     priceOptions.find((option) => option.key === selectedOptionKey) || priceOptions?.[0];
@@ -598,9 +604,9 @@ export default function ProductDetails({
       <section className={styles.productPage}>
         <div className="container">
           <nav className={styles.breadcrumbs} aria-label="Breadcrumb">
-            <button type="button" onClick={() => router.push("/")}>Home</button>
+            <Link href="/">Home</Link>
             <span>/</span>
-            <button type="button" onClick={() => router.push("/flowers")}>Flowers</button>
+            <Link href={primaryCategory.href}>{primaryCategory.title}</Link>
             <span>/</span>
             <strong>{productTitle}</strong>
           </nav>

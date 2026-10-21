@@ -19,6 +19,7 @@ import {
   fetchFirstSeoMetadata,
   resolvePublicSeoPath,
 } from "@/lib/metadata";
+import { resolvePrimaryProductCategory } from "@/lib/productCategory";
 
 const fetchAboutData = async (query, userToken) => {
   try {
@@ -151,6 +152,11 @@ function buildProductDetailsFromListingProduct(product, slug) {
       can_purchase: product.can_purchase,
       price_message: product.price_message,
       price_cta_label: product.price_cta_label,
+      categories: product.categories,
+      primary_category: product.primary_category,
+      category_slug: product.category_slug,
+      category_title: product.category_title,
+      category_path: product.category_path,
     },
     images,
     weights,
@@ -284,10 +290,14 @@ export default async function Page({ params }) {
     : { success: true, data: [] };
   const siteSettings = await fetchSiteSettingsData(userToken);
   const productTitle = produtsDetails?.data?.title || titleFromSlug(slug);
+  const primaryCategory = resolvePrimaryProductCategory(produtsDetails);
   const productSchema = buildProductSchema(produtsDetails, slug, publicPath);
   const breadcrumbSchema = buildBreadcrumbSchema([
     { name: "Home", path: resolvePublicSeoPath("/", publicRouteMap) },
-    { name: "Flowers", path: resolvePublicSeoPath("/flowers", publicRouteMap) },
+    {
+      name: primaryCategory.title,
+      path: resolvePublicSeoPath(primaryCategory.href, publicRouteMap),
+    },
     { name: productTitle, path: publicPath },
   ]);
 
