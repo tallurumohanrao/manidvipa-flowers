@@ -130,8 +130,14 @@ function addEntry(
   editableRoutes = new Map(),
   redirects = new Map()
 ) {
+  const requestedPath = normalizeSitemapPath(pathOrUrl);
   const path = resolveSitemapPath(pathOrUrl, editableRoutes, redirects);
-  if (isNoIndexPath(path)) return;
+  const noIndexPaths = options.noIndexPaths || new Set();
+  if (
+    isNoIndexPath(path) ||
+    noIndexPaths.has(requestedPath) ||
+    noIndexPaths.has(path)
+  ) return;
 
   const url = canonicalUrl(path);
   if (entries.has(url)) return;
@@ -192,9 +198,23 @@ export default async function sitemap() {
       normalizeSitemapPath(redirect.to_url),
     ])
   );
+  const noIndexPaths = new Set(
+    editableRouteRows
+      .filter((route) => /(^|,)\s*noindex\b/i.test(String(route?.robots || "")))
+      .flatMap((route) => [
+        normalizeSitemapPath(route.alias),
+        normalizeSitemapPath(route.url),
+      ])
+  );
 
   PUBLIC_SITEMAP_ROUTES.forEach((route) => {
-    addEntry(entries, route.path, route, editableRoutes, redirects);
+    addEntry(
+      entries,
+      route.path,
+      { ...route, noIndexPaths },
+      editableRoutes,
+      redirects
+    );
   });
 
   const categories = Array.isArray(categoriesResponse?.data) ? categoriesResponse.data : [];
@@ -206,6 +226,7 @@ export default async function sitemap() {
       lastModified: category.updated_at || category.created_at,
       changeFrequency: "daily",
       priority: category.parent_id ? 0.75 : 0.8,
+      noIndexPaths,
     }, editableRoutes, redirects);
   });
 
@@ -215,6 +236,7 @@ export default async function sitemap() {
       lastModified: product.updated_at || product.created_at,
       changeFrequency: "daily",
       priority: 0.72,
+      noIndexPaths,
     });
   });
 

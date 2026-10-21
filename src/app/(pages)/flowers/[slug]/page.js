@@ -163,11 +163,11 @@ function buildProductDetailsFromListingProduct(product, slug) {
   };
 }
 
-async function fetchSeoProductListing() {
+async function fetchSeoProductListingPage(page = 1) {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
       const response = await fetch(
-        `${getApiBaseUrl()}/products-by-category?category_slug=all-flowers&per_page=200`,
+        `${getApiBaseUrl()}/products-by-category?category_slug=all-flowers&per_page=200&page=${page}`,
         {
           method: "GET",
           headers: {
@@ -178,10 +178,10 @@ async function fetchSeoProductListing() {
       );
 
       if (response.ok) {
-        return unpackPaginatedProducts(await response.json());
+        return response.json();
       }
     } catch (error) {
-      console.error("Error fetching product listing fallback:", error);
+      console.error(`Error fetching product listing fallback page ${page}:`, error);
     }
 
     if (attempt < 2) {
@@ -189,7 +189,23 @@ async function fetchSeoProductListing() {
     }
   }
 
-  return [];
+  return null;
+}
+
+async function fetchSeoProductListing() {
+  const firstPage = await fetchSeoProductListingPage(1);
+  if (!firstPage) return [];
+
+  const lastPage = Math.max(1, Number(firstPage?.data?.last_page) || 1);
+  if (lastPage === 1) return unpackPaginatedProducts(firstPage);
+
+  const remainingPages = await Promise.all(
+    Array.from({ length: lastPage - 1 }, (_, index) =>
+      fetchSeoProductListingPage(index + 2)
+    )
+  );
+
+  return [firstPage, ...remainingPages].flatMap(unpackPaginatedProducts);
 }
 
 async function fetchProductDetailsFromListing(slug) {
