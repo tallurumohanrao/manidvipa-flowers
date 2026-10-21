@@ -17,6 +17,7 @@ const VALID_CHANGE_FREQUENCIES = new Set([
   "yearly",
   "never",
 ]);
+const IS_PRODUCTION_BUILD = process.env.NEXT_PHASE === "phase-production-build";
 
 function getApiBaseUrl() {
   return String(
@@ -43,6 +44,13 @@ async function fetchApi(endpoint) {
     return response.json();
   } catch (error) {
     console.error(`Error fetching sitemap data from ${endpoint}:`, error);
+    if (IS_PRODUCTION_BUILD) {
+      // Hostinger may build while the separate Admin API is briefly
+      // unavailable. Let the build finish with the stable public routes; ISR
+      // will populate categories and products as soon as the API recovers.
+      return null;
+    }
+
     // Throwing during ISR keeps the last complete sitemap available. Returning
     // partial data here would replace it with a sitemap missing categories and
     // products whenever the Admin API is briefly unavailable.
