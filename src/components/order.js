@@ -144,6 +144,11 @@ const Orders = ({ handleOrderActive, userToken }) => {
                           <p>
                             <strong>{item.product_title}</strong>
                           </p>
+                          {item?.addons?.length ? (
+                            <p className={styles.product_addons}>
+                              Add-ons: {item.addons.map((addon) => addon.name).join(", ")}
+                            </p>
+                          ) : null}
                           <p className={styles.product_mobile_amount}>
                             {formatPrice(item.amount)}
                           </p>

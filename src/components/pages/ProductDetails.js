@@ -34,13 +34,6 @@ import { resolvePrimaryProductCategory } from "@/lib/productCategory";
 
 const IMG_URL = process.env.NEXT_PUBLIC_IMG_URL;
 
-const addonOptions = [
-  { key: "jasmine", label: "Add Jasmine", price: 50 },
-  { key: "tulasi", label: "Add Tulasi Leaves", price: 20 },
-  { key: "mango", label: "Add Mango Leaves", price: 20 },
-  { key: "gift", label: "Gift Wrap", price: 30 },
-];
-
 const deliverySlotOptions = [
   { value: "6-9", label: "6 AM - 9 AM" },
   { value: "9-12", label: "9 AM - 12 PM" },
@@ -231,6 +224,18 @@ function openDatePicker(event) {
   }
 }
 
+function ProductHighlightIcon({ icon }) {
+  const icons = {
+    leaf: FaLeaf,
+    shield: FaShieldAlt,
+    gift: FaGift,
+    truck: FaTruck,
+    star: FaStar,
+  };
+  const Icon = icons[icon] || FaLeaf;
+  return <Icon aria-hidden="true" />;
+}
+
 export default function ProductDetails({
   guestSession,
   userToken,
@@ -282,6 +287,8 @@ export default function ProductDetails({
   const { addWatchlistCount, decreaseWatchlistCount } = useWatchlistCount();
 
   const productData = productDetails?.data || {};
+  const productHighlights = Array.isArray(productData?.highlights) ? productData.highlights : [];
+  const productAddons = Array.isArray(productData?.addons) ? productData.addons : [];
   const priceVisibility = getPriceVisibility(productData, "detail");
   const productTitle = productData?.title || "Fresh Flowers";
   const primaryCategory = useMemo(
@@ -302,7 +309,14 @@ export default function ProductDetails({
   const selectedOptionLabel = selectedPriceOption?.allowCustomQuantity && enteredCustomQuantity > 0
     ? `${formatQuantityNumber(enteredCustomQuantity)} ${formatQuantityUnit(selectedPriceOption.quantityUnit, enteredCustomQuantity)}`
     : selectedPriceOption?.name;
-  const totalPrice = effectiveSelectedPrice * displayQuantity;
+  const selectedAddons = productAddons.filter((addon) =>
+    selectedAddonKeys.includes(String(addon.id))
+  );
+  const addonUnitTotal = selectedAddons.reduce(
+    (total, addon) => total + parsePriceValue(addon.price),
+    0
+  );
+  const totalPrice = (effectiveSelectedPrice + addonUnitTotal) * displayQuantity;
   const showSelectedPrice = priceVisibility.showPrice || (
     priceVisibility.revealAfterSelection && Boolean(selectedOptionKey)
   );
@@ -334,11 +348,13 @@ export default function ProductDetails({
   };
 
   const toggleAddon = (addonKey) => {
+    const normalizedKey = String(addonKey);
     setSelectedAddonKeys((currentKeys) =>
-      currentKeys.includes(addonKey)
-        ? currentKeys.filter((key) => key !== addonKey)
-        : [...currentKeys, addonKey]
+      currentKeys.includes(normalizedKey)
+        ? currentKeys.filter((key) => key !== normalizedKey)
+        : [...currentKeys, normalizedKey]
     );
+    setWasAddedToCart(false);
   };
 
   const handleAddcart = async (e, action) => {
@@ -383,6 +399,7 @@ export default function ProductDetails({
       product_id: productDetails?.data?.id,
       quantity: cartQuantity,
       weight_id: selectedWeightId,
+      addon_ids: selectedAddons.map((addon) => Number(addon.id)),
       ...(selectedPriceOption?.allowCustomQuantity && customQuantity !== ""
         ? { custom_quantity: enteredCustomQuantity }
         : {}),
@@ -486,6 +503,11 @@ export default function ProductDetails({
       handlePriceChange(defaultPriceOption);
     }
   }, [priceOptions, selectedOptionKey, priceVisibility.canPurchase, priceVisibility.revealAfterSelection]);
+
+  useEffect(() => {
+    setSelectedAddonKeys([]);
+    setWasAddedToCart(false);
+  }, [productData.id]);
 
   const fetchDataReviews = useCallback(async () => {
     if (!productDetails?.data?.id) {
@@ -699,12 +721,16 @@ export default function ProductDetails({
                 </> : <strong>{priceVisibility.message}</strong>}
               </p>
 
-              <ul className={styles.productHighlights}>
-                <li><FaLeaf /> Fresh Every Morning</li>
-                <li><FaShieldAlt /> Pesticide Free</li>
-                <li><FaGift /> Handpicked</li>
-                <li><FaTruck /> Perfect for Puja & Gifting</li>
-              </ul>
+              {productHighlights.length ? (
+                <ul className={styles.productHighlights}>
+                  {productHighlights.map((highlight) => (
+                    <li key={highlight.id || highlight.label}>
+                      <ProductHighlightIcon icon={highlight.icon} />
+                      {highlight.label}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
 
               <div className={styles.optionBlock}>
                 <h2>Select Quantity</h2>
@@ -752,21 +778,27 @@ export default function ProductDetails({
                 </div>
               ) : null}
 
-              {priceVisibility.canPurchase ? <><div className={styles.optionBlock}>
+              {priceVisibility.canPurchase ? <>{productAddons.length ? <div className={styles.optionBlock}>
                 <h2>Add-ons <span>(Optional)</span></h2>
                 <div className={styles.addonList}>
-                  {addonOptions.map((addon) => (
-                    <label key={addon.key}>
+                  {productAddons.map((addon) => (
+                    <label key={addon.id}>
                       <input
                         type="checkbox"
-                        checked={selectedAddonKeys.includes(addon.key)}
-                        onChange={() => toggleAddon(addon.key)}
+                        checked={selectedAddonKeys.includes(String(addon.id))}
+                        onChange={() => toggleAddon(addon.id)}
                       />
-                      <span>{addon.label} ({formatFlowerPrice(addon.price)})</span>
+                      <span>{addon.name} ({formatFlowerPrice(addon.price)})</span>
                     </label>
                   ))}
                 </div>
-              </div>
+                {selectedAddons.length ? (
+                  <div className={styles.addonTotal}>
+                    <span>Add-ons: {formatFlowerPrice(addonUnitTotal * displayQuantity)}</span>
+                    <strong>Total: {formatFlowerPrice(totalPrice)}</strong>
+                  </div>
+                ) : null}
+              </div> : null}
 
               <div className={styles.deliveryGrid}>
                 <label>

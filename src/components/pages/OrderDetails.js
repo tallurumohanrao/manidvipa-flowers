@@ -242,6 +242,11 @@ export default function OrderDetails({ id, handleBack, userData, userToken }) {
                       <Link href={`/flowers/${item.product_slug}`}>
                         {item?.product_title}
                       </Link>
+                      {item?.addons?.length ? (
+                        <div className={styles.productAddons}>
+                          Add-ons: {item.addons.map((addon) => addon.name).join(", ")}
+                        </div>
+                      ) : null}
                     </td>
                     <td>
                       <p>{item?.weight}</p>

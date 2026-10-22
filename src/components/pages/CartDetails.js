@@ -192,16 +192,22 @@ function normalizeCartItem(item) {
   const selectedWeight = availableWeights.find(
     (weight) => Number(weight.id) === selectedWeightId
   );
+  const addons = Array.isArray(item?.addons)
+    ? item.addons.map((addon) => ({ ...addon, price: parseAmount(addon?.price) }))
+    : [];
+  const addonTotal = addons.reduce((total, addon) => total + addon.price, 0);
 
   return {
     ...item,
     weight_id: selectedWeightId || item?.weight_id,
     weight: item?.is_custom_quantity ? item?.weight : (selectedWeight?.name || item?.weight),
     quantity: Math.max(1, Number(item?.quantity) || 1),
-    sell_price: selectedWeight && !item?.is_custom_quantity ? selectedWeight.sell_price : parseAmount(item?.sell_price),
+    sell_price: selectedWeight && !item?.is_custom_quantity ? selectedWeight.sell_price + addonTotal : parseAmount(item?.sell_price),
     list_price: selectedWeight && !item?.is_custom_quantity
-      ? selectedWeight.list_price
+      ? selectedWeight.list_price + addonTotal
       : parseAmount(item?.list_price || item?.sell_price),
+    addons,
+    addon_total: addonTotal,
     available_weights: availableWeights,
   };
 }
@@ -310,7 +316,10 @@ function buildCartWhatsAppHref(contactValue, items, total, deliveryDate, deliver
   const itemLines = items
     .map((item) => {
       const weight = item?.weight ? ` - ${item.weight}` : "";
-      return `${item.product_title}${weight} x ${item.quantity}`;
+      const addons = item?.addons?.length
+        ? ` (Add-ons: ${item.addons.map((addon) => addon.name).join(", ")})`
+        : "";
+      return `${item.product_title}${weight}${addons} x ${item.quantity}`;
     })
     .join("\n");
   const message = [
@@ -512,8 +521,8 @@ export default function CartDetails({
             ...item,
             weight_id: selectedWeight.id,
             weight: selectedWeight.name,
-            sell_price: selectedWeight.sell_price,
-            list_price: selectedWeight.list_price,
+            sell_price: selectedWeight.sell_price + parseAmount(item.addon_total),
+            list_price: selectedWeight.list_price + parseAmount(item.addon_total),
             custom_quantity: null,
             is_custom_quantity: false,
           }
@@ -858,6 +867,15 @@ export default function CartDetails({
                         ) : (
                           <span>{item.weight || "Selected quantity"}</span>
                         )}
+                        {item.addons?.length ? (
+                          <ul className={styles.cartAddons}>
+                            {item.addons.map((addon) => (
+                              <li key={addon.id || addon.name}>
+                                + {addon.name} ({formatCartPrice(addon.price)})
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
                       </div>
                     </div>
                     <div className={styles.priceCell}>{formatCartPrice(item.sell_price)}</div>

@@ -329,6 +329,23 @@
   }
 }
 
+.addonTotal {
+  align-items: center;
+  background: #fff8ea;
+  border: 1px solid #f0ddba;
+  border-radius: 8px;
+  color: #4d373b;
+  display: flex;
+  font-size: 13px;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding: 9px 12px;
+
+  strong {
+    color: #9b1436;
+  }
+}
+
 .deliveryGrid {
   display: grid;
   gap: 16px;
