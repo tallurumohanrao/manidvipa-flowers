@@ -42,7 +42,9 @@ async function searchProducts(searchInput, router) {
   if (!searchInput.trim()) return;
   try {
     const params = new URLSearchParams({ q: searchInput.trim() });
-    const response = await fetch(`${apiUrl}/search?${params.toString()}`);
+    const response = await fetch(`${apiUrl}/search?${params.toString()}`, {
+      cache: "no-store",
+    });
     const result = await response.json();
     const products = result?.data?.data || [];
     if (products.length === 1) router.push(`/flowers/${products[0].slug}`);
@@ -194,7 +196,9 @@ export default function Navbar({
   useEffect(() => {
     async function loadSuggestions() {
       try {
-        const response = await fetch(`${apiUrl}/search`);
+        const response = await fetch(`${apiUrl}/search`, {
+          cache: "no-store",
+        });
         if (!response.ok) return;
         const result = await response.json();
         setAllSuggestions(result?.data?.data || []);

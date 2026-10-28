@@ -249,6 +249,15 @@
     }
   }
 }
+
+.unitPrice {
+  color: #6d5b53;
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  margin-top: 4px;
+}
 .couponCode {
   label {
     font-size: $fs-20;

@@ -1,22 +1,18 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import HoverCard from "@/components/hoverCard";
+import { CategoryProductCard } from "@/components/pages/CategoryProducts";
 import styles from "@/scss/pages/listingPage.module.scss";
 import { useParams } from "next/navigation";
-import { useToast, useUser } from "@/context/UserContext";
 import Toast from "@/components/Toast";
-import { getPriceVisibility } from "@/lib/priceVisibility";
+import { compareProductsByStock } from "@/lib/productStock";
 
 const url = process.env.NEXT_PUBLIC_MANIDVIPA_URL;
-const IMG_URL = process.env.NEXT_PUBLIC_IMG_URL;
 
 export default function Page() {
   const { searchvalue } = useParams();
   const searchQuery = Array.isArray(searchvalue)
     ? searchvalue.join("/")
     : searchvalue;
-  const { guestSession } = useUser();
-  const { showToast } = useToast();
   const [productCategory, setProductCategory] = useState([]);
   const sortedProducts = [...productCategory];
   const [sortOption, setSortOption] = useState("");
@@ -25,11 +21,13 @@ export default function Page() {
     const fetchData = async () => {
       if (searchQuery != "all") {
         const searchParams = new URLSearchParams({ q: searchQuery });
-        const res = await fetch(`${url}/search?${searchParams.toString()}`);
+        const res = await fetch(`${url}/search?${searchParams.toString()}`, {
+          cache: "no-store",
+        });
         const result = await res.json();
         setProductCategory(result.data.data);
       } else {
-        const res = await fetch(`${url}/search`);
+        const res = await fetch(`${url}/search`, { cache: "no-store" });
         const result = await res.json();
         setProductCategory(result.data.data);
       }
@@ -60,6 +58,8 @@ export default function Page() {
   } else if (sortOption === "High price to low") {
     sortedProducts.sort((a, b) => b.sell_price - a.sell_price);
   }
+
+  sortedProducts.sort(compareProductsByStock);
 
   return (
     <>
@@ -98,35 +98,12 @@ export default function Page() {
                         <div className="row">
                           {sortedProducts.length > 0 ? (
                             sortedProducts.map((painting, index) => {
-                              const priceVisibility = getPriceVisibility(painting);
                               return (
                               <div
                                 key={index}
                                 className={`col-xs-6 col-sm-4 col-md-3 col-lg-3 my-2`}
                               >
-                                <HoverCard
-                                  imageSrc={
-                                    painting.image_name === null
-                                      ? "/assets/images/no-image.png"
-                                      : `${IMG_URL}/${painting.image_name}`
-                                  }
-                                  hoverImageSrc={
-                                    painting.image_name === null
-                                      ? "/assets/images/no-image.png"
-                                      : `${IMG_URL}/${painting.image_name}`
-                                  }
-                                  title={painting.title}
-                                  rating={painting.rating}
-                                  originalPrice={painting.list_price}
-                                  salePrice={painting.sell_price}
-                                  slug={painting.slug}
-                                  productId={painting.id}
-                                  wishlist_id={painting.wishlist_id}
-                                  showPrice={priceVisibility.showPrice}
-                                  priceMessage={priceVisibility.message}
-                                  priceCtaLabel={priceVisibility.ctaLabel}
-                                  // fetchData={() => fetchData()}
-                                />
+                                <CategoryProductCard product={painting} />
                               </div>
                               );
                             })

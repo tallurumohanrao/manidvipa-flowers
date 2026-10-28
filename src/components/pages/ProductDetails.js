@@ -31,6 +31,8 @@ import {
 import Toast from "@/components/Toast";
 import { getPriceVisibility } from "@/lib/priceVisibility";
 import { resolvePrimaryProductCategory } from "@/lib/productCategory";
+import { getPurchaseQuantityMaximum } from "@/lib/purchaseQuantity";
+import { getPerUnitPriceDetails } from "@/lib/unitPricing";
 
 const IMG_URL = process.env.NEXT_PUBLIC_IMG_URL;
 
@@ -274,7 +276,6 @@ export default function ProductDetails({
     initialPriceVisibility.revealAfterSelection ? null : initialPriceOption?.key || null
   );
   const [quantity, setQuantity] = useState(0);
-  const [customQuantity, setCustomQuantity] = useState("");
   const [cartAction, setCartAction] = useState("");
   const [wasAddedToCart, setWasAddedToCart] = useState(false);
   const [selectedAddonKeys, setSelectedAddonKeys] = useState([]);
@@ -301,12 +302,16 @@ export default function ProductDetails({
   const productImages = productDetails?.images?.length
     ? productDetails.images
     : [{ name: selectedImage || "/assets/images/no-image.png" }];
-  const displayQuantity = quantity > 0 ? quantity : 1;
-  const enteredCustomQuantity = Number(customQuantity);
-  const effectiveSelectedPrice = selectedPriceOption?.allowCustomQuantity && enteredCustomQuantity > 0
+  const usesCustomQuantity = Boolean(selectedPriceOption?.allowCustomQuantity);
+  const enteredCustomQuantity = usesCustomQuantity && quantity > 0 ? Number(quantity) : null;
+  const displayQuantity = usesCustomQuantity ? 1 : quantity > 0 ? quantity : 1;
+  const effectiveSelectedPrice = enteredCustomQuantity !== null
     ? selectedPriceOption.unitSellPrice * enteredCustomQuantity
     : selectedPrice;
-  const selectedOptionLabel = selectedPriceOption?.allowCustomQuantity && enteredCustomQuantity > 0
+  const effectiveSelectedListPrice = enteredCustomQuantity !== null
+    ? selectedPriceOption.unitListPrice * enteredCustomQuantity
+    : parsePriceValue(selectedPriceOption?.list_price);
+  const selectedOptionLabel = enteredCustomQuantity !== null
     ? `${formatQuantityNumber(enteredCustomQuantity)} ${formatQuantityUnit(selectedPriceOption.quantityUnit, enteredCustomQuantity)}`
     : selectedPriceOption?.name;
   const selectedAddons = productAddons.filter((addon) =>
@@ -317,6 +322,9 @@ export default function ProductDetails({
     0
   );
   const totalPrice = (effectiveSelectedPrice + addonUnitTotal) * displayQuantity;
+  const totalListPrice = (effectiveSelectedListPrice + addonUnitTotal) * displayQuantity;
+  const hasProductDiscount = totalListPrice > totalPrice && totalPrice > 0;
+  const perUnitPrice = getPerUnitPriceDetails(selectedPriceOption, enteredCustomQuantity);
   const showSelectedPrice = priceVisibility.showPrice || (
     priceVisibility.revealAfterSelection && Boolean(selectedOptionKey)
   );
@@ -333,14 +341,49 @@ export default function ProductDetails({
     setSelectedPrice(parsePriceValue(option?.sell_price));
     setSelectedWeightId(option?.id || null);
     setSelectedOptionKey(option?.key || null);
-    setCustomQuantity("");
+    setQuantity(0);
     setWasAddedToCart(false);
   };
 
   const handleQuantityChange = (newQuantity) => {
-    const parsedQuantity = Number.parseInt(newQuantity, 10);
-    setQuantity(Math.min(99, Math.max(0, Number.isNaN(parsedQuantity) ? 0 : parsedQuantity)));
+    if (newQuantity === "") {
+      setQuantity("");
+      setWasAddedToCart(false);
+      return;
+    }
+
+    const parsedQuantity = Number(newQuantity);
+    const maximum = getPurchaseQuantityMaximum(
+      usesCustomQuantity,
+      selectedPriceOption?.maximumCustomQuantity
+    );
+    const boundedQuantity = Math.min(
+      maximum,
+      Math.max(0, Number.isFinite(parsedQuantity) ? parsedQuantity : 0)
+    );
+    setQuantity(
+      usesCustomQuantity
+        ? Number(boundedQuantity.toFixed(3))
+        : Math.trunc(boundedQuantity)
+    );
     setWasAddedToCart(false);
+  };
+
+  const adjustQuantity = (direction) => {
+    const currentQuantity = Number(quantity) || 0;
+
+    if (!usesCustomQuantity) {
+      handleQuantityChange(currentQuantity + direction);
+      return;
+    }
+
+    const minimum = selectedPriceOption?.minimumCustomQuantity || 1;
+    const step = selectedPriceOption?.customQuantityStep || 1;
+    if (direction > 0) {
+      handleQuantityChange(currentQuantity < minimum ? minimum : currentQuantity + step);
+    } else {
+      handleQuantityChange(currentQuantity <= minimum ? 0 : Math.max(minimum, currentQuantity - step));
+    }
   };
 
   const handleImageClick = (image) => {
@@ -380,7 +423,7 @@ export default function ProductDetails({
       return;
     }
 
-    if (selectedPriceOption?.allowCustomQuantity && customQuantity !== "") {
+    if (enteredCustomQuantity !== null) {
       const minimum = selectedPriceOption.minimumCustomQuantity || 1;
       const maximum = selectedPriceOption.maximumCustomQuantity;
       const step = selectedPriceOption.customQuantityStep || 1;
@@ -393,14 +436,14 @@ export default function ProductDetails({
     }
 
     const nextCartAction = action || "cart";
-    const cartQuantity = quantity > 0 ? quantity : 1;
+    const cartQuantity = usesCustomQuantity ? 1 : quantity > 0 ? quantity : 1;
     const body = {
       cart_session: effectiveGuestSession,
       product_id: productDetails?.data?.id,
       quantity: cartQuantity,
       weight_id: selectedWeightId,
       addon_ids: selectedAddons.map((addon) => Number(addon.id)),
-      ...(selectedPriceOption?.allowCustomQuantity && customQuantity !== ""
+      ...(enteredCustomQuantity !== null
         ? { custom_quantity: enteredCustomQuantity }
         : {}),
     };
@@ -421,7 +464,9 @@ export default function ProductDetails({
         return;
       }
 
-      setQuantity(cartQuantity);
+      if (!usesCustomQuantity) {
+        setQuantity(cartQuantity);
+      }
       if (!action) {
         setWasAddedToCart(true);
       }
@@ -716,8 +761,11 @@ export default function ProductDetails({
 
               <p className={styles.priceLine}>
                 {showSelectedPrice ? <>
+                  {hasProductDiscount ? <del>{formatFlowerPrice(totalListPrice)}</del> : null}
                   <strong>{formatFlowerPrice(totalPrice || effectiveSelectedPrice)}</strong>
-                  <span>/ {selectedOptionLabel || productData?.unit || "kg"}</span>
+                  <span>{perUnitPrice
+                    ? `${selectedAddons.length ? "total incl. add-ons · base " : "total · "}${formatFlowerPrice(perUnitPrice.unitPrice)} per ${perUnitPrice.unitLabel}`
+                    : `/ ${selectedOptionLabel || productData?.unit || "kg"}`}</span>
                 </> : <strong>{priceVisibility.message}</strong>}
               </p>
 
@@ -754,29 +802,6 @@ export default function ProductDetails({
                   <p className={styles.optionError}>Price details are not available for this product.</p>
                 )}
               </div>
-
-              {selectedPriceOption?.allowCustomQuantity ? (
-                <div className={styles.customQuantityBox}>
-                  <label htmlFor="custom-product-quantity">Custom {formatQuantityUnit(selectedPriceOption.quantityUnit, 2).toLowerCase()}</label>
-                  <div className={styles.customQuantityInput}>
-                    <input
-                      id="custom-product-quantity"
-                      type="number"
-                      min={selectedPriceOption.minimumCustomQuantity}
-                      max={selectedPriceOption.maximumCustomQuantity || undefined}
-                      step={selectedPriceOption.customQuantityStep}
-                      value={customQuantity}
-                      placeholder={formatQuantityNumber(selectedPriceOption.quantityValue)}
-                      onChange={(event) => { setCustomQuantity(event.target.value); setWasAddedToCart(false); }}
-                    />
-                    <span>{formatQuantityUnit(selectedPriceOption.quantityUnit, Number(customQuantity) || 2)}</span>
-                  </div>
-                  <small>
-                    Enter {formatQuantityNumber(selectedPriceOption.minimumCustomQuantity)}
-                    {selectedPriceOption.maximumCustomQuantity ? `–${formatQuantityNumber(selectedPriceOption.maximumCustomQuantity)}` : "+"} in steps of {formatQuantityNumber(selectedPriceOption.customQuantityStep)}. Leave blank for {selectedPriceOption.name}.
-                  </small>
-                </div>
-              ) : null}
 
               {priceVisibility.canPurchase ? <>{productAddons.length ? <div className={styles.optionBlock}>
                 <h2>Add-ons <span>(Optional)</span></h2>
@@ -828,17 +853,32 @@ export default function ProductDetails({
 
               <div className={styles.actionRow}>
                 <div className={styles.quantityStepper}>
-                  <button type="button" onClick={() => handleQuantityChange(quantity - 1)} disabled={quantity <= 0 || Boolean(cartAction)}>−</button>
+                  <button type="button" onClick={() => adjustQuantity(-1)} disabled={quantity <= 0 || Boolean(cartAction)}>−</button>
                   <input
                     type="number"
                     min="0"
-                    max="99"
+                    max={getPurchaseQuantityMaximum(usesCustomQuantity, selectedPriceOption?.maximumCustomQuantity)}
+                    step={usesCustomQuantity ? selectedPriceOption?.customQuantityStep || 1 : 1}
                     value={quantity}
                     onChange={(event) => handleQuantityChange(event.target.value)}
+                    onBlur={(event) => {
+                      if (event.target.value === "") setQuantity(0);
+                    }}
+                    onFocus={(event) => event.currentTarget.select()}
                     disabled={Boolean(cartAction)}
-                    aria-label={`Quantity for ${productTitle}`}
+                    inputMode={usesCustomQuantity ? "decimal" : "numeric"}
+                    aria-label={usesCustomQuantity
+                      ? `Custom ${formatQuantityUnit(selectedPriceOption?.quantityUnit, 2).toLowerCase()} for ${productTitle}`
+                      : `Quantity for ${productTitle}`}
                   />
-                  <button type="button" onClick={() => handleQuantityChange(quantity + 1)} disabled={Boolean(cartAction)}>+</button>
+                  <button
+                    type="button"
+                    onClick={() => adjustQuantity(1)}
+                    disabled={Boolean(cartAction) || quantity >= getPurchaseQuantityMaximum(
+                      usesCustomQuantity,
+                      selectedPriceOption?.maximumCustomQuantity
+                    )}
+                  >+</button>
                 </div>
 
                 <button

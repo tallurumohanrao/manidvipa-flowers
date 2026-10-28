@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  FaCheckCircle,
   FaClock,
   FaEnvelope,
   FaFacebookF,
@@ -18,6 +19,7 @@ import {
 } from "react-icons/fa";
 import { fetchListingData } from "../../../hook/userCookie";
 import { useToast } from "@/context/UserContext";
+import Toast from "@/components/Toast";
 import styles from "@/scss/pages/contactUs.module.scss";
 
 const FALLBACK_PHONE = "+91 73375 25445";
@@ -151,6 +153,7 @@ export default function ContactUs({
     message: "",
   });
   const [loading, setLoading] = useState(false);
+  const [submissionFeedback, setSubmissionFeedback] = useState(null);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -160,6 +163,7 @@ export default function ContactUs({
   const handleSubmit = async (event) => {
     event.preventDefault();
     setLoading(true);
+    setSubmissionFeedback(null);
 
     try {
       const response = await fetchListingData(
@@ -170,7 +174,13 @@ export default function ContactUs({
       );
 
       if (response?.success) {
-        showToast(response.data || response.message || "Message sent successfully.", "success");
+        const successMessage =
+          response.data ||
+          response.message ||
+          "Thank you! Your message has been submitted successfully.";
+
+        setSubmissionFeedback({ type: "success", message: successMessage });
+        showToast(successMessage, "success");
         setFormData({
           name: "",
           email: "",
@@ -179,11 +189,17 @@ export default function ContactUs({
           message: "",
         });
       } else {
-        showToast(response?.message || "Unable to send message right now.", "error");
+        const errorMessage =
+          response?.message || "Unable to send message right now. Please try again.";
+
+        setSubmissionFeedback({ type: "error", message: errorMessage });
+        showToast(errorMessage, "error");
       }
     } catch (error) {
       console.error("Error submitting contact form:", error);
-      showToast("An unexpected error occurred. Please try again later.", "error");
+      const errorMessage = "An unexpected error occurred. Please try again later.";
+      setSubmissionFeedback({ type: "error", message: errorMessage });
+      showToast(errorMessage, "error");
     } finally {
       setLoading(false);
     }
@@ -191,6 +207,7 @@ export default function ContactUs({
 
   return (
     <section className={styles.contactPage}>
+      <Toast />
       <div className="container">
         <nav className={styles.breadcrumbs} aria-label="Breadcrumb">
           <Link href="/">Home</Link>
@@ -293,6 +310,20 @@ export default function ContactUs({
                 onChange={handleChange}
                 required
               />
+              {submissionFeedback ? (
+                <div
+                  className={`${styles.formFeedback} ${
+                    submissionFeedback.type === "success"
+                      ? styles.formFeedbackSuccess
+                      : styles.formFeedbackError
+                  }`}
+                  role={submissionFeedback.type === "error" ? "alert" : "status"}
+                  aria-live={submissionFeedback.type === "error" ? "assertive" : "polite"}
+                >
+                  {submissionFeedback.type === "success" ? <FaCheckCircle /> : null}
+                  <span>{submissionFeedback.message}</span>
+                </div>
+              ) : null}
               <button type="submit" disabled={loading}>
                 {loading ? "SENDING..." : "SEND MESSAGE"}
               </button>

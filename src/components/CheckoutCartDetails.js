@@ -3,6 +3,7 @@ import styles from "@/scss/pages/checkout.module.scss";
 import Image from "next/image";
 import { formatPrice } from "../../hook/userCookie";
 import { RxCross1 } from "react-icons/rx";
+import { getPerUnitPriceDetails } from "@/lib/unitPricing";
 
 const IMG_URL = process.env.NEXT_PUBLIC_IMG_URL;
 
@@ -12,7 +13,18 @@ const CheckoutCartDetails = ({ CartDetailsData }) => {
   return (
     <>
       <div className={`row ${styles.card} py-3`}>
-        {data?.data?.map((value, index) => (
+        {data?.data?.map((value, index) => {
+          const selectedWeight = Array.isArray(value?.available_weights)
+            ? value.available_weights.find((weight) =>
+              String(weight?.id || weight?.weight_id) === String(value?.weight_id)
+            )
+            : null;
+          const perUnitPrice = getPerUnitPriceDetails(
+            selectedWeight,
+            value?.is_custom_quantity ? value?.custom_quantity : null
+          );
+
+          return (
           <div className="col-12" key={index}>
             <div className="row">
               <div
@@ -56,17 +68,28 @@ const CheckoutCartDetails = ({ CartDetailsData }) => {
                     style={{ color: "#cc0000" }}
                   >
                     {formatPrice(value?.totalPrice)}
+                    {perUnitPrice ? (
+                      <small className={styles.unitPrice}>
+                        {formatPrice(perUnitPrice.unitPrice)} per {perUnitPrice.unitLabel}
+                      </small>
+                    ) : null}
                   </li>
                 </ul>
               </div>
               <div className="d-none d-sm-block col-xs-12 col-sm-3 col-md-3 d-md-flex align-items-center justify-content-center my-auto">
                 <div className={styles.cost}>
                   <h6> {formatPrice(value?.sell_price * value?.quantity)}</h6>
+                  {perUnitPrice ? (
+                    <small className={styles.unitPrice}>
+                      {formatPrice(perUnitPrice.unitPrice)} per {perUnitPrice.unitLabel}
+                    </small>
+                  ) : null}
                 </div>
               </div>
             </div>
           </div>
-        ))}
+          );
+        })}
         {data?.data?.length <= 0 && (
           <div className={styles.iconContainer}>Your Cart is Empty</div>
         )}

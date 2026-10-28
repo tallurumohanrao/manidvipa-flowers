@@ -218,6 +218,36 @@
   gap: 18px 22px;
 }
 
+.formFeedback {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px 15px;
+  border: 1px solid;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.45;
+
+  svg {
+    flex: 0 0 auto;
+    margin-top: 2px;
+    font-size: 16px;
+  }
+}
+
+.formFeedbackSuccess {
+  border-color: #9ed9b0;
+  background: #edf9f0;
+  color: #176b35;
+}
+
+.formFeedbackError {
+  border-color: #efb4bd;
+  background: #fff1f3;
+  color: #9b1237;
+}
+
 .mapPanel {
   position: relative;
   overflow: hidden;

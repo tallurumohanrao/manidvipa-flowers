@@ -137,9 +137,69 @@
         letter-spacing: 1px;
         margin-bottom: $m-25;
         font-size: $fs-24;
+
+        strong {
+          font: inherit;
+        }
+
+        small {
+          color: #6d5b53;
+          display: block;
+          font-size: 12px;
+          font-weight: $fw-600;
+          letter-spacing: 0;
+          line-height: 1.4;
+          margin-top: 5px;
+        }
       }
       a {
         text-decoration: none;
+      }
+    }
+
+    .quantityStepper {
+      align-items: center;
+      background: #fff9f2;
+      border: 1px solid rgba(151, 8, 47, 0.16);
+      border-radius: 6px;
+      display: grid;
+      grid-template-columns: 34px minmax(54px, 1fr) 34px;
+      margin: 0 auto $m-15;
+      max-width: 150px;
+      overflow: hidden;
+
+      button,
+      input {
+        background: transparent;
+        border: 0;
+        color: #3a2822;
+        height: 34px;
+        outline: 0;
+        text-align: center;
+      }
+
+      button {
+        color: $color-primary;
+        cursor: pointer;
+        font-size: $fs-18;
+        font-weight: $fw-700;
+
+        &:disabled {
+          cursor: not-allowed;
+          opacity: 0.45;
+        }
+      }
+
+      input {
+        appearance: textfield;
+        min-width: 0;
+        width: 100%;
+
+        &::-webkit-inner-spin-button,
+        &::-webkit-outer-spin-button {
+          appearance: none;
+          margin: 0;
+        }
       }
     }
   }

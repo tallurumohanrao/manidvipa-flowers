@@ -173,7 +173,7 @@ async function fetchSeoProductListingPage(page = 1) {
           headers: {
             "Content-Type": "application/json",
           },
-          next: { revalidate: 60 },
+          cache: "no-store",
         }
       );
 

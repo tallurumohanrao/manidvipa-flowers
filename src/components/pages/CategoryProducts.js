@@ -15,6 +15,9 @@ import {
 } from "../../../hook/userCookie";
 import { getPriceVisibility } from "@/lib/priceVisibility";
 import { CUSTOM_BOUQUET_ENABLED } from "@/lib/features";
+import { compareProductsByStock, isProductOutOfStock } from "@/lib/productStock";
+import { getPurchaseQuantityMaximum } from "@/lib/purchaseQuantity";
+import { getPerUnitPriceDetails } from "@/lib/unitPricing";
 
 const IMG_URL = process.env.NEXT_PUBLIC_IMG_URL;
 const DEFAULT_CATEGORY = "all-flowers";
@@ -390,6 +393,14 @@ function buildWeightOptions(product) {
       sellPrice: parsePriceValue(weight?.sell_price || weight?.price || product?.sell_price),
       listPrice: parsePriceValue(weight?.list_price || weight?.mrp || product?.list_price),
       weightId: getWeightId(weight, product),
+      quantityValue: Number(weight?.quantity_value) || null,
+      quantityUnit: weight?.quantity_unit || "",
+      unitSellPrice: parsePriceValue(weight?.unit_sell_price),
+      unitListPrice: parsePriceValue(weight?.unit_list_price),
+      allowCustomQuantity: Boolean(weight?.allow_custom_quantity),
+      minimumCustomQuantity: Number(weight?.minimum_custom_quantity) || 1,
+      maximumCustomQuantity: Number(weight?.maximum_custom_quantity) || null,
+      customQuantityStep: Number(weight?.custom_quantity_step) || 1,
       isOutOfStock: weight?.is_out_of_stock != null
         ? Boolean(weight.is_out_of_stock)
         : Number(weight?.stock) > 0 && Number(weight?.qty) < (Number(weight?.quantity_value) || 1),
@@ -410,6 +421,31 @@ function buildWeightOptions(product) {
       tracksStock: Number(product?.stock) > 0,
     },
   ];
+}
+
+function formatQuantityNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Number(number.toFixed(3)).toString() : "";
+}
+
+function formatQuantityUnit(unit, quantity) {
+  const singular = Math.abs(Number(quantity) - 1) < 0.00001;
+  const labels = {
+    flower: singular ? "Flower" : "Flowers",
+    piece: singular ? "Piece" : "Pieces",
+    stem: singular ? "Stem" : "Stems",
+    bunch: singular ? "Bunch" : "Bunches",
+    gram: singular ? "Gram" : "Grams",
+    kg: "KG",
+    ml: "ml",
+    liter: singular ? "Liter" : "Liters",
+    packet: singular ? "Packet" : "Packets",
+    box: singular ? "Box" : "Boxes",
+    basket: singular ? "Basket" : "Baskets",
+    set: singular ? "Set" : "Sets",
+  };
+
+  return labels[unit] || "Units";
 }
 
 function getProductTitle(product) {
@@ -471,6 +507,8 @@ function hasVisibleProductPrice(product) {
 function getAvailabilityValue(product) {
   const priceVisibility = getPriceVisibility(product);
   if (!priceVisibility.showPrice || !priceVisibility.canPurchase) return "";
+
+  if (isProductOutOfStock(product)) return "out-of-stock";
 
   const trackedWeightOptions = buildWeightOptions(product).filter((weight) => weight.tracksStock);
   if (!trackedWeightOptions.length) return "";
@@ -610,7 +648,7 @@ function SkeletonGrid({ count = DEFAULT_PAGE_SIZE }) {
   );
 }
 
-function CategoryProductCard({ product, userToken }) {
+export function CategoryProductCard({ product, userToken }) {
   const router = useRouter();
   const { guestSession } = useUser();
   const { showToast } = useToast();
@@ -639,19 +677,31 @@ function CategoryProductCard({ product, userToken }) {
   const productTitle = getProductTitle(product);
   const productPrice = selectedWeight?.sellPrice || getProductPrice(cartProduct);
   const productOriginalPrice = selectedWeight?.listPrice || getProductOriginalPrice(cartProduct);
-  const productUnit = selectedWeight?.label || getProductUnit(cartProduct);
+  const usesCustomQuantity = Boolean(selectedWeight?.allowCustomQuantity);
+  const enteredCustomQuantity = usesCustomQuantity && quantity > 0 ? Number(quantity) : null;
+  const productUnit = enteredCustomQuantity !== null
+    ? formatQuantityUnit(selectedWeight?.quantityUnit, enteredCustomQuantity)
+    : selectedWeight?.label || getProductUnit(cartProduct);
   const productHref = product?.slug ? `/flowers/${product.slug}` : "#";
   const priceVisibility = getPriceVisibility(product);
   const canAttemptCart = priceVisibility.showPrice && priceVisibility.canPurchase && Boolean(productId || product?.slug);
   const rating = getRatingValue(product);
   const badges = getProductBadges(product);
-  const displayQuantity = quantity > 0 ? quantity : 1;
-  const totalProductPrice = productPrice * displayQuantity;
-  const totalOriginalPrice = productOriginalPrice * displayQuantity;
+  const displayQuantity = usesCustomQuantity ? 1 : quantity > 0 ? quantity : 1;
+  const effectiveProductPrice = enteredCustomQuantity !== null
+    ? selectedWeight.unitSellPrice * enteredCustomQuantity
+    : productPrice;
+  const effectiveOriginalPrice = enteredCustomQuantity !== null
+    ? selectedWeight.unitListPrice * enteredCustomQuantity
+    : productOriginalPrice;
+  const totalProductPrice = effectiveProductPrice * displayQuantity;
+  const totalOriginalPrice = effectiveOriginalPrice * displayQuantity;
   const hasDiscount = totalOriginalPrice > totalProductPrice && totalProductPrice > 0;
-  const priceMetaText =
-    displayQuantity > 1
-      ? `total - ${formatRupees(productPrice)} / ${productUnit}`
+  const perUnitPrice = getPerUnitPriceDetails(selectedWeight, enteredCustomQuantity);
+  const priceMetaText = perUnitPrice
+    ? `total · ${formatRupees(perUnitPrice.unitPrice)} per ${perUnitPrice.unitLabel}`
+    : displayQuantity > 1
+      ? `total · ${formatRupees(productPrice)} per ${productUnit}`
       : `/ ${productUnit}`;
 
   useEffect(() => {
@@ -663,19 +713,48 @@ function CategoryProductCard({ product, userToken }) {
   }, [product?.id, product?.product_id, product?.slug]);
 
   const updateQuantity = (nextQuantity) => {
+    if (nextQuantity === "") {
+      setQuantity("");
+      setWasAdded(false);
+      return;
+    }
+
     const numericQuantity = Number(nextQuantity);
     if (!Number.isFinite(numericQuantity)) {
       setQuantity(0);
       return;
     }
 
-    setQuantity(Math.min(99, Math.max(0, Math.floor(numericQuantity))));
+    const maximum = getPurchaseQuantityMaximum(
+      usesCustomQuantity,
+      selectedWeight?.maximumCustomQuantity
+    );
+    const boundedQuantity = Math.min(maximum, Math.max(0, numericQuantity));
+    setQuantity(usesCustomQuantity
+      ? Number(boundedQuantity.toFixed(3))
+      : Math.floor(boundedQuantity));
+    setWasAdded(false);
+  };
+
+  const adjustQuantity = (direction) => {
+    const currentQuantity = Number(quantity) || 0;
+
+    if (!usesCustomQuantity) {
+      updateQuantity(currentQuantity + direction);
+      return;
+    }
+
+    const minimum = selectedWeight?.minimumCustomQuantity || 1;
+    const step = selectedWeight?.customQuantityStep || 1;
+    updateQuantity(direction > 0
+      ? currentQuantity < minimum ? minimum : currentQuantity + step
+      : currentQuantity <= minimum ? 0 : Math.max(minimum, currentQuantity - step));
   };
 
   const resolveDefaultCartSelection = async () => {
     const existingWeight = selectedWeight || buildWeightOptions(cartProduct)[0];
     if (productId && existingWeight?.weightId) {
-      return { productId, weightId: existingWeight.weightId };
+      return { productId, weightId: existingWeight.weightId, weight: existingWeight };
     }
 
     if (!product?.slug) return null;
@@ -710,7 +789,7 @@ function CategoryProductCard({ product, userToken }) {
     const hydratedProductId = getProductId(hydratedProduct);
 
     if (!hydratedProductId || !hydratedWeight?.weightId) return null;
-    return { productId: hydratedProductId, weightId: hydratedWeight.weightId };
+    return { productId: hydratedProductId, weightId: hydratedWeight.weightId, weight: hydratedWeight };
   };
 
   const handleAddToCart = async (event) => {
@@ -739,7 +818,6 @@ function CategoryProductCard({ product, userToken }) {
     setIsAdding(true);
 
     try {
-      const cartQuantity = quantity > 0 ? quantity : 1;
       const cartSelection = await resolveDefaultCartSelection();
 
       if (!cartSelection?.productId || !cartSelection?.weightId) {
@@ -753,6 +831,25 @@ function CategoryProductCard({ product, userToken }) {
         return;
       }
 
+      const cartWeight = cartSelection.weight || selectedWeight;
+      const cartUsesCustomQuantity = Boolean(cartWeight?.allowCustomQuantity);
+      const customQuantity = cartUsesCustomQuantity && quantity > 0 ? Number(quantity) : null;
+
+      if (customQuantity !== null) {
+        const minimum = cartWeight.minimumCustomQuantity || 1;
+        const maximum = cartWeight.maximumCustomQuantity;
+        const step = cartWeight.customQuantityStep || 1;
+        const stepsFromMinimum = (customQuantity - minimum) / step;
+        const followsStep = Math.abs(stepsFromMinimum - Math.round(stepsFromMinimum)) < 0.00001;
+
+        if (customQuantity < minimum || (maximum && customQuantity > maximum) || !followsStep) {
+          showToast(`Enter a quantity from ${formatQuantityNumber(minimum)}${maximum ? ` to ${formatQuantityNumber(maximum)}` : ""} in steps of ${formatQuantityNumber(step)}.`, "error");
+          return;
+        }
+      }
+
+      const cartQuantity = cartUsesCustomQuantity ? 1 : quantity > 0 ? quantity : 1;
+
       const cartData = await fetchListingData(
         "POST",
         "add-to-cart",
@@ -762,6 +859,7 @@ function CategoryProductCard({ product, userToken }) {
           product_id: cartSelection.productId,
           quantity: cartQuantity,
           weight_id: cartSelection.weightId,
+          ...(customQuantity !== null ? { custom_quantity: customQuantity } : {}),
         }
       );
 
@@ -771,9 +869,11 @@ function CategoryProductCard({ product, userToken }) {
       }
 
       setWasAdded(true);
-      setQuantity(cartQuantity);
+      if (!cartUsesCustomQuantity) setQuantity(cartQuantity);
       window.setTimeout(() => setWasAdded(false), 1600);
-      showToast(`${cartQuantity} item${cartQuantity > 1 ? "s" : ""} added to cart.`, "success");
+      showToast(customQuantity !== null
+        ? `${formatQuantityNumber(customQuantity)} ${formatQuantityUnit(cartWeight.quantityUnit, customQuantity)} added to cart.`
+        : `${cartQuantity} item${cartQuantity > 1 ? "s" : ""} added to cart.`, "success");
 
       const refreshedCart = await fetchCartBySession(
         guestSession,
@@ -830,16 +930,17 @@ function CategoryProductCard({ product, userToken }) {
           {hasDiscount && <del>{formatRupees(totalOriginalPrice)}</del>}
           <strong>{formatRupees(totalProductPrice)}</strong>
           <span className={styles.priceMeta}>{priceMetaText}</span>
-          <span>
-            {quantity > 1 ? ` total • ${formatRupees(productPrice)} / ${productUnit}` : `/ ${productUnit}`}
-          </span>
         </p> : <p className={styles.productPrice}><strong>{priceVisibility.message}</strong></p>}
 
         {canAttemptCart && weightOptions.length > 0 && (
           <select
             className={styles.weightSelect}
             value={selectedWeightIndex}
-            onChange={(event) => setSelectedWeightIndex(Number(event.target.value))}
+            onChange={(event) => {
+              setSelectedWeightIndex(Number(event.target.value));
+              setQuantity(0);
+              setWasAdded(false);
+            }}
             disabled={isAdding || isResolvingWeights || weightOptions.length < 2}
             aria-label={`Select weight for ${productTitle}`}
           >
@@ -854,7 +955,7 @@ function CategoryProductCard({ product, userToken }) {
         {canAttemptCart ? <div className={styles.quantityRow}>
           <button
             type="button"
-            onClick={() => updateQuantity(quantity - 1)}
+            onClick={() => adjustQuantity(-1)}
             disabled={quantity <= 0 || isAdding || isResolvingWeights}
             aria-label={`Decrease quantity for ${productTitle}`}
           >
@@ -863,17 +964,28 @@ function CategoryProductCard({ product, userToken }) {
           <input
             type="number"
             min="0"
-            max="99"
+            max={getPurchaseQuantityMaximum(usesCustomQuantity, selectedWeight?.maximumCustomQuantity)}
+            step={usesCustomQuantity ? selectedWeight?.customQuantityStep || 1 : 1}
             value={quantity}
             onChange={(event) => updateQuantity(event.target.value)}
-            onBlur={(event) => updateQuantity(event.target.value)}
+            onBlur={(event) => {
+              if (event.target.value === "") setQuantity(0);
+              else updateQuantity(event.target.value);
+            }}
+            onFocus={(event) => event.currentTarget.select()}
             disabled={isAdding || isResolvingWeights}
-            aria-label={`Quantity for ${productTitle}`}
+            inputMode={usesCustomQuantity ? "decimal" : "numeric"}
+            aria-label={usesCustomQuantity
+              ? `Custom ${formatQuantityUnit(selectedWeight?.quantityUnit, 2).toLowerCase()} for ${productTitle}`
+              : `Quantity for ${productTitle}`}
           />
           <button
             type="button"
-            onClick={() => updateQuantity(quantity + 1)}
-            disabled={isAdding || isResolvingWeights}
+            onClick={() => adjustQuantity(1)}
+            disabled={isAdding || isResolvingWeights || quantity >= getPurchaseQuantityMaximum(
+              usesCustomQuantity,
+              selectedWeight?.maximumCustomQuantity
+            )}
             aria-label={`Increase quantity for ${productTitle}`}
           >
             +
@@ -1162,6 +1274,8 @@ export default function CategoryProducts({
     } else if (sortOption === "best-selling") {
       products.sort((a, b) => getSalesValue(b) - getSalesValue(a));
     }
+
+    products.sort(compareProductsByStock);
 
     return products;
   }, [filteredProducts, sortOption]);

@@ -177,6 +177,15 @@
   font-weight: 800;
 }
 
+.unitPrice {
+  color: #6d5b53;
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+  margin-top: 3px;
+}
+
 .quantityCell {
   display: flex;
 }
@@ -192,7 +201,8 @@
   background: #fffaf4;
 
   button,
-  span {
+  span,
+  input {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -205,10 +215,23 @@
     font-weight: 900;
   }
 
-  span {
+  span,
+  input {
     width: 34px;
     color: #2f2420;
     font-size: 13px;
+  }
+
+  input {
+    appearance: textfield;
+    outline: 0;
+    text-align: center;
+
+    &::-webkit-inner-spin-button,
+    &::-webkit-outer-spin-button {
+      appearance: none;
+      margin: 0;
+    }
   }
 
   button {
@@ -584,6 +607,44 @@
   background: #169247;
 }
 
+.recommendQuantity {
+  display: grid;
+  grid-template-columns: 30px minmax(44px, 1fr) 30px;
+  margin: 0 0 9px;
+  overflow: hidden;
+  border: 1px solid #ead8ca;
+  border-radius: 4px;
+  background: #ffffff;
+
+  button,
+  input {
+    width: 100%;
+    min-width: 0;
+    height: 30px;
+    border: 0;
+    background: transparent;
+    color: #3a201b;
+    font-size: 12px;
+    font-weight: 900;
+    text-align: center;
+  }
+
+  button {
+    color: #9b1237;
+  }
+
+  input {
+    appearance: textfield;
+    outline: 0;
+
+    &::-webkit-inner-spin-button,
+    &::-webkit-outer-spin-button {
+      appearance: none;
+      margin: 0;
+    }
+  }
+}
+
 .recommendImage {
   width: 100%;
   aspect-ratio: 1.15 / 1;
@@ -702,4 +763,5 @@
   .recommendGrid {
     grid-template-columns: 1fr;
   }
+
 }

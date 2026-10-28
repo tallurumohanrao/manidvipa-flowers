@@ -13,6 +13,9 @@ import {
   getCartCount,
 } from "../../../hook/userCookie";
 import { getPriceVisibility } from "@/lib/priceVisibility";
+import { sortAvailableProductsFirst } from "@/lib/productStock";
+import { getPurchaseQuantityMaximum } from "@/lib/purchaseQuantity";
+import { getPerUnitPriceDetails } from "@/lib/unitPricing";
 
 const IMG_URL = process.env.NEXT_PUBLIC_IMG_URL;
 
@@ -828,7 +831,9 @@ function SectionTitle({ title, subtitle, actionText, actionHref = "/flowers" }) 
 }
 
 function HomepageManagedSection({ section, userToken }) {
-  const products = Array.isArray(section?.products) ? section.products : [];
+  const products = sortAvailableProductsFirst(
+    Array.isArray(section?.products) ? section.products : []
+  );
   if (!section?.title || !products.length) return null;
 
   const actionHref = section.button_url || section.category_url || "/flowers";
@@ -985,7 +990,7 @@ function getProductIdentity(product) {
 }
 
 function fillProductSlots(products = [], seeds = [], limit = 6, fallbackUnit = "kg") {
-  const normalizedProducts = products
+  const normalizedProducts = sortAvailableProductsFirst(products)
     .slice(0, limit)
     .map((product, index) => normalizeHomeProduct(product, seeds[index], fallbackUnit));
 
@@ -1119,6 +1124,14 @@ function buildFreshWeightOptions(product) {
         sellPrice,
         listPrice,
         weightId: getWeightId(weight, product),
+        quantityValue: Number(weight?.quantity_value) || null,
+        quantityUnit: weight?.quantity_unit || "",
+        unitSellPrice: parsePriceValue(weight?.unit_sell_price),
+        unitListPrice: parsePriceValue(weight?.unit_list_price),
+        allowCustomQuantity: Boolean(weight?.allow_custom_quantity),
+        minimumCustomQuantity: Number(weight?.minimum_custom_quantity) || 1,
+        maximumCustomQuantity: Number(weight?.maximum_custom_quantity) || null,
+        customQuantityStep: Number(weight?.custom_quantity_step) || 1,
         isOutOfStock: weight?.is_out_of_stock != null
           ? Boolean(weight.is_out_of_stock)
           : Number(weight?.stock) > 0 && Number(weight?.qty) < (Number(weight?.quantity_value) || 1),
@@ -1152,6 +1165,31 @@ function buildFreshWeightOptions(product) {
   return normalizedFallbackWeights;
 }
 
+function formatQuantityNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Number(number.toFixed(3)).toString() : "";
+}
+
+function formatQuantityUnit(unit, quantity) {
+  const singular = Math.abs(Number(quantity) - 1) < 0.00001;
+  const labels = {
+    flower: singular ? "Flower" : "Flowers",
+    piece: singular ? "Piece" : "Pieces",
+    stem: singular ? "Stem" : "Stems",
+    bunch: singular ? "Bunch" : "Bunches",
+    gram: singular ? "Gram" : "Grams",
+    kg: "KG",
+    ml: "ml",
+    liter: singular ? "Liter" : "Liters",
+    packet: singular ? "Packet" : "Packets",
+    box: singular ? "Box" : "Boxes",
+    basket: singular ? "Basket" : "Baskets",
+    set: singular ? "Set" : "Sets",
+  };
+
+  return labels[unit] || "Units";
+}
+
 function FreshArrivalCard({ product, userToken }) {
   const { guestSession } = useUser();
   const { showToast } = useToast();
@@ -1178,9 +1216,18 @@ function FreshArrivalCard({ product, userToken }) {
   const weightOptions = useMemo(() => buildFreshWeightOptions(cartProduct), [cartProduct]);
   const selectedWeight = weightOptions[selectedWeightIndex] || weightOptions[0];
   const isOutOfStock = selectedWeight?.isOutOfStock === true;
-  const displayQuantity = quantity > 0 ? quantity : 1;
-  const totalSellPrice = (selectedWeight?.sellPrice || 0) * displayQuantity;
-  const totalListPrice = (selectedWeight?.listPrice || 0) * displayQuantity;
+  const usesCustomQuantity = Boolean(selectedWeight?.allowCustomQuantity);
+  const enteredCustomQuantity = usesCustomQuantity && quantity > 0 ? Number(quantity) : null;
+  const displayQuantity = usesCustomQuantity ? 1 : quantity > 0 ? quantity : 1;
+  const effectiveSellPrice = enteredCustomQuantity !== null
+    ? selectedWeight.unitSellPrice * enteredCustomQuantity
+    : selectedWeight?.sellPrice || 0;
+  const effectiveListPrice = enteredCustomQuantity !== null
+    ? selectedWeight.unitListPrice * enteredCustomQuantity
+    : selectedWeight?.listPrice || 0;
+  const totalSellPrice = effectiveSellPrice * displayQuantity;
+  const totalListPrice = effectiveListPrice * displayQuantity;
+  const perUnitPrice = getPerUnitPriceDetails(selectedWeight, enteredCustomQuantity);
   const productId = getProductId(cartProduct);
   const priceVisibility = getPriceVisibility(product);
   const canBuyFromCard = priceVisibility.showPrice && priceVisibility.canPurchase;
@@ -1194,13 +1241,45 @@ function FreshArrivalCard({ product, userToken }) {
   }, [product?.id, product?.product_id, product?.slug]);
 
   const updateQuantity = (nextQuantity) => {
-    const parsedQuantity = Number.parseInt(nextQuantity, 10);
-    setQuantity(Math.min(99, Math.max(0, Number.isNaN(parsedQuantity) ? 0 : parsedQuantity)));
+    if (nextQuantity === "") {
+      setQuantity("");
+      setWasAdded(false);
+      return;
+    }
+
+    const parsedQuantity = Number(nextQuantity);
+    const maximum = getPurchaseQuantityMaximum(
+      usesCustomQuantity,
+      selectedWeight?.maximumCustomQuantity
+    );
+    const boundedQuantity = Math.min(
+      maximum,
+      Math.max(0, Number.isFinite(parsedQuantity) ? parsedQuantity : 0)
+    );
+    setQuantity(usesCustomQuantity
+      ? Number(boundedQuantity.toFixed(3))
+      : Math.floor(boundedQuantity));
     setWasAdded(false);
+  };
+
+  const adjustQuantity = (direction) => {
+    const currentQuantity = Number(quantity) || 0;
+
+    if (!usesCustomQuantity) {
+      updateQuantity(currentQuantity + direction);
+      return;
+    }
+
+    const minimum = selectedWeight?.minimumCustomQuantity || 1;
+    const step = selectedWeight?.customQuantityStep || 1;
+    updateQuantity(direction > 0
+      ? currentQuantity < minimum ? minimum : currentQuantity + step
+      : currentQuantity <= minimum ? 0 : Math.max(minimum, currentQuantity - step));
   };
 
   const handleWeightChange = (event) => {
     setSelectedWeightIndex(Number(event.target.value));
+    setQuantity(0);
     setWasAdded(false);
   };
 
@@ -1258,7 +1337,7 @@ function FreshArrivalCard({ product, userToken }) {
     const existingWeight = selectedWeight || buildFreshWeightOptions(cartProduct)[0];
 
     if (productId && existingWeight?.weightId) {
-      return { productId, weightId: existingWeight.weightId };
+      return { productId, weightId: existingWeight.weightId, weight: existingWeight };
     }
 
     if (!product?.slug) return null;
@@ -1302,7 +1381,7 @@ function FreshArrivalCard({ product, userToken }) {
     }
 
     if (!hydratedProductId || !hydratedWeight?.weightId) return null;
-    return { productId: hydratedProductId, weightId: hydratedWeight.weightId };
+    return { productId: hydratedProductId, weightId: hydratedWeight.weightId, weight: hydratedWeight };
   };
 
   const handleAddToCart = async (event) => {
@@ -1331,13 +1410,31 @@ function FreshArrivalCard({ product, userToken }) {
     setIsAdding(true);
 
     try {
-      const cartQuantity = quantity > 0 ? quantity : 1;
       const cartSelection = await resolveCartSelection();
 
       if (!cartSelection?.productId || !cartSelection?.weightId) {
         showToast("Please choose product options on the details page.", "error");
         return;
       }
+
+      const cartWeight = cartSelection.weight || selectedWeight;
+      const cartUsesCustomQuantity = Boolean(cartWeight?.allowCustomQuantity);
+      const customQuantity = cartUsesCustomQuantity && quantity > 0 ? Number(quantity) : null;
+
+      if (customQuantity !== null) {
+        const minimum = cartWeight.minimumCustomQuantity || 1;
+        const maximum = cartWeight.maximumCustomQuantity;
+        const step = cartWeight.customQuantityStep || 1;
+        const stepsFromMinimum = (customQuantity - minimum) / step;
+        const followsStep = Math.abs(stepsFromMinimum - Math.round(stepsFromMinimum)) < 0.00001;
+
+        if (customQuantity < minimum || (maximum && customQuantity > maximum) || !followsStep) {
+          showToast(`Enter a quantity from ${formatQuantityNumber(minimum)}${maximum ? ` to ${formatQuantityNumber(maximum)}` : ""} in steps of ${formatQuantityNumber(step)}.`, "error");
+          return;
+        }
+      }
+
+      const cartQuantity = cartUsesCustomQuantity ? 1 : quantity > 0 ? quantity : 1;
 
       const cartData = await fetchListingData(
         "POST",
@@ -1348,6 +1445,7 @@ function FreshArrivalCard({ product, userToken }) {
           product_id: cartSelection.productId,
           quantity: cartQuantity,
           weight_id: cartSelection.weightId,
+          ...(customQuantity !== null ? { custom_quantity: customQuantity } : {}),
         }
       );
 
@@ -1356,9 +1454,11 @@ function FreshArrivalCard({ product, userToken }) {
         return;
       }
 
-      setQuantity(cartQuantity);
+      if (!cartUsesCustomQuantity) setQuantity(cartQuantity);
       setWasAdded(true);
-      showToast(cartData.message || "Added to cart successfully", "success");
+      showToast(customQuantity !== null
+        ? `${formatQuantityNumber(customQuantity)} ${formatQuantityUnit(cartWeight.quantityUnit, customQuantity)} added to cart.`
+        : cartData.message || "Added to cart successfully", "success");
 
       const refreshedCart = await fetchCartBySession(
         guestSession,
@@ -1396,6 +1496,9 @@ function FreshArrivalCard({ product, userToken }) {
             <span>{formatPrice(totalListPrice)}</span>
           ) : null}
           <strong>{formatPrice(totalSellPrice)}</strong>
+          {perUnitPrice ? (
+            <small>total · {formatPrice(perUnitPrice.unitPrice)} per {perUnitPrice.unitLabel}</small>
+          ) : null}
         </div> : <div className={styles.freshPrice}><strong>{priceVisibility.message}</strong></div>}
         {canBuyFromCard ? <><select
           className={styles.freshWeightSelect}
@@ -1410,16 +1513,10 @@ function FreshArrivalCard({ product, userToken }) {
             </option>
           ))}
         </select>
-        <div className={styles.freshQuantity}>
-          <span>−</span>
-          <strong>{quantity}</strong>
-          <span>{selectedWeight?.label || getProductUnit(product)}</span>
-          <span>+</span>
-        </div>
         <div className={styles.freshQuantityStepper}>
           <button
             type="button"
-            onClick={() => updateQuantity(quantity - 1)}
+            onClick={() => adjustQuantity(-1)}
             disabled={quantity <= 0 || isAdding || isResolvingWeights}
             aria-label={`Decrease quantity for ${product?.title || "fresh flowers"}`}
           >
@@ -1428,16 +1525,27 @@ function FreshArrivalCard({ product, userToken }) {
           <input
             type="number"
             min="0"
-            max="99"
+            max={getPurchaseQuantityMaximum(usesCustomQuantity, selectedWeight?.maximumCustomQuantity)}
+            step={usesCustomQuantity ? selectedWeight?.customQuantityStep || 1 : 1}
             value={quantity}
             onChange={(event) => updateQuantity(event.target.value)}
+            onBlur={(event) => {
+              if (event.target.value === "") setQuantity(0);
+            }}
+            onFocus={(event) => event.currentTarget.select()}
             disabled={isAdding || isResolvingWeights}
-            aria-label={`Quantity for ${product?.title || "fresh flowers"}`}
+            inputMode={usesCustomQuantity ? "decimal" : "numeric"}
+            aria-label={usesCustomQuantity
+              ? `Custom ${formatQuantityUnit(selectedWeight?.quantityUnit, 2).toLowerCase()} for ${product?.title || "fresh flowers"}`
+              : `Quantity for ${product?.title || "fresh flowers"}`}
           />
           <button
             type="button"
-            onClick={() => updateQuantity(quantity + 1)}
-            disabled={isAdding || isResolvingWeights}
+            onClick={() => adjustQuantity(1)}
+            disabled={isAdding || isResolvingWeights || quantity >= getPurchaseQuantityMaximum(
+              usesCustomQuantity,
+              selectedWeight?.maximumCustomQuantity
+            )}
             aria-label={`Increase quantity for ${product?.title || "fresh flowers"}`}
           >
             +
@@ -1461,62 +1569,12 @@ function FreshArrivalCard({ product, userToken }) {
   );
 }
 
-function PremiumProductCard({ product }) {
-  const imageSrc = getProductImage(product);
-  const href = getProductHref(product);
-  const priceVisibility = getPriceVisibility(product);
-
-  return (
-    <article className={styles.premiumProductCard}>
-      <Link href={href} className={styles.premiumProductImage}>
-        <Image
-          src={imageSrc}
-          alt={product?.title || "Premium flower"}
-          width={520}
-          height={390}
-          sizes="(max-width: 700px) 92vw, (max-width: 1200px) 42vw, 260px"
-        />
-      </Link>
-      <div className={styles.premiumProductInfo}>
-        <span className={styles.premiumProductTag}>Premium Blooms</span>
-        <h3>{product?.title || "Premium Flowers"}</h3>
-        <p>{priceVisibility.showPrice ? <>Starting <strong>{formatPrice(product?.sell_price || product?.list_price)}</strong></> : <strong>{priceVisibility.message}</strong>}</p>
-        <Link href={href} className={styles.premiumExploreLink}>
-          <span className={styles.premiumExploreFullText}>Explore Premium Flowers</span>
-          <span className={styles.premiumExploreShortText}>Explore</span>
-          <span aria-hidden="true">&rarr;</span>
-        </Link>
-      </div>
-    </article>
-  );
+function PremiumProductCard({ product, userToken }) {
+  return <FreshArrivalCard product={product} userToken={userToken} />;
 }
 
-function RareProductCard({ product }) {
-  const imageSrc = getProductImage(product);
-  const href = getProductHref(product);
-  const priceVisibility = getPriceVisibility(product);
-
-  return (
-    <article className={styles.rareProductCard}>
-      <Link href={href} className={styles.rareProductImage}>
-        <Image
-          src={imageSrc}
-          alt={product?.title || "Rare flower"}
-          width={420}
-          height={420}
-          sizes="(max-width: 700px) 44vw, (max-width: 1200px) 30vw, 220px"
-        />
-      </Link>
-      <div className={styles.rareProductInfo}>
-        {product?.tag ? <span className={styles.rareProductTag}>{product.tag}</span> : null}
-        <h3>{product?.title || "Rare Flowers"}</h3>
-        <p>{priceVisibility.showPrice ? <>Starting <strong>{formatPrice(product?.sell_price || product?.list_price)}</strong> /{" "}{getProductUnit(product, "bunch")}</> : <strong>{priceVisibility.message}</strong>}</p>
-        <Link href={href} className={styles.rareExploreLink}>
-          Explore Flowers <span aria-hidden="true">&rarr;</span>
-        </Link>
-      </div>
-    </article>
-  );
+function RareProductCard({ product, userToken }) {
+  return <FreshArrivalCard product={product} userToken={userToken} />;
 }
 
 export default function HomePage({
@@ -1647,9 +1705,9 @@ export default function HomePage({
     const featuredProducts = normalizeProductCollection(homeProducts);
     const premiumProducts = normalizeProductCollection(initialPremiumProducts);
     const rareProducts = normalizeProductCollection(initialRareProducts);
-    const fresh = buildFreshArrivalProducts(featuredProducts);
-    const premium = buildPremiumCollectionProducts(premiumProducts);
-    const rare = buildRareSeasonalCollectionProducts(rareProducts);
+    const fresh = sortAvailableProductsFirst(buildFreshArrivalProducts(featuredProducts));
+    const premium = sortAvailableProductsFirst(buildPremiumCollectionProducts(premiumProducts));
+    const rare = sortAvailableProductsFirst(buildRareSeasonalCollectionProducts(rareProducts));
     return { fresh, premium, rare };
   }, [homeProducts, initialPremiumProducts, initialRareProducts]);
 
@@ -1886,6 +1944,7 @@ export default function HomePage({
                     <PremiumProductCard
                       key={product?.product_id || product?.slug || `premium-${index}`}
                       product={product}
+                      userToken={userToken}
                     />
                   ))}
                 </div>
@@ -1903,6 +1962,7 @@ export default function HomePage({
                     <RareProductCard
                       key={product?.product_id || product?.slug || `rare-${index}`}
                       product={product}
+                      userToken={userToken}
                     />
                   ))}
                 </div>

@@ -18,6 +18,11 @@ import Toast from "@/components/Toast";
 import styles from "@/scss/pages/cartDetails.module.scss";
 import { useCartCount, useToast, useUser } from "@/context/UserContext";
 import { fetchListingData, getCartCount } from "../../../hook/userCookie";
+import {
+  getPurchaseQuantityMaximum,
+  MAX_CART_ITEM_QUANTITY,
+} from "@/lib/purchaseQuantity";
+import { getPerUnitPriceDetails } from "@/lib/unitPricing";
 
 const url = process.env.NEXT_PUBLIC_MANIDVIPA_URL;
 const IMG_URL = process.env.NEXT_PUBLIC_IMG_URL;
@@ -91,6 +96,30 @@ function formatCartPrice(value) {
   }).format(absoluteAmount);
 
   return `${amount < 0 ? "-" : ""}\u20B9${formattedAmount}`;
+}
+
+function formatQuantityNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Number(number.toFixed(3)).toString() : "";
+}
+
+function formatQuantityUnit(unit, quantity) {
+  const singular = Math.abs(Number(quantity) - 1) < 0.00001;
+  const labels = {
+    flower: singular ? "Flower" : "Flowers",
+    piece: singular ? "Piece" : "Pieces",
+    stem: singular ? "Stem" : "Stems",
+    bunch: singular ? "Bunch" : "Bunches",
+    gram: singular ? "Gram" : "Grams",
+    kg: "KG",
+    ml: "ml",
+    liter: singular ? "Liter" : "Liters",
+    packet: singular ? "Packet" : "Packets",
+    box: singular ? "Box" : "Boxes",
+    basket: singular ? "Basket" : "Baskets",
+    set: singular ? "Set" : "Sets",
+  };
+  return labels[unit] || "Units";
 }
 
 function getApiMessage(message, fallback) {
@@ -328,6 +357,10 @@ function buildCartWhatsAppHref(contactValue, items, total, deliveryDate, deliver
     `Delivery Date: ${formatDeliveryDateForMessage(deliveryDate)}`,
     `Delivery Time: ${getDeliverySlotLabel(deliverySlot)}`,
     `Total: ${formatCartPrice(total)}`,
+    "",
+    "Name:",
+    "Phone number:",
+    "Current location / Address:",
   ].join("\n");
 
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
@@ -354,14 +387,23 @@ function TrustItem({ icon, title, subtitle }) {
   );
 }
 
-function QuantityStepper({ value, onChange, label }) {
+function QuantityStepper({ value, onChange, label, min = 1, max = MAX_CART_ITEM_QUANTITY, step = 1, allowDecimal = false }) {
   return (
     <div className={styles.quantityStepper} aria-label={label}>
-      <button type="button" onClick={() => onChange(value - 1)} disabled={value <= 1}>
+      <button type="button" onClick={() => onChange(Math.max(min, value - step))} disabled={value <= min}>
         -
       </button>
-      <span>{value}</span>
-      <button type="button" onClick={() => onChange(value + 1)}>
+      <input
+        type="number"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        inputMode={allowDecimal ? "decimal" : "numeric"}
+        aria-label={label}
+      />
+      <button type="button" onClick={() => onChange(Math.min(max, value + step))} disabled={value >= max}>
         +
       </button>
     </div>
@@ -388,6 +430,8 @@ export default function CartDetails({
   const [isStartingWhatsAppOrder, setIsStartingWhatsAppOrder] = useState(false);
   const [addingRecommendation, setAddingRecommendation] = useState("");
   const [addedRecommendation, setAddedRecommendation] = useState("");
+  const [recommendationOptions, setRecommendationOptions] = useState({});
+  const [recommendationQuantities, setRecommendationQuantities] = useState({});
   const [selectedDeliveryDate, setSelectedDeliveryDate] = useState(() =>
     getDateInputValue(1)
   );
@@ -398,6 +442,84 @@ export default function CartDetails({
     () => getRecommendationProducts(cartItems),
     [cartItems]
   );
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadRecommendationOptions = async () => {
+      const entries = await Promise.all(recommendationProducts.map(async (product) => {
+        try {
+          const details = await fetchListingData(
+            "GET",
+            `product-details?product_slug=${encodeURIComponent(product.slug)}`,
+            userToken ? userToken : undefined
+          );
+          const weights = details?.weights || details?.data?.weights || [];
+          const weight = weights[0] || null;
+          return [product.slug, {
+            productId: details?.data?.id || details?.data?.product_id,
+            weight,
+          }];
+        } catch (error) {
+          console.error("Unable to load recommended product option:", error);
+          return [product.slug, null];
+        }
+      }));
+
+      if (isMounted) setRecommendationOptions(Object.fromEntries(entries));
+    };
+
+    loadRecommendationOptions();
+    return () => {
+      isMounted = false;
+    };
+  }, [recommendationProducts, userToken]);
+
+  const updateRecommendationQuantity = (product, nextQuantity) => {
+    if (nextQuantity === "") {
+      setRecommendationQuantities((current) => ({
+        ...current,
+        [product.slug]: "",
+      }));
+      return;
+    }
+
+    const option = recommendationOptions[product.slug]?.weight;
+    const usesCustomQuantity = Boolean(option?.allow_custom_quantity);
+    const numericQuantity = Number(nextQuantity);
+    const maximum = getPurchaseQuantityMaximum(
+      usesCustomQuantity,
+      option?.maximum_custom_quantity
+    );
+    const boundedQuantity = Math.min(
+      maximum,
+      Math.max(0, Number.isFinite(numericQuantity) ? numericQuantity : 0)
+    );
+
+    setRecommendationQuantities((current) => ({
+      ...current,
+      [product.slug]: usesCustomQuantity
+        ? Number(boundedQuantity.toFixed(3))
+        : Math.floor(boundedQuantity),
+    }));
+  };
+
+  const adjustRecommendationQuantity = (product, direction) => {
+    const option = recommendationOptions[product.slug]?.weight;
+    const usesCustomQuantity = Boolean(option?.allow_custom_quantity);
+    const quantity = Number(recommendationQuantities[product.slug]) || 0;
+
+    if (!usesCustomQuantity) {
+      updateRecommendationQuantity(product, quantity + direction);
+      return;
+    }
+
+    const minimum = Number(option?.minimum_custom_quantity) || 1;
+    const step = Number(option?.custom_quantity_step) || 1;
+    updateRecommendationQuantity(product, direction > 0
+      ? quantity < minimum ? minimum : quantity + step
+      : quantity <= minimum ? 0 : Math.max(minimum, quantity - step));
+  };
   const fallbackWhatsAppHref = useMemo(
     () =>
       buildCartWhatsAppHref(
@@ -504,6 +626,47 @@ export default function CartDetails({
     });
   };
 
+  const handleCustomQuantityChange = (newQuantity, index) => {
+    const currentItem = cartItems[index];
+    const selectedWeight = currentItem?.available_weights?.find(
+      (weight) => Number(weight.id) === Number(currentItem.weight_id)
+    );
+    if (!selectedWeight?.allow_custom_quantity) return;
+
+    const minimum = Number(selectedWeight.minimum_custom_quantity) || 1;
+    const maximum = Number(selectedWeight.maximum_custom_quantity) || 1000000;
+    const step = Number(selectedWeight.custom_quantity_step) || 1;
+    const numericQuantity = Number(newQuantity);
+    const boundedQuantity = Math.min(
+      maximum,
+      Math.max(minimum, Number.isFinite(numericQuantity) ? numericQuantity : minimum)
+    );
+    const normalizedQuantity = Number((
+      minimum + Math.round((boundedQuantity - minimum) / step) * step
+    ).toFixed(3));
+    const addonTotal = parseAmount(currentItem.addon_total);
+    const sellPrice = parseAmount(selectedWeight.unit_sell_price) * normalizedQuantity + addonTotal;
+    const listPrice = parseAmount(selectedWeight.unit_list_price) * normalizedQuantity + addonTotal;
+    const updatedItems = cartItems.map((item, itemIndex) =>
+      itemIndex === index
+        ? {
+            ...item,
+            quantity: 1,
+            custom_quantity: normalizedQuantity,
+            is_custom_quantity: true,
+            weight: `${formatQuantityNumber(normalizedQuantity)} ${formatQuantityUnit(selectedWeight.quantity_unit, normalizedQuantity)}`,
+            sell_price: sellPrice,
+            list_price: listPrice,
+          }
+        : item
+    );
+
+    setData((currentState) => buildStateFromItems(updatedItems, currentState));
+    syncCartItems(updatedItems).then((success) => {
+      if (success) refreshCart();
+    });
+  };
+
   const handleWeightChange = (newWeightId, index) => {
     const currentItem = cartItems[index];
     const selectedWeight = currentItem?.available_weights?.find(
@@ -601,7 +764,10 @@ export default function CartDetails({
 
       if (!response.ok || !result?.success) {
         whatsappWindow?.close?.();
-        showToast(result?.message || "Unable to save WhatsApp order.", "error");
+        showToast(
+          getApiMessage(result?.message, "Unable to save WhatsApp order."),
+          "error"
+        );
         return;
       }
 
@@ -740,33 +906,47 @@ export default function CartDetails({
     setAddingRecommendation(product.slug);
     setAddedRecommendation("");
     try {
-      const productDetailsResponse = await fetch(
-        `${url}/product-details?product_slug=${encodeURIComponent(product.slug)}`,
-        {
-          method: "GET",
-          cache: "no-store",
-          headers: {
-            "Content-Type": "application/json",
-            ...(userToken && { Authorization: `Bearer ${userToken}` }),
-          },
-        }
-      );
-      const productDetails = productDetailsResponse.ok
-        ? await productDetailsResponse.json()
-        : null;
-      const firstWeight = Array.isArray(productDetails?.weights)
-        ? productDetails.weights[0]
-        : null;
-      const productId = productDetails?.data?.id || productDetails?.data?.product_id;
+      let resolvedOption = recommendationOptions[product.slug];
+
+      if (!resolvedOption?.productId || !resolvedOption?.weight) {
+        const productDetails = await fetchListingData(
+          "GET",
+          `product-details?product_slug=${encodeURIComponent(product.slug)}`,
+          userToken ? userToken : undefined
+        );
+        const weights = productDetails?.weights || productDetails?.data?.weights || [];
+        resolvedOption = {
+          productId: productDetails?.data?.id || productDetails?.data?.product_id,
+          weight: weights[0] || null,
+        };
+      }
+
+      const firstWeight = resolvedOption?.weight;
+      const productId = resolvedOption?.productId;
       const weightId =
         firstWeight?.id ||
-        firstWeight?.weight_id ||
-        productDetails?.data?.weight_id ||
-        productDetails?.data?.default_weight_id;
+        firstWeight?.weight_id;
 
       if (!productId || !weightId) {
         router.push(`/flowers/${product.slug}`);
         return;
+      }
+
+      const quantity = Number(recommendationQuantities[product.slug]) || 0;
+      const usesCustomQuantity = Boolean(firstWeight?.allow_custom_quantity);
+      const customQuantity = usesCustomQuantity && quantity > 0 ? quantity : null;
+
+      if (customQuantity !== null) {
+        const minimum = Number(firstWeight?.minimum_custom_quantity) || 1;
+        const maximum = Number(firstWeight?.maximum_custom_quantity) || null;
+        const step = Number(firstWeight?.custom_quantity_step) || 1;
+        const stepsFromMinimum = (customQuantity - minimum) / step;
+        const followsStep = Math.abs(stepsFromMinimum - Math.round(stepsFromMinimum)) < 0.00001;
+
+        if (customQuantity < minimum || (maximum && customQuantity > maximum) || !followsStep) {
+          showToast(`Enter a quantity from ${formatQuantityNumber(minimum)}${maximum ? ` to ${formatQuantityNumber(maximum)}` : ""} in steps of ${formatQuantityNumber(step)}.`, "error");
+          return;
+        }
       }
 
       const cartData = await fetchListingData(
@@ -776,8 +956,9 @@ export default function CartDetails({
         {
           cart_session: effectiveGuestSession,
           product_id: productId,
-          quantity: 1,
+          quantity: usesCustomQuantity ? 1 : quantity > 0 ? quantity : 1,
           weight_id: weightId,
+          ...(customQuantity !== null ? { custom_quantity: customQuantity } : {}),
         }
       );
 
@@ -787,7 +968,9 @@ export default function CartDetails({
       }
 
       setAddedRecommendation(product.slug);
-      showToast(cartData.message || "Product added to cart successfully.", "success");
+      showToast(customQuantity !== null
+        ? `${formatQuantityNumber(customQuantity)} ${formatQuantityUnit(firstWeight?.quantity_unit, customQuantity)} added to cart.`
+        : cartData.message || "Product added to cart successfully.", "success");
       refreshCart();
     } catch (error) {
       console.error("Recommended add failed:", error);
@@ -835,6 +1018,19 @@ export default function CartDetails({
               {cartItems.map((item, index) => {
                 const itemSlug = getProductSlug(item);
                 const subtotal = item.sell_price * item.quantity;
+                const selectedSellingOption = item.available_weights?.find(
+                  (weight) => Number(weight.id) === Number(item.weight_id)
+                );
+                const editsCustomQuantity = Boolean(
+                  item.is_custom_quantity && selectedSellingOption?.allow_custom_quantity
+                );
+                const quantityValue = editsCustomQuantity
+                  ? Number(item.custom_quantity) || Number(selectedSellingOption.minimum_custom_quantity) || 1
+                  : item.quantity;
+                const perUnitPrice = getPerUnitPriceDetails(
+                  selectedSellingOption,
+                  item.is_custom_quantity ? item.custom_quantity : null
+                );
 
                 return (
                   <div className={styles.cartRow} key={item.cart_id || `${item.product_title}-${index}`}>
@@ -878,12 +1074,30 @@ export default function CartDetails({
                         ) : null}
                       </div>
                     </div>
-                    <div className={styles.priceCell}>{formatCartPrice(item.sell_price)}</div>
+                    <div className={styles.priceCell}>
+                      <span>{formatCartPrice(item.sell_price)}</span>
+                      {perUnitPrice ? (
+                        <small className={styles.unitPrice}>
+                          {formatCartPrice(perUnitPrice.unitPrice)} per {perUnitPrice.unitLabel}
+                        </small>
+                      ) : null}
+                    </div>
                     <div className={styles.quantityCell}>
                       <QuantityStepper
-                        value={item.quantity}
-                        onChange={(quantity) => handleQuantityChange(quantity, index)}
-                        label={`Quantity for ${item.product_title}`}
+                        value={quantityValue}
+                        onChange={(quantity) => editsCustomQuantity
+                          ? handleCustomQuantityChange(quantity, index)
+                          : handleQuantityChange(quantity, index)}
+                        min={editsCustomQuantity ? Number(selectedSellingOption.minimum_custom_quantity) || 1 : 1}
+                        max={getPurchaseQuantityMaximum(
+                          editsCustomQuantity,
+                          selectedSellingOption.maximum_custom_quantity
+                        )}
+                        step={editsCustomQuantity ? Number(selectedSellingOption.custom_quantity_step) || 1 : 1}
+                        allowDecimal={editsCustomQuantity}
+                        label={editsCustomQuantity
+                          ? `Custom ${formatQuantityUnit(selectedSellingOption.quantity_unit, 2).toLowerCase()} for ${item.product_title}`
+                          : `Quantity for ${item.product_title}`}
                       />
                     </div>
                     <div className={styles.subtotalCell}>{formatCartPrice(subtotal)}</div>
@@ -1028,13 +1242,58 @@ export default function CartDetails({
               <section className={styles.recommendCard}>
                 <h2>You may also like</h2>
                 <div className={styles.recommendGrid}>
-                  {recommendationProducts.map((product) => (
-                    <article className={styles.recommendProduct} key={product.slug}>
+                  {recommendationProducts.map((product) => {
+                    const option = recommendationOptions[product.slug]?.weight;
+                    const storedQuantity = recommendationQuantities[product.slug];
+                    const quantity = storedQuantity === "" ? "" : Number(storedQuantity) || 0;
+                    const usesCustomQuantity = Boolean(option?.allow_custom_quantity);
+                    const maximum = getPurchaseQuantityMaximum(
+                      usesCustomQuantity,
+                      option?.maximum_custom_quantity
+                    );
+                    const displayPrice = usesCustomQuantity && quantity > 0
+                      ? parseAmount(option?.unit_sell_price) * quantity
+                      : parseAmount(option?.sell_price) || product.price;
+                    const displayUnit = usesCustomQuantity && quantity > 0
+                      ? formatQuantityUnit(option?.quantity_unit, quantity)
+                      : option?.display_name || option?.name || "Selected quantity";
+
+                    return <article className={styles.recommendProduct} key={product.slug}>
                       <Link href={`/flowers/${product.slug}`} className={styles.recommendImage}>
                         <Image src={product.image} alt={product.title} width={150} height={120} />
                       </Link>
                       <h3>{product.title}</h3>
-                      <p>{formatCartPrice(product.price)} / kg</p>
+                      <p>{formatCartPrice(displayPrice)} / {displayUnit}</p>
+                      <div className={styles.recommendQuantity}>
+                        <button
+                          type="button"
+                          onClick={() => adjustRecommendationQuantity(product, -1)}
+                          disabled={quantity <= 0 || addingRecommendation === product.slug}
+                          aria-label={`Decrease quantity for ${product.title}`}
+                        >−</button>
+                        <input
+                          type="number"
+                          min="0"
+                          max={maximum}
+                          step={usesCustomQuantity ? Number(option?.custom_quantity_step) || 1 : 1}
+                          value={quantity}
+                          onChange={(event) => updateRecommendationQuantity(product, event.target.value)}
+                          onBlur={(event) => {
+                            if (event.target.value === "") updateRecommendationQuantity(product, 0);
+                          }}
+                          onFocus={(event) => event.currentTarget.select()}
+                          inputMode={usesCustomQuantity ? "decimal" : "numeric"}
+                          aria-label={usesCustomQuantity
+                            ? `Custom ${formatQuantityUnit(option?.quantity_unit, 2).toLowerCase()} for ${product.title}`
+                            : `Quantity for ${product.title}`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => adjustRecommendationQuantity(product, 1)}
+                          disabled={quantity >= maximum || addingRecommendation === product.slug}
+                          aria-label={`Increase quantity for ${product.title}`}
+                        >+</button>
+                      </div>
                       <button
                         type="button"
                         onClick={() => handleRecommendationAdd(product)}
@@ -1048,7 +1307,7 @@ export default function CartDetails({
                             : "ADD"}
                       </button>
                     </article>
-                  ))}
+                  })}
                 </div>
               </section>
             </div>

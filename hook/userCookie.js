@@ -5,17 +5,23 @@ const PUBLIC_GET_REVALIDATE_SECONDS = new Map([
   ["categories", 60],
   ["faqs", 300],
   ["home-categories", 60],
-  ["home-featured-products", 30],
-  ["home-sections", 30],
   ["navigation", 60],
-  ["product-details", 30],
-  ["products-by-category", 30],
-  ["search", 60],
   ["seo-meta-data", 60],
   ["seo-routes", 60],
   ["settings", 60],
   ["static-page", 300],
   ["subscription-plans", 60],
+]);
+
+// Product information changes frequently in Admin. These endpoints must all
+// read the same current image, selling option, price, and stock instead of
+// keeping independent Next.js cache snapshots for each storefront surface.
+const LIVE_PRODUCT_GET_ENDPOINTS = new Set([
+  "home-featured-products",
+  "home-sections",
+  "product-details",
+  "products-by-category",
+  "search",
 ]);
 
 export function fetchUser() {
@@ -42,6 +48,8 @@ export async function fetchListingData(
   try {
     const endpointPath =
       typeof endpoint === "string" ? endpoint.split("?")[0] : "";
+    const isLiveProductRequest =
+      req_method === "GET" && LIVE_PRODUCT_GET_ENDPOINTS.has(endpointPath);
     const publicRevalidateSeconds =
       req_method === "GET"
         ? PUBLIC_GET_REVALIDATE_SECONDS.get(endpointPath)
@@ -66,7 +74,9 @@ export async function fetchListingData(
 
     const fetchOptions =
       req_method === "GET"
-        ? publicRevalidateSeconds !== undefined
+        ? isLiveProductRequest
+          ? { ...options, cache: "no-store" }
+          : publicRevalidateSeconds !== undefined
           ? {
               ...options,
               cache: "force-cache",
