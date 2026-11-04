@@ -89,6 +89,14 @@
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
   z-index: 1031;
 }
+
+:global(body.mobile-navigation-open) {
+  .bottom_panel_section,
+  .scroll_top_btn {
+    display: none !important;
+  }
+}
+
 @media (max-width: $sm) {
   .scroll_top_btn {
     width: 30px;

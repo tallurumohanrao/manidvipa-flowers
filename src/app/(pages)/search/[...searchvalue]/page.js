@@ -2,38 +2,38 @@
 import React, { useEffect, useState } from "react";
 import { CategoryProductCard } from "@/components/pages/CategoryProducts";
 import styles from "@/scss/pages/listingPage.module.scss";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import Toast from "@/components/Toast";
 import { compareProductsByStock } from "@/lib/productStock";
 
-const url = process.env.NEXT_PUBLIC_MANIDVIPA_URL;
+import { fetchAllProducts } from "@/lib/apiClient";
 
 export default function Page() {
   const { searchvalue } = useParams();
-  const searchQuery = Array.isArray(searchvalue)
+  const params = useSearchParams();
+  const pathQuery = Array.isArray(searchvalue)
     ? searchvalue.join("/")
     : searchvalue;
+  const searchQuery = params.get("q") ?? (pathQuery === "all" ? "" : pathQuery);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [retry, setRetry] = useState(0);
   const [productCategory, setProductCategory] = useState([]);
   const sortedProducts = [...productCategory];
   const [sortOption, setSortOption] = useState("");
 
   useEffect(() => {
-    const fetchData = async () => {
-      if (searchQuery != "all") {
-        const searchParams = new URLSearchParams({ q: searchQuery });
-        const res = await fetch(`${url}/search?${searchParams.toString()}`, {
-          cache: "no-store",
-        });
-        const result = await res.json();
-        setProductCategory(result.data.data);
-      } else {
-        const res = await fetch(`${url}/search`, { cache: "no-store" });
-        const result = await res.json();
-        setProductCategory(result.data.data);
-      }
-    };
-    fetchData();
-  }, [searchQuery]);
+    const controller = new AbortController();
+    setLoading(true);
+    setLoadError("");
+    setProductCategory([]);
+    const query = new URLSearchParams(searchQuery ? { q: searchQuery } : {});
+    fetchAllProducts(`search?${query}`, { signal: controller.signal })
+      .then((products) => { if (!controller.signal.aborted) setProductCategory(products); })
+      .catch(() => { if (!controller.signal.aborted) setLoadError("Search is temporarily unavailable. Please try again."); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [searchQuery, retry]);
 
   const handleSortChange = (e) => {
     setSortOption(e.target.value);
@@ -70,7 +70,7 @@ export default function Page() {
               <div>
                 <div className={`${styles.selecting_butn} py-2 my-2 mt-4`}>
                   <div className={`${styles.list_style_butn} calc`}>
-                    <h3 className="mb-0">{searchQuery}</h3>
+                    <h3 className="mb-0">{searchQuery || "All flowers"}</h3>
                   </div>
                   <div className={`${styles.sorting_butn} px-2`}>
                     <h5>Sort by</h5>
@@ -96,11 +96,13 @@ export default function Page() {
                     <section className="mb-5" id="tanjore-paintings">
                       <div className="container">
                         <div className="row">
-                          {sortedProducts.length > 0 ? (
+                          {loading ? <p role="status">Searching flowers?</p> : loadError ? (
+                            <div role="alert"><p>{loadError}</p><button type="button" onClick={() => setRetry((value) => value + 1)}>Try again</button></div>
+                          ) : sortedProducts.length > 0 ? (
                             sortedProducts.map((painting, index) => {
                               return (
                               <div
-                                key={index}
+                                key={painting.product_id || painting.id}
                                 className={`col-xs-6 col-sm-4 col-md-3 col-lg-3 my-2`}
                               >
                                 <CategoryProductCard product={painting} />
@@ -108,7 +110,7 @@ export default function Page() {
                               );
                             })
                           ) : (
-                            <p>No products found within this price range</p>
+                            <p>No products match your search.</p>
                           )}
                         </div>
                       </div>

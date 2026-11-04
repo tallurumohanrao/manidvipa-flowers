@@ -1,20 +1,15 @@
+import { requestApi, ApiError } from "@/lib/apiClient";
 import { NextResponse } from "next/server";
 
 const SEO_ROUTE_CACHE_TTL_MS = 60_000;
 const FIXED_STOREFRONT_PATHS = new Set(["/flowers"]);
 let seoRouteCache = {
   expiresAt: 0,
+  available: false,
   routes: [],
   redirects: [],
 };
 let seoRouteRequest = null;
-
-function getApiBaseUrl() {
-  return String(
-    process.env.NEXT_PUBLIC_MANIDVIPA_URL ||
-      "https://admin.manidvipaflowers.com/api"
-  ).replace(/\/+$/, "");
-}
 
 function normalizeRoutePath(value) {
   const path = String(value || "/")
@@ -32,46 +27,27 @@ function isCanonicalProductPath(value) {
 
 async function fetchEditableRoutes() {
   if (seoRouteCache.expiresAt > Date.now()) {
-    return {
-      routes: seoRouteCache.routes,
-      redirects: seoRouteCache.redirects,
-    };
+    return seoRouteCache;
   }
 
   if (seoRouteRequest) return seoRouteRequest;
 
   seoRouteRequest = (async () => {
     try {
-      const response = await fetch(`${getApiBaseUrl()}/seo-routes`, {
-        headers: {
-          Accept: "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        return {
-          routes: seoRouteCache.routes,
-          redirects: seoRouteCache.redirects,
-        };
+      const result = await requestApi("seo-routes", { retries: 0 });
+      if (!Array.isArray(result?.data?.routes) || !Array.isArray(result?.data?.redirects)) {
+        throw new ApiError("Invalid route response.");
       }
-
-      const result = await response.json();
-      const nextValue = {
-        routes: Array.isArray(result?.data?.routes) ? result.data.routes : [],
-        redirects: Array.isArray(result?.data?.redirects)
-          ? result.data.redirects
-          : [],
-      };
+      const nextValue = { available: true, routes: result.data.routes, redirects: result.data.redirects };
       seoRouteCache = {
         ...nextValue,
         expiresAt: Date.now() + SEO_ROUTE_CACHE_TTL_MS,
       };
       return nextValue;
     } catch {
-      return {
-        routes: seoRouteCache.routes,
-        redirects: seoRouteCache.redirects,
-      };
+      // Keep the last valid routes and avoid retrying on every incoming request.
+      seoRouteCache.expiresAt = Date.now() + 10000;
+      return seoRouteCache;
     } finally {
       seoRouteRequest = null;
     }
@@ -80,10 +56,12 @@ async function fetchEditableRoutes() {
   return seoRouteRequest;
 }
 
-function metadataRequestHeaders(request, pathName) {
+function metadataRequestHeaders(request, pathName, routesAvailable = true) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-metadata-pathName", normalizeRoutePath(pathName));
   requestHeaders.set("x-metadata-description", normalizeRoutePath(pathName));
+  requestHeaders.delete("x-seo-routes-unavailable");
+  if (!routesAvailable) requestHeaders.set("x-seo-routes-unavailable", "1");
   return requestHeaders;
 }
 
@@ -177,7 +155,7 @@ export async function proxy(request) {
       rewriteUrl.pathname = systemPath;
       return NextResponse.rewrite(rewriteUrl, {
         request: {
-          headers: metadataRequestHeaders(request, currentPath),
+          headers: metadataRequestHeaders(request, currentPath, routeConfig.available),
         },
       });
     }
@@ -197,7 +175,7 @@ export async function proxy(request) {
 
   return NextResponse.next({
     request: {
-      headers: metadataRequestHeaders(request, currentPath),
+      headers: metadataRequestHeaders(request, currentPath, routeConfig.available),
     },
   });
 }

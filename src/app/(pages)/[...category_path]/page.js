@@ -1,6 +1,7 @@
+import { requireDataArray } from "@/lib/apiClient";
 ﻿import React from "react";
 import CategoryProducts from "@/components/pages/CategoryProducts";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { notFound, permanentRedirect } from "next/navigation";
 import {
   fetchListingData,
@@ -118,10 +119,13 @@ async function getCategoryContext(params) {
 
   const categorySlug = getCategorySlugFromSegments(segments);
   const categoriesData = await fetchListingData("GET", "categories");
-  const categories = categoriesData?.data || [];
+  const categories = requireDataArray(categoriesData);
   const category = findCategoryBySlug(categories, categorySlug);
 
   if (!category && categorySlug !== "all-flowers") {
+    if ((await headers()).get("x-seo-routes-unavailable") === "1") {
+      throw new Error("Store navigation is temporarily unavailable.");
+    }
     const parentSlug = segments.length > 1 ? segments[segments.length - 2] : "";
     const parentCategory = parentSlug
       ? findCategoryBySlug(categories, parentSlug) ||

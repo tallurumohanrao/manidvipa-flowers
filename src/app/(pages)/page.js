@@ -45,47 +45,13 @@ export async function generateMetadata() {
   });
 }
 
-function wait(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function getApiBaseUrl() {
-  return String(
-    process.env.NEXT_PUBLIC_MANIDVIPA_URL ||
-      "https://admin.manidvipaflowers.com/api"
-  ).replace(/\/+$/, "");
-}
-
 async function fetchFaqsData(userToken) {
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const faqsData = await fetchListingData("GET", "faqs", userToken);
-
-    if (Array.isArray(faqsData?.data) && faqsData.data.length) {
-      return faqsData;
-    }
-
-    if (attempt < 2) {
-      await wait(150);
-    }
-  }
-
   try {
-    const response = await fetch(`${getApiBaseUrl()}/faqs`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      next: { revalidate: 60 },
-    });
-
-    if (response.ok) {
-      return response.json();
-    }
-  } catch (error) {
-    console.error("Error fetching FAQ fallback:", error);
+    return await fetchListingData("GET", "faqs", userToken);
+  } catch {
+    // Keep the existing general FAQ fallback when this optional endpoint fails.
+    return null;
   }
-
-  return null;
 }
 
 export default async function Page() {

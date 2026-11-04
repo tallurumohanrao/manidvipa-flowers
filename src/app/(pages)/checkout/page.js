@@ -3,18 +3,7 @@ import { cookies } from "next/headers";
 import { fetchCartSessionData } from "../../../../hook/userCookie";
 import { fetchBlogData } from "../../../../hook/loginAuth";
 
-const fetchAboutData = async (query, userToken) => {
-  try {
-    const result = await fetchCartSessionData(
-      query,
-      userToken ? userToken : undefined
-    );
-    return result;
-  } catch (error) {
-    console.error("Error fetching About Us page data:", error);
-    return null;
-  }
-};
+const fetchAboutData = (query, token) => fetchCartSessionData(query, token);
 
 export default async function Checkout() {
   const cookieStore = await cookies();
@@ -35,20 +24,6 @@ export default async function Checkout() {
     }
   }
 
-  let endpoint = null;
-
-  if (userSessionCookie) {
-    endpoint = "addresses";
-  } else if (guestAddressId) {
-    endpoint = `checkout-get-address-by-id?address_id=${guestAddressId}`;
-  }
-
-  // const endpoint = userToken
-  //   ? "addresses"
-  //   : guestAddressId
-  //   ? `checkout-get-address-by-id?address_id=${guestAddressId}`
-  //   : null;
-
   const cartParams = new URLSearchParams({
     cart_session: guestSession || "",
   });
@@ -62,7 +37,6 @@ export default async function Checkout() {
     userToken
   );
   const PaymentMethods = await fetchAboutData(`payment-methods`, userToken);
-  const userAddress = await fetchAboutData(endpoint, userToken);
   const userData = await fetchBlogData(userToken);
 
   return (

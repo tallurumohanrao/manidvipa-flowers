@@ -1,43 +1,19 @@
 import { NextResponse } from "next/server";
-const url = process.env.NEXT_PUBLIC_MANIDVIPA_URL;
+import { requestApi } from "@/lib/apiClient";
 
 export async function POST(request) {
+  let input;
+  try { input = await request.json(); } catch {
+    return NextResponse.json({ message: "Invalid request." }, { status: 400 });
+  }
+  if (!input || typeof input !== "object") return NextResponse.json({ message: "Invalid request." }, { status: 400 });
+  const { name, email, mobile, password, c_password } = input;
   try {
-    const { name, email, mobile, password, c_password } = await request.json();
-
-    // Make a POST request to the external API
-    const response = await fetch(`${url}/register`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name,
-        email,
-        mobile,
-        password,
-        c_password,
-      }),
-    });
-
-    const data = await response.json();
-
-    if (response.ok) {
-      return NextResponse.json(
-        { message: "Registration successful!", data },
-        { status: 200 }
-      );
-    } else {
-      return NextResponse.json(
-        { message: data?.data?.email || "Registration failed." },
-        { status: response.status }
-      );
-    }
+    const data = await requestApi("register", { method: "POST", body: { name, email, mobile, password, c_password } });
+    return NextResponse.json({ message: "Registration successful!", data });
   } catch (error) {
-    console.error("Server error:", error);
-    return NextResponse.json(
-      { message: "Server error. Please try again later." },
-      { status: 500 }
-    );
+    return NextResponse.json({ message: error.payload?.data?.email || error.message }, {
+      status: error.status >= 400 ? error.status : 503,
+    });
   }
 }

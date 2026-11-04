@@ -1,0 +1,359 @@
+.page {
+  --status-primary: #9f1239;
+  --status-primary-dark: #760a2a;
+  --status-orange: #ff922b;
+  position: relative;
+  min-height: calc(100svh - 110px);
+  padding: clamp(32px, 6vw, 84px) 20px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: #392026;
+  background:
+    radial-gradient(circle at 10% 15%, rgba(255, 146, 43, 0.15), transparent 30%),
+    radial-gradient(circle at 88% 78%, rgba(159, 18, 57, 0.13), transparent 30%),
+    linear-gradient(135deg, #fffaf3 0%, #fff 52%, #fff4f0 100%);
+}
+
+.glowOne,
+.glowTwo {
+  position: absolute;
+  width: 280px;
+  height: 280px;
+  border: 1px solid rgba(159, 18, 57, 0.08);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.glowOne {
+  top: -150px;
+  right: 8%;
+  box-shadow: 0 0 0 42px rgba(159, 18, 57, 0.025), 0 0 0 84px rgba(159, 18, 57, 0.018);
+}
+
+.glowTwo {
+  bottom: -190px;
+  left: 4%;
+  box-shadow: 0 0 0 52px rgba(255, 146, 43, 0.035), 0 0 0 104px rgba(255, 146, 43, 0.02);
+}
+
+.card {
+  position: relative;
+  z-index: 1;
+  width: min(960px, 100%);
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(360px, 1.1fr);
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(159, 18, 57, 0.12);
+  border-radius: 28px;
+  box-shadow: 0 28px 75px rgba(74, 24, 38, 0.14);
+}
+
+.visual {
+  position: relative;
+  min-height: 500px;
+  padding: 48px 34px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  isolation: isolate;
+  color: #fff;
+  background:
+    linear-gradient(150deg, rgba(255, 255, 255, 0.08), transparent 45%),
+    linear-gradient(145deg, var(--status-primary) 0%, var(--status-primary-dark) 100%);
+}
+
+.visual::before,
+.visual::after {
+  position: absolute;
+  content: "";
+  z-index: -1;
+  border-radius: 50%;
+}
+
+.visual::before {
+  width: 260px;
+  height: 260px;
+  top: -95px;
+  left: -100px;
+  background: rgba(255, 146, 43, 0.24);
+}
+
+.visual::after {
+  width: 210px;
+  height: 210px;
+  right: -100px;
+  bottom: -80px;
+  border: 40px solid rgba(255, 255, 255, 0.06);
+}
+
+.iconHalo {
+  position: relative;
+  width: 94px;
+  height: 94px;
+  display: grid;
+  place-items: center;
+  background: #fff8ee;
+  border: 8px solid rgba(255, 255, 255, 0.16);
+  border-radius: 50%;
+  box-shadow: 0 18px 38px rgba(47, 3, 18, 0.28);
+
+  svg {
+    position: relative;
+    z-index: 2;
+    width: 36px;
+    height: 36px;
+    color: var(--status-primary);
+  }
+}
+
+.petalOne,
+.petalTwo,
+.petalThree {
+  position: absolute;
+  width: 28px;
+  height: 16px;
+  background: var(--status-orange);
+  border-radius: 80% 20% 70% 30%;
+  transform-origin: 52px 8px;
+}
+
+.petalOne {
+  top: 2px;
+  right: 16px;
+  transform: rotate(-35deg);
+}
+
+.petalTwo {
+  right: -4px;
+  bottom: 23px;
+  transform: rotate(55deg);
+}
+
+.petalThree {
+  bottom: 4px;
+  left: 13px;
+  transform: rotate(152deg);
+}
+
+.code {
+  margin-top: 18px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(86px, 12vw, 150px);
+  font-weight: 700;
+  line-height: 0.95;
+  letter-spacing: -8px;
+  text-shadow: 0 12px 28px rgba(47, 3, 18, 0.22);
+}
+
+.visualCaption {
+  margin-top: 16px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-align: center;
+  text-transform: uppercase;
+  opacity: 0.88;
+}
+
+.content {
+  padding: clamp(38px, 6vw, 68px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.logoLink {
+  align-self: flex-start;
+  margin-bottom: 34px;
+
+  img {
+    display: block;
+    width: 190px;
+    height: auto;
+    object-fit: contain;
+  }
+}
+
+.eyebrow {
+  margin-bottom: 10px;
+  color: var(--status-primary);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.content h1 {
+  margin: 0;
+  color: #4d1525;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(32px, 5vw, 52px);
+  line-height: 1.08;
+}
+
+.description {
+  max-width: 520px;
+  margin: 18px 0 0;
+  color: #705a60;
+  font-size: 16px;
+  line-height: 1.75;
+}
+
+.actions {
+  margin-top: 30px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+
+  a,
+  button {
+    min-height: 48px;
+    padding: 12px 21px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: #fff;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 800;
+    text-decoration: none;
+    background: linear-gradient(135deg, var(--status-primary), var(--status-primary-dark));
+    border: 1px solid var(--status-primary);
+    border-radius: 10px;
+    box-shadow: 0 9px 22px rgba(159, 18, 57, 0.2);
+    cursor: pointer;
+    transition: transform 160ms ease, box-shadow 160ms ease;
+  }
+
+  a + a,
+  button + a {
+    color: var(--status-primary);
+    background: #fff;
+    box-shadow: none;
+  }
+
+  a:hover,
+  button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 25px rgba(159, 18, 57, 0.25);
+  }
+}
+
+.suggestions {
+  margin-top: 26px;
+  padding-top: 22px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  color: #806b70;
+  font-size: 13px;
+  border-top: 1px solid #f0dfe3;
+
+  span {
+    font-weight: 700;
+  }
+
+  a {
+    color: var(--status-primary);
+    font-weight: 750;
+    text-decoration: none;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+}
+
+.error {
+  --status-primary: #a15212;
+  --status-primary-dark: #703406;
+  --status-orange: #f4b23e;
+}
+
+@media (max-width: 760px) {
+  .page {
+    min-height: calc(100svh - 70px);
+    padding: 20px 14px;
+  }
+
+  .card {
+    grid-template-columns: 1fr;
+    border-radius: 22px;
+  }
+
+  .visual {
+    min-height: 238px;
+    padding: 28px 20px;
+  }
+
+  .iconHalo {
+    width: 72px;
+    height: 72px;
+    border-width: 6px;
+
+    svg {
+      width: 28px;
+      height: 28px;
+    }
+  }
+
+  .petalOne,
+  .petalTwo,
+  .petalThree {
+    display: none;
+  }
+
+  .code {
+    margin-top: 10px;
+    font-size: 82px;
+    letter-spacing: -5px;
+  }
+
+  .visualCaption {
+    margin-top: 8px;
+  }
+
+  .content {
+    padding: 30px 24px 34px;
+  }
+
+  .logoLink {
+    margin-bottom: 24px;
+
+    img {
+      width: 165px;
+    }
+  }
+
+  .content h1 {
+    font-size: 34px;
+  }
+
+  .description {
+    margin-top: 14px;
+    font-size: 15px;
+    line-height: 1.65;
+  }
+
+  .actions {
+    margin-top: 24px;
+
+    a,
+    button {
+      width: 100%;
+      min-height: 52px;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .actions a,
+  .actions button {
+    transition: none;
+  }
+}

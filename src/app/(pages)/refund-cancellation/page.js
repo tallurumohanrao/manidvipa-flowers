@@ -20,7 +20,7 @@ const fetchAboutData = async () => {
     return await fetchListingData("GET", "static-page?page_name=refund-return-policy");
   } catch (error) {
     console.error("Error fetching About Us page data:", error);
-    return null;
+    throw error;
   }
 };
 

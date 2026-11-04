@@ -6,6 +6,8 @@ import Address from "../page";
 
 const OfferFormPage = () => {
   const { id } = useParams();
+  const [loadError, setLoadError] = useState("");
+  const [retry, setRetry] = useState(0);
   const [userAddress, setUserAddress] = useState([]);
   const [userToken, setUserToken] = useState(null);
 
@@ -34,12 +36,13 @@ const OfferFormPage = () => {
       }
     };
 
-    if (id) fetchData();
-  }, [userToken, id]);
+    setLoadError("");
+    if (id) fetchData().catch(() => setLoadError("Unable to load this address. Please try again."));
+  }, [userToken, id, retry]);
 
   return (
     <div>
-      <Address userAddress={userAddress} />
+      {loadError ? <p role="alert">{loadError} <button type="button" onClick={() => setRetry((value) => value + 1)}>Try again</button></p> : <Address userAddress={userAddress} />}
     </div>
   );
 };

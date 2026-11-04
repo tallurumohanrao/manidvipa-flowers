@@ -10,18 +10,7 @@ import {
 } from "../../../hook/userCookie";
 import { cookies } from "next/headers";
 
-const fetchAboutData = async (userToken) => {
-  try {
-    // Fetch wishlist data with token
-    const data = await fetchCategoryData(userToken);
-
-    // const data = await fetchListingData("GET", "wishlist", userToken);
-    return data?.data;
-  } catch (error) {
-    console.error("Error fetching About Us page data:", error);
-    return null;
-  }
-};
+const fetchAboutData = async (token) => (await fetchCategoryData(token)).data;
 
 export default async function RootLayout({ children }) {
   const cookieStore = await cookies();

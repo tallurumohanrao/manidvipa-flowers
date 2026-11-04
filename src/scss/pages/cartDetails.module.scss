@@ -188,6 +188,24 @@
 
 .quantityCell {
   display: flex;
+  align-items: flex-start;
+}
+
+.quantityControl {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+}
+
+.stockLimitMessage {
+  display: block;
+  max-width: 190px;
+  color: #a44a13;
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.35;
 }
 
 .quantityStepper {
@@ -753,8 +771,14 @@
     input,
     button {
       width: 100%;
-      height: 52px;
+      min-height: 56px;
+      height: 56px;
+      box-sizing: border-box;
       font-size: 14px;
+    }
+
+    input {
+      padding: 0 16px;
     }
   }
 

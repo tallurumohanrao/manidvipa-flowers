@@ -9,18 +9,8 @@ import { cookies } from "next/headers";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const fetchAboutData = async (guestSession, userToken) => {
-  try {
-    const result = await fetchCartSessionData(
-      `get-cart?cart_session=${guestSession}`,
-      userToken ? userToken : undefined
-    );
-    return result;
-  } catch (error) {
-    console.error("Error fetching About Us page data:", error);
-    return null;
-  }
-};
+const fetchAboutData = (guestSession, token) => fetchCartSessionData(
+  `get-cart?cart_session=${encodeURIComponent(guestSession || "")}`, token);
 
 export default async function Page() {
   const cookieStore = await cookies();

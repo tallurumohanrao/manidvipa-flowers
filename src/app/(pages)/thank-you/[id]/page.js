@@ -8,7 +8,7 @@ const fetchAboutData = async (id) => {
     return data;
   } catch (error) {
     console.error("Error fetching About Us page data:", error);
-    return null;
+    throw error;
   }
 };
 

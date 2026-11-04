@@ -77,7 +77,9 @@
 
 .headerShell {
   position: relative;
-  z-index: 110;
+  // Search suggestions extend below the header. Keep the entire header
+  // stacking context above the sticky navigation so results are not covered.
+  z-index: 310;
   color: #32191f;
   background: #fff;
   border-bottom: 1px solid #9b1237;
@@ -623,7 +625,7 @@
 }
 
 .mobileUtilities {
-  padding: 12px 16px 18px;
+  padding: 12px 16px max(18px, env(safe-area-inset-bottom));
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;

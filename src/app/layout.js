@@ -1,3 +1,4 @@
+import { requestApi } from "@/lib/apiClient";
 import { fetchStaticMetadata } from "../../hook/metaData";
 import { headers } from "next/headers";
 import Script from "next/script";
@@ -21,23 +22,9 @@ const googleTagManagerPattern = /\bGTM-[A-Z0-9]+\b/i;
 const metaPixelPattern = /^\d{5,25}$/;
 const fallbackFavicon = "/favicon.jpg";
 
-function getApiBaseUrl() {
-  return String(
-    process.env.NEXT_PUBLIC_MANIDVIPA_URL ||
-      "https://admin.manidvipaflowers.com/api"
-  ).replace(/\/+$/, "");
-}
-
 async function fetchGlobalSiteSettings() {
   try {
-    const response = await fetch(`${getApiBaseUrl()}/settings`, {
-      cache: "force-cache",
-      next: { revalidate: 60 },
-    });
-
-    if (!response.ok) return {};
-
-    const settings = await response.json();
+    const settings = await requestApi("settings", { cache: "force-cache", next: { revalidate: 60 } });
     return settings?.data || {};
   } catch (error) {
     return {};

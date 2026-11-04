@@ -5,7 +5,7 @@ import "react-datepicker/dist/react-datepicker.css";
 
 import Banner from "@/components/banner";
 import styles from "@/scss/pages/checkout.module.scss";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   fetchCartSessionData,
   fetchListingData,
@@ -65,6 +65,9 @@ export default function OrderCheckout({
   const [formErrors, setFormErrors] = useState({});
   const [selectError, setSelectError] = useState({});
   const [submitError, setSubmitError] = useState("");
+  const [cartError, setCartError] = useState("");
+  const [cartLoading, setCartLoading] = useState(true);
+  const cartRequest = useRef(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -81,7 +84,7 @@ export default function OrderCheckout({
     shipping_message: "",
   });
 
-  const dataArrayTotals = Object.values(data?.totals);
+  const dataArrayTotals = Object.values(data?.totals || {});
 
   const formatDateForApi = (date) => {
     const year = date.getFullYear();
@@ -91,9 +94,14 @@ export default function OrderCheckout({
   };
 
   const fetchData = useCallback(async () => {
+    cartRequest.current?.abort();
+    const controller = new AbortController();
+    cartRequest.current = controller;
+    setCartLoading(true);
+    setCartError("");
     try {
       const cartParams = new URLSearchParams({
-        cart_session: guestSession,
+        cart_session: guestSession || "",
       });
 
       if (selectedAddress) {
@@ -102,8 +110,12 @@ export default function OrderCheckout({
 
       const result = await fetchCartSessionData(
         `get-cart?${cartParams.toString()}`,
-        userToken ? userToken : undefined
+        userToken ? userToken : undefined,
+        { signal: controller.signal }
       );
+
+      if (controller.signal.aborted) return;
+      if (!Array.isArray(result?.data) || !result.totals) throw new Error("Incomplete cart response");
 
       // setMessage(result.message);
 
@@ -125,7 +137,9 @@ export default function OrderCheckout({
         setData(updatedState);
       }
     } catch (error) {
-      console.error("Error fetching cart data:", error);
+      if (!controller.signal.aborted) setCartError("Unable to refresh your cart and delivery charges. Please try again before ordering.");
+    } finally {
+      if (!controller.signal.aborted) setCartLoading(false);
     }
   }, [guestSession, selectedAddress, userToken]);
 
@@ -145,6 +159,7 @@ export default function OrderCheckout({
 
   useEffect(() => {
     fetchData();
+    return () => cartRequest.current?.abort();
   }, [fetchData]);
 
   useEffect(() => {
@@ -178,6 +193,7 @@ export default function OrderCheckout({
   // HANDLE SUBMIT
   const handleCheckoutSubmit = async (e) => {
     e.preventDefault();
+    if (cartLoading || cartError) return;
 
     // Initialize errors array
     let validationErrors = {
@@ -431,11 +447,17 @@ export default function OrderCheckout({
               )}
             </div>
             <form onSubmit={handleCheckoutSubmit}>
+              {cartError && (
+                <div role="alert" className={`${styles.error} mb-2`}>
+                  {cartError} <button type="button" onClick={fetchData}>Try again</button>
+                </div>
+              )}
               {submitError && (
                 <div className={`${styles.error} mb-2`}>{submitError}</div>
               )}
               <button
                 type="submit"
+                disabled={cartLoading || Boolean(cartError)}
                 className={`${styles.order_button} primary-but w-100 mt-3`}
               >
                 Place Order

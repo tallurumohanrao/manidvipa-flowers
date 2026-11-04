@@ -1,24 +1,11 @@
+import { requestApi } from "../src/lib/apiClient";
+
 export async function fetchBlogData(userToken) {
-  const url = process.env.NEXT_PUBLIC_MANIDVIPA_URL;
-
+  if (!userToken) return null;
   try {
-    const response = await fetch(`${url}/auth-check`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${userToken}`,
-        "Content-Type": "application/json",
-      },
-      next: { revalidate: 120 },
-    });
-    if (response.ok) {
-      const userDetails = await response.json();
-
-      return userDetails;
-    } else {
-      return null;
-    }
+    return await requestApi("auth-check", { token: userToken, allowFailure: true });
   } catch (error) {
-    console.error("Error checking authentication:", error);
-    return null;
+    if (error.status === 401) return null;
+    throw error;
   }
 }

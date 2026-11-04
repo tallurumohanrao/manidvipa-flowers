@@ -20,7 +20,7 @@ const fetchAboutData = async () => {
     return await fetchListingData("GET", "static-page?page_name=about-us");
   } catch (error) {
     console.error("Error fetching About Us page data:", error);
-    return null;
+    throw error;
   }
 };
 

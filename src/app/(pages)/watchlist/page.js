@@ -8,13 +8,15 @@ const Watchlist = dynamic(() => import("@/components/pages/Watchlist"), {
 });
 
 const fetchAboutData = async (userToken) => {
+  if (!userToken) return [];
   try {
     // Fetch wishlist data with token
     const data = await fetchListingData("GET", "wishlist", userToken);
     return data?.data;
   } catch (error) {
     console.error("Error fetching About Us page data:", error);
-    return null;
+    if (error.status === 401) return [];
+    throw error;
   }
 };
 

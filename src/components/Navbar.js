@@ -26,33 +26,26 @@ import {
 import styles from "@/scss/components/navbar.module.scss";
 import { getCartCount } from "../../hook/userCookie";
 
-const apiUrl = process.env.NEXT_PUBLIC_MANIDVIPA_URL;
+import { requestApi, fetchAllProducts } from "@/lib/apiClient";
 
 function buildSearchPath(value) {
-  const slug = String(value || "")
-    .toLowerCase()
-    .trim()
-    .replace(/&/g, " and ")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-  return slug ? `/search/${slug}` : "/search/all";
+  const query = String(value || "").trim();
+  return query ? `/search/all?${new URLSearchParams({ q: query })}` : "/search/all";
 }
 
 async function searchProducts(searchInput, router) {
   if (!searchInput.trim()) return;
   try {
-    const params = new URLSearchParams({ q: searchInput.trim() });
-    const response = await fetch(`${apiUrl}/search?${params.toString()}`, {
-      cache: "no-store",
-    });
-    const result = await response.json();
-    const products = result?.data?.data || [];
-    if (products.length === 1) router.push(`/flowers/${products[0].slug}`);
-    else if (products.length > 1) router.push(buildSearchPath(searchInput));
-    else router.push("/search/all");
-  } catch (error) {
-    console.error("Error fetching search results:", error);
+    const params = new URLSearchParams({ q: searchInput.trim(), per_page: "2" });
+    const result = await requestApi(`search?${params}`);
+    if (result?.data?.total === 1 && result.data.data?.[0]?.slug) {
+      router.push(`/flowers/${result.data.data[0].slug}`);
+      return;
+    }
+  } catch {
+    // The results page displays a retry message if the API is unavailable.
   }
+  router.push(buildSearchPath(searchInput));
 }
 
 function getWhatsAppHref(value) {
@@ -61,19 +54,10 @@ function getWhatsAppHref(value) {
 }
 
 async function fetchCart(guestSession, userToken, setCartCount) {
-  if (!guestSession) return;
+  if (!guestSession && !userToken) return;
   try {
-    const response = await fetch(
-      `${apiUrl}/get-cart?cart_session=${guestSession}`,
-      {
-        headers: {
-          "Content-Type": "application/json",
-          ...(userToken && { Authorization: `Bearer ${userToken}` }),
-        },
-        cache: "no-store",
-      }
-    );
-    if (response.ok) setCartCount(getCartCount(await response.json()));
+    const result = await requestApi(`get-cart?cart_session=${encodeURIComponent(guestSession || "")}`, { token: userToken });
+    setCartCount(getCartCount(result));
   } catch (error) {
     console.error("Error fetching cart data:", error);
   }
@@ -82,15 +66,7 @@ async function fetchCart(guestSession, userToken, setCartCount) {
 async function fetchWatchlist(userToken, setWatchlistCount) {
   if (!userToken) return;
   try {
-    const response = await fetch(`${apiUrl}/wishlist`, {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${userToken}`,
-      },
-      cache: "no-store",
-    });
-    if (!response.ok) return;
-    const result = await response.json();
+    const result = await requestApi("wishlist", { token: userToken });
     setWatchlistCount(result?.data?.length || 0);
   } catch (error) {
     console.error("Error fetching watchlist data:", error);
@@ -99,12 +75,7 @@ async function fetchWatchlist(userToken, setWatchlistCount) {
 
 async function fetchDailyPriceStatus(setDailyPriceStatus) {
   try {
-    const response = await fetch(`${apiUrl}/daily-price-status`, {
-      headers: { "Content-Type": "application/json" },
-      cache: "no-store",
-    });
-    if (!response.ok) return;
-    const result = await response.json();
+    const result = await requestApi("daily-price-status");
     setDailyPriceStatus(result?.data || null);
   } catch (error) {
     console.error("Error fetching daily price status:", error);
@@ -194,19 +165,11 @@ export default function Navbar({
   }, []);
 
   useEffect(() => {
-    async function loadSuggestions() {
-      try {
-        const response = await fetch(`${apiUrl}/search`, {
-          cache: "no-store",
-        });
-        if (!response.ok) return;
-        const result = await response.json();
-        setAllSuggestions(result?.data?.data || []);
-      } catch (error) {
-        console.error("Error fetching search suggestions:", error);
-      }
-    }
-    loadSuggestions();
+    const controller = new AbortController();
+    fetchAllProducts("search", { signal: controller.signal })
+      .then((products) => { if (!controller.signal.aborted) setAllSuggestions(products); })
+      .catch(() => { /* Suggestions are optional; submitting search still works. */ });
+    return () => controller.abort();
   }, []);
 
   useEffect(() => {
@@ -224,6 +187,7 @@ export default function Navbar({
     if (!isMenuOpen) return undefined;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    document.body.classList.add("mobile-navigation-open");
     mobileCloseRef.current?.focus();
     function handleKeyDown(event) {
       if (event.key === "Escape") setIsMenuOpen(false);
@@ -231,6 +195,7 @@ export default function Navbar({
     document.addEventListener("keydown", handleKeyDown);
     return () => {
       document.body.style.overflow = previousOverflow;
+      document.body.classList.remove("mobile-navigation-open");
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isMenuOpen]);

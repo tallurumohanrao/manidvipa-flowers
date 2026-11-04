@@ -122,6 +122,101 @@ function formatQuantityUnit(unit, quantity) {
   return labels[unit] || "Units";
 }
 
+function getInventoryUnitLabel(option, quantity) {
+  const singular = Math.abs(Number(quantity) - 1) < 0.00001;
+  const configuredLabel = singular
+    ? option?.inventory_unit_singular
+    : option?.inventory_unit_plural;
+
+  if (String(configuredLabel || "").trim()) {
+    return String(configuredLabel).trim();
+  }
+
+  return formatQuantityUnit(
+    option?.inventory_unit_code || option?.quantity_unit,
+    quantity
+  );
+}
+
+function getStockPurchaseLimit(option, usesCustomQuantity) {
+  const configuredMaximum = getPurchaseQuantityMaximum(
+    usesCustomQuantity,
+    option?.maximum_custom_quantity
+  );
+  const tracksStock = option?.stock === true || Number(option?.stock) === 1;
+  const availableStock = Number(option?.qty);
+  const requiredStock = Number(option?.required_stock);
+
+  if (
+    !tracksStock ||
+    !Number.isFinite(availableStock) ||
+    availableStock < 0 ||
+    !Number.isFinite(requiredStock) ||
+    requiredStock <= 0
+  ) {
+    return { maximum: configuredMaximum, message: "" };
+  }
+
+  let stockMaximum;
+  if (usesCustomQuantity) {
+    const presetQuantity = Number(option?.quantity_value) > 0
+      ? Number(option.quantity_value)
+      : 1;
+    const minimum = Number(option?.minimum_custom_quantity) > 0
+      ? Number(option.minimum_custom_quantity)
+      : 1;
+    const step = Number(option?.custom_quantity_step) > 0
+      ? Number(option.custom_quantity_step)
+      : 1;
+    const rawMaximum = (availableStock / requiredStock) * presetQuantity;
+
+    stockMaximum = rawMaximum < minimum
+      ? 0
+      : minimum + Math.floor((rawMaximum - minimum) / step) * step;
+  } else {
+    stockMaximum = Math.floor(availableStock / requiredStock);
+  }
+
+  const maximum = Math.min(configuredMaximum, stockMaximum);
+  if (stockMaximum >= configuredMaximum) {
+    return { maximum, message: "" };
+  }
+
+  const availableLabel = `${formatQuantityNumber(availableStock)} ${getInventoryUnitLabel(
+    option,
+    availableStock
+  )}`;
+
+  if (stockMaximum < 1) {
+    const requiredLabel = `${formatQuantityNumber(requiredStock)} ${getInventoryUnitLabel(
+      option,
+      requiredStock
+    )}`;
+
+    return {
+      maximum,
+      message: `Only ${availableLabel} available. This option needs ${requiredLabel}.`,
+    };
+  }
+
+  if (usesCustomQuantity) {
+    return {
+      maximum,
+      message: `Only ${availableLabel} available. Maximum custom quantity is ${formatQuantityNumber(
+        stockMaximum
+      )} ${formatQuantityUnit(option?.quantity_unit, stockMaximum)}.`,
+    };
+  }
+
+  const optionLabel = String(option?.display_name || option?.name || "selected option").trim();
+  return {
+    maximum,
+    message: `Only ${availableLabel} available. Maximum ${stockMaximum} ${
+      stockMaximum === 1 ? "pack" : "packs"
+    } of ${optionLabel}.`,
+  };
+}
+
 function getApiMessage(message, fallback) {
   if (typeof message === "string" && message.trim()) return message;
   if (Array.isArray(message)) {
@@ -387,7 +482,29 @@ function TrustItem({ icon, title, subtitle }) {
   );
 }
 
-function QuantityStepper({ value, onChange, label, min = 1, max = MAX_CART_ITEM_QUANTITY, step = 1, allowDecimal = false }) {
+function QuantityStepper({
+  value,
+  onChange,
+  onMaximumExceeded,
+  label,
+  min = 1,
+  max = MAX_CART_ITEM_QUANTITY,
+  step = 1,
+  allowDecimal = false,
+}) {
+  const handleInputChange = (event) => {
+    const nextValue = event.target.value;
+    const numericValue = Number(nextValue);
+
+    if (nextValue !== "" && Number.isFinite(numericValue) && numericValue > max) {
+      onMaximumExceeded?.();
+      onChange(max);
+      return;
+    }
+
+    onChange(nextValue);
+  };
+
   return (
     <div className={styles.quantityStepper} aria-label={label}>
       <button type="button" onClick={() => onChange(Math.max(min, value - step))} disabled={value <= min}>
@@ -399,7 +516,7 @@ function QuantityStepper({ value, onChange, label, min = 1, max = MAX_CART_ITEM_
         max={max}
         step={step}
         value={value}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={handleInputChange}
         inputMode={allowDecimal ? "decimal" : "numeric"}
         aria-label={label}
       />
@@ -1027,6 +1144,21 @@ export default function CartDetails({
                 const quantityValue = editsCustomQuantity
                   ? Number(item.custom_quantity) || Number(selectedSellingOption.minimum_custom_quantity) || 1
                   : item.quantity;
+                const purchaseLimit = getStockPurchaseLimit(
+                  selectedSellingOption,
+                  editsCustomQuantity
+                );
+                const minimumPurchaseQuantity = editsCustomQuantity
+                  ? Number(selectedSellingOption?.minimum_custom_quantity) || 1
+                  : 1;
+                const maximumPurchaseQuantity = Math.max(
+                  minimumPurchaseQuantity,
+                  purchaseLimit.maximum
+                );
+                const stockLimitMessage = purchaseLimit.message &&
+                  Number(quantityValue) >= purchaseLimit.maximum
+                  ? purchaseLimit.message
+                  : "";
                 const perUnitPrice = getPerUnitPriceDetails(
                   selectedSellingOption,
                   item.is_custom_quantity ? item.custom_quantity : null
@@ -1083,22 +1215,31 @@ export default function CartDetails({
                       ) : null}
                     </div>
                     <div className={styles.quantityCell}>
-                      <QuantityStepper
-                        value={quantityValue}
-                        onChange={(quantity) => editsCustomQuantity
-                          ? handleCustomQuantityChange(quantity, index)
-                          : handleQuantityChange(quantity, index)}
-                        min={editsCustomQuantity ? Number(selectedSellingOption.minimum_custom_quantity) || 1 : 1}
-                        max={getPurchaseQuantityMaximum(
-                          editsCustomQuantity,
-                          selectedSellingOption.maximum_custom_quantity
-                        )}
-                        step={editsCustomQuantity ? Number(selectedSellingOption.custom_quantity_step) || 1 : 1}
-                        allowDecimal={editsCustomQuantity}
-                        label={editsCustomQuantity
-                          ? `Custom ${formatQuantityUnit(selectedSellingOption.quantity_unit, 2).toLowerCase()} for ${item.product_title}`
-                          : `Quantity for ${item.product_title}`}
-                      />
+                      <div className={styles.quantityControl}>
+                        <QuantityStepper
+                          value={quantityValue}
+                          onChange={(quantity) => editsCustomQuantity
+                            ? handleCustomQuantityChange(quantity, index)
+                            : handleQuantityChange(quantity, index)}
+                          onMaximumExceeded={() => {
+                            if (purchaseLimit.message) {
+                              showToast(purchaseLimit.message, "error");
+                            }
+                          }}
+                          min={minimumPurchaseQuantity}
+                          max={maximumPurchaseQuantity}
+                          step={editsCustomQuantity ? Number(selectedSellingOption?.custom_quantity_step) || 1 : 1}
+                          allowDecimal={editsCustomQuantity}
+                          label={editsCustomQuantity
+                            ? `Custom ${formatQuantityUnit(selectedSellingOption?.quantity_unit, 2).toLowerCase()} for ${item.product_title}`
+                            : `Quantity for ${item.product_title}`}
+                        />
+                        {stockLimitMessage ? (
+                          <small className={styles.stockLimitMessage} role="status">
+                            {stockLimitMessage}
+                          </small>
+                        ) : null}
+                      </div>
                     </div>
                     <div className={styles.subtotalCell}>{formatCartPrice(subtotal)}</div>
                     <button

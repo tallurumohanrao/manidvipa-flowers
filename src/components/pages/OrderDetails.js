@@ -12,6 +12,7 @@ const IMG_URL = process.env.NEXT_PUBLIC_IMG_URL;
 
 export default function OrderDetails({ id, handleBack, userData, userToken }) {
   // const { userToken } = useUser();
+  const [loadError, setLoadError] = useState("");
   const [orderDetails, setOrderDetails] = useState([]);
   const [orderedProducts, setOrderedProducts] = useState([]);
   const [orderlineitems, setOrderlineitems] = useState([]);
@@ -60,6 +61,7 @@ export default function OrderDetails({ id, handleBack, userData, userToken }) {
   const fetchAddresses = useCallback(async () => {
     if (userToken) {
       try {
+        setLoadError("");
         const orderDetails = await fetchListingData(
           "GET",
           `order-details?order_encrypt_key=${id}`,
@@ -70,7 +72,7 @@ export default function OrderDetails({ id, handleBack, userData, userToken }) {
         setOrderlineitems(orderDetails?.orderlineitems);
         setOrderShipping(orderDetails?.shipping);
       } catch (error) {
-        console.log("Error fetching addresses:", error);
+        setLoadError("Unable to load this order. Please try again.");
       }
     }
   }, [userToken, id]);
@@ -81,6 +83,7 @@ export default function OrderDetails({ id, handleBack, userData, userToken }) {
 
   return (
     <div className={styles.orderDetails_mains}>
+      {loadError ? <p role="alert">{loadError} <button type="button" onClick={fetchAddresses}>Try again</button></p> : null}
       <div className="my-4 my-md-0">
         <div className={`${styles.order_header}`}>
           <h4>Order Details</h4>

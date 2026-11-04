@@ -1,3 +1,4 @@
+import { requestApi } from "@/lib/apiClient";
 import {
   canonicalUrl,
   isNoIndexPath,
@@ -20,29 +21,11 @@ const VALID_CHANGE_FREQUENCIES = new Set([
 const IS_PRODUCTION_BUILD = process.env.NEXT_PHASE === "phase-production-build";
 const FIXED_STOREFRONT_PATHS = new Set(["/flowers"]);
 
-function getApiBaseUrl() {
-  return String(
-    process.env.NEXT_PUBLIC_MANIDVIPA_URL || "https://admin.manidvipaflowers.com/api"
-  ).replace(/\/+$/, "");
-}
-
 async function fetchApi(endpoint) {
-  const url = `${getApiBaseUrl()}/${endpoint.replace(/^\/+/, "")}`;
-
   try {
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      next: { revalidate },
+    return await requestApi(endpoint.replace(/^\/+/, ""), {
+      cache: "force-cache", next: { revalidate },
     });
-
-    if (!response.ok) {
-      throw new Error(`Sitemap API request failed with ${response.status}: ${url}`);
-    }
-
-    return response.json();
   } catch (error) {
     console.error(`Error fetching sitemap data from ${endpoint}:`, error);
     if (IS_PRODUCTION_BUILD) {

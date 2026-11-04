@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
 
-// Environment variable for the base URL
-const BASE_URL = process.env.NEXT_PUBLIC_MANIDVIPA_URL;
+import { requestApi } from "@/lib/apiClient";
 const ALLOWED_ENDPOINTS = {
   POST: new Set(["add-to-cart"]),
   GET: new Set([]),
 };
 
-const normalizeMethod = (method) => method?.toUpperCase();
+const normalizeMethod = (method) => typeof method === "string" ? method.toUpperCase() : "";
 
-const getEndpointPath = (endpoint) => endpoint?.split("?")[0];
+const getEndpointPath = (endpoint) => typeof endpoint === "string" ? endpoint.split("?")[0] : "";
 
 const isAllowedEndpoint = (method, endpoint) => {
   const endpointPath = getEndpointPath(endpoint);
@@ -22,47 +21,12 @@ const isAllowedEndpoint = (method, endpoint) => {
   );
 };
 
-// Utility function to handle API requests
-export async function fetchListingData(
-  req_method,
-  endpoint,
-  userToken = "",
-  formData = null
-) {
+async function fetchListingData(method, endpoint, userToken, formData) {
   try {
-    const method = normalizeMethod(req_method);
-    if (!isAllowedEndpoint(method, endpoint)) {
-      return { error: true, message: "Endpoint is not allowed" };
-    }
-
-    const options = {
-      method,
-      headers: {
-        ...(userToken && { Authorization: `Bearer ${userToken}` }),
-        "Content-Type": "application/json",
-      },
-    };
-
-    if (method !== "GET" && formData) {
-      options.body = JSON.stringify(formData);
-    }
-
-    const fetchOptions =
-      method === "GET"
-        ? { ...options, next: { revalidate: 120 } }
-        : options;
-
-    const response = await fetch(`${BASE_URL}/${endpoint}`, fetchOptions);
-
-    if (response.ok) {
-      return await response.json();
-    } else {
-      const errorData = await response.json();
-      return { error: true, message: errorData.message || "Request failed" };
-    }
+    return await requestApi(endpoint, { method, token: userToken, body: method === "GET" ? undefined : formData });
   } catch (error) {
-    console.error("Error in fetchListingData:", error);
-    return { error: true, message: "An unexpected error occurred" };
+    return { success: false, error: true, message: error.message,
+      httpStatus: error.status >= 400 ? error.status : error.code === "API_REJECTED" ? 422 : 503 };
   }
 }
 
@@ -96,7 +60,7 @@ export async function POST(req) {
     );
 
     if (data.error) {
-      return NextResponse.json(data, { status: 400 });
+      return NextResponse.json(data, { status: data.httpStatus || 400 });
     }
 
     return NextResponse.json(data);
@@ -131,7 +95,7 @@ export async function GET(req) {
   const data = await fetchListingData("GET", endpoint, userToken);
 
   if (data.error) {
-    return NextResponse.json(data, { status: 400 });
+    return NextResponse.json(data, { status: data.httpStatus || 400 });
   }
 
   return NextResponse.json(data);

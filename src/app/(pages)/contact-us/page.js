@@ -25,7 +25,7 @@ const fetchAboutData = async (query) => {
     return data;
   } catch (error) {
     console.error("Error fetching details page data:", error);
-    return null;
+    throw error;
   }
 };
 

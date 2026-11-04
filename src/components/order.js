@@ -9,6 +9,8 @@ const IMG_URL = process.env.NEXT_PUBLIC_IMG_URL;
 
 const Orders = ({ handleOrderActive, userToken }) => {
   const [orders, setOrders] = useState([]);
+  const [loadError, setLoadError] = useState("");
+  const [loading, setLoading] = useState(true);
 
   const isCancelledOrder = (order) =>
     Number(order?.order_status_id) === 5 ||
@@ -17,10 +19,14 @@ const Orders = ({ handleOrderActive, userToken }) => {
   const fetchOrders = useCallback(async () => {
     if (userToken) {
       try {
+        setLoadError("");
+        setLoading(true);
         const ordersData = await fetchListingData("GET", `orders`, userToken);
         setOrders(ordersData?.data || []);
       } catch (error) {
-        console.log("Error fetching data:", error);
+        setLoadError("Unable to load your orders. Please try again.");
+      } finally {
+        setLoading(false);
       }
     }
   }, [userToken]);
@@ -51,8 +57,9 @@ const Orders = ({ handleOrderActive, userToken }) => {
   return (
     <div className={styles.orders_page}>
       <h4>Your Orders</h4>
+      {loadError ? <p role="alert">{loadError} <button type="button" onClick={fetchOrders}>Try again</button></p> : null}
       <div className={styles.orders_list}>
-        {orders.length > 0 ? (
+        {loading && !orders.length ? <p role="status">Loading orders?</p> : loadError && !orders.length ? null : orders.length > 0 ? (
           orders.map((order) => {
             return (
               <div key={order.order_id} className={` ${styles.order_card}`}>

@@ -9,6 +9,7 @@ import Modal from "./modal";
 import BillingForm from "./billingForm";
 
 const MyAddresses = ({ userToken, guestSession }) => {
+  const [loadError, setLoadError] = useState("");
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [userAddress, setUserAddress] = useState([]);
   const [editAddress, setEditAddress] = useState([]);
@@ -17,10 +18,11 @@ const MyAddresses = ({ userToken, guestSession }) => {
   const fetchAddresses = useCallback(async () => {
     if (userToken) {
       try {
+        setLoadError("");
         const data = await fetchListingData("GET", "addresses", userToken);
         setUserAddress(data || []);
       } catch (error) {
-        console.error("Error fetching addresses:", error);
+        setLoadError("Unable to load your addresses. Please try again.");
       }
     }
   }, [userToken]);
@@ -69,7 +71,7 @@ const MyAddresses = ({ userToken, guestSession }) => {
         console.error("No data received for the given ID.");
       }
     } catch (error) {
-      console.error("Error fetching address by ID:", error);
+      setLoadError("Unable to load this address. Please try again.");
     }
   };
 
@@ -81,6 +83,7 @@ const MyAddresses = ({ userToken, guestSession }) => {
 
   return (
     <div className="container">
+      {loadError ? <p role="alert">{loadError} <button type="button" onClick={fetchAddresses}>Try again</button></p> : null}
       <div className="row">
         <div className="col-12">
           <div className="mb-3 mt-4 mt-sm-1 text-end">

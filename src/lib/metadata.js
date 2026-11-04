@@ -1,22 +1,10 @@
+import { requestApi } from "./apiClient";
 import { fetchStaticMetadata } from "../../hook/metaData";
 import { buildMetadata, normalizePath } from "@/lib/seo";
 
-function getApiBaseUrl() {
-  return String(
-    process.env.NEXT_PUBLIC_MANIDVIPA_URL ||
-      "https://admin.manidvipaflowers.com/api"
-  ).replace(/\/+$/, "");
-}
-
 export async function fetchEditableSeoRoutes() {
   try {
-    const response = await fetch(`${getApiBaseUrl()}/seo-routes`, {
-      next: { revalidate: 10 },
-    });
-
-    if (!response.ok) return [];
-
-    const result = await response.json();
+    const result = await requestApi("seo-routes", { cache: "force-cache", next: { revalidate: 60 } });
     return Array.isArray(result?.data?.routes) ? result.data.routes : [];
   } catch {
     return [];

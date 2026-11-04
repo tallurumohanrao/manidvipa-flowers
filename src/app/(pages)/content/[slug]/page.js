@@ -6,15 +6,8 @@ import { fetchListingData } from "../../../../../hook/userCookie";
 
 export const dynamic = "force-dynamic";
 
-async function fetchPage(slug) {
-  try {
-    return await fetchListingData(
-      "GET",
-      `static-page?page_name=${encodeURIComponent(slug)}`
-    );
-  } catch {
-    return null;
-  }
+function fetchPage(slug) {
+  return fetchListingData("GET", `static-page?page_name=${encodeURIComponent(slug)}`);
 }
 
 export async function generateMetadata({ params }) {

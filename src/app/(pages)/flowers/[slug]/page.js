@@ -1,3 +1,4 @@
+import { ApiError, isApiNotFound } from "@/lib/apiClient";
 import ProductDetails from "@/components/pages/ProductDetails";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
@@ -11,7 +12,6 @@ import {
   buildProductMetadata,
   buildProductSchema,
   jsonLdScriptContent,
-  unpackPaginatedProducts,
 } from "@/lib/seo";
 import {
   buildPublicSeoRouteMap,
@@ -21,232 +21,23 @@ import {
 } from "@/lib/metadata";
 import { resolvePrimaryProductCategory } from "@/lib/productCategory";
 
-const fetchAboutData = async (query, userToken) => {
-  try {
-    const data = await fetchListingData(
-      "GET",
-      query,
-      userToken ? userToken : undefined
-    );
-    return data;
-  } catch (error) {
-    console.error("Error fetching details page data:", error);
-    return null;
-  }
-};
-
-const fallbackFlowerDetails = [
-  ["chamanthi-flowers", "Chamanthi Flowers", 120, "kg", "/assets/images/home-v2/fresh-arrivals/fresh-chamanthi.jpg"],
-  ["red-roses", "Red Roses", 250, "kg", "/assets/images/home-v2/fresh-arrivals/fresh-red-roses.jpg"],
-  ["kanakambaram", "Kanakambaram", 250, "kg", "/assets/images/home-v2/fresh-arrivals/fresh-kanakambaram.jpg"],
-  ["banthi-flowers", "Banthi Flowers", 120, "kg", "/assets/images/home-v2/fresh-arrivals/fresh-banthi.jpg"],
-  ["jasmine-flowers", "Jasmine Flowers", 500, "kg", "/assets/images/home-v2/rare-seasonal/rare-jasmine.jpg"],
-  ["lotus-flowers", "Lotus Flowers", 60, "piece", "/assets/images/home-v2/fresh-arrivals/fresh-lotus.jpg"],
-  ["white-roses", "White Roses", 300, "kg", "/assets/images/home-v2/premium-collection/premium-roses.jpg"],
-  ["pink-roses", "Pink Roses", 300, "kg", "/assets/images/home-v2/premium-collection/premium-roses.jpg"],
-  ["yellow-banthi", "Yellow Banthi", 110, "kg", "/assets/images/home-v2/fresh-arrivals/fresh-yellow-sevanthi.jpg"],
-  ["orchids", "Orchids", 450, "bunch", "/assets/images/home-v2/premium-collection/premium-orchids.jpg"],
-  ["lilies", "Lilies", 300, "bunch", "/assets/images/home-v2/premium-collection/premium-lilies.jpg"],
-  ["mixed-flowers", "Mixed Flowers", 250, "bunch", "/assets/images/home-v2/premium-collection/premium-exotic.jpg"],
-  ["sevanthi-garlands", "Sevanthi Garlands", 180, "piece", "/assets/images/home-v2/recent-decorations/recent-decoration-pooja.jpg"],
-  ["temple-flower-mix", "Temple Flower Mix", 220, "box", "/assets/images/home-v2/custom-puja-flower-box.jpg"],
-  ["imported-tulips", "Imported Tulips", 600, "bunch", "/assets/images/home-v2/premium-collection/premium-tulips.jpg"],
-  ["puja-flower-basket", "Puja Flower Basket", 350, "basket", "/assets/images/home-v2/cta-basket-flowers.png"],
-];
+const fetchAboutData = (query, token) => fetchListingData("GET", query, token);
 
 function titleFromSlug(slug) {
-  return String(slug || "fresh-flowers")
-    .split("-")
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+  return String(slug).split("-").map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
 }
 
-function buildFallbackProductDetails(slug) {
-  const fallback = fallbackFlowerDetails.find(([fallbackSlug]) => fallbackSlug === slug);
-  if (!fallback) return null;
-
-  const [, title, sellPrice, unit, image] = fallback;
-
-  return {
-    success: true,
-    data: {
-      id: null,
-      title: title || titleFromSlug(slug),
-      slug,
-      description:
-        "Fresh flower availability can change daily. Please contact Manidvipa Flowers to confirm this item and delivery timing.",
-      sell_price: null,
-      list_price: null,
-      unit,
-      price_visibility: "enquiry_only",
-      show_price: false,
-      can_purchase: false,
-      price_message: "Contact us for price",
-      price_cta_label: "Enquire Now",
-    },
-    images: [{ name: image }],
-    weights: [
-      {
-        id: null,
-        name: `1 ${unit}`,
-        sell_price: null,
-        list_price: null,
-      },
-    ],
-  };
-}
-
-function wait(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function getApiBaseUrl() {
-  return String(
-    process.env.NEXT_PUBLIC_MANIDVIPA_URL ||
-      "https://admin.manidvipaflowers.com/api"
-  ).replace(/\/+$/, "");
-}
-
-function buildProductDetailsFromListingProduct(product, slug) {
-  if (!product) return null;
-
-  const productTitle = product.title || titleFromSlug(slug);
-  const images = Array.isArray(product.images) && product.images.length
-    ? product.images
-    : product.image_name
-      ? [{ name: product.image_name }]
-      : [];
-  const weights = Array.isArray(product.weights) && product.weights.length
-    ? product.weights
-    : product.weight_id
-      ? [
-          {
-            id: product.weight_id,
-            name: product.weight_name,
-            sell_price: product.sell_price,
-            list_price: product.list_price,
-            stock: product.stock,
-            qty: product.qty,
-          },
-        ]
-      : [];
-
-  return {
-    success: true,
-    data: {
-      id: product.product_id || product.id,
-      title: productTitle,
-      slug: product.slug || slug,
-      sku: product.sku,
-      description:
-        product.description ||
-        `Order ${productTitle} fresh flowers online in Hyderabad from Manidvipa Flowers.`,
-      sell_price: product.sell_price,
-      list_price: product.list_price,
-      unit: product.weight_name,
-      price_visibility: product.price_visibility,
-      configured_price_visibility: product.configured_price_visibility,
-      price_visible_from: product.price_visible_from,
-      show_price: product.show_price,
-      can_purchase: product.can_purchase,
-      price_message: product.price_message,
-      price_cta_label: product.price_cta_label,
-      categories: product.categories,
-      primary_category: product.primary_category,
-      category_slug: product.category_slug,
-      category_title: product.category_title,
-      category_path: product.category_path,
-    },
-    images,
-    weights,
-  };
-}
-
-async function fetchSeoProductListingPage(page = 1) {
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    try {
-      const response = await fetch(
-        `${getApiBaseUrl()}/products-by-category?category_slug=all-flowers&per_page=200&page=${page}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          cache: "no-store",
-        }
-      );
-
-      if (response.ok) {
-        return response.json();
-      }
-    } catch (error) {
-      console.error(`Error fetching product listing fallback page ${page}:`, error);
+const resolveProductDetails = cache(async (slug, token = "") => {
+  try {
+    const result = await fetchAboutData(`product-details?product_slug=${encodeURIComponent(slug)}`, token);
+    if (!result?.data?.id || !Array.isArray(result.weights) || !Array.isArray(result.images)) {
+      throw new ApiError("The product could not be loaded completely.", { code: "INVALID_RESPONSE" });
     }
-
-    if (attempt < 2) {
-      await wait(250);
-    }
+    return result;
+  } catch (error) {
+    if (isApiNotFound(error)) return null;
+    throw error;
   }
-
-  return null;
-}
-
-async function fetchSeoProductListing() {
-  const firstPage = await fetchSeoProductListingPage(1);
-  if (!firstPage) return [];
-
-  const lastPage = Math.max(1, Number(firstPage?.data?.last_page) || 1);
-  if (lastPage === 1) return unpackPaginatedProducts(firstPage);
-
-  const remainingPages = await Promise.all(
-    Array.from({ length: lastPage - 1 }, (_, index) =>
-      fetchSeoProductListingPage(index + 2)
-    )
-  );
-
-  return [firstPage, ...remainingPages].flatMap(unpackPaginatedProducts);
-}
-
-async function fetchProductDetailsFromListing(slug) {
-  let product = null;
-
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const products = await fetchSeoProductListing();
-    product = products.find((item) => item?.slug === slug);
-
-    if (product) {
-      break;
-    }
-
-    if (attempt < 2) {
-      await wait(150);
-    }
-  }
-
-  return buildProductDetailsFromListingProduct(product, slug);
-}
-
-const resolveProductDetails = cache(async (slug, userToken = "") => {
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    const productDetails = await fetchAboutData(
-      `product-details?product_slug=${encodeURIComponent(slug)}`,
-      userToken
-    );
-
-    if (productDetails?.data) {
-      return productDetails;
-    }
-
-    if (attempt < 3) {
-      await wait(150);
-    }
-  }
-
-  return (
-    (await fetchProductDetailsFromListing(slug)) ||
-    buildFallbackProductDetails(slug)
-  );
 });
 
 export async function generateMetadata({ params }) {

@@ -15,6 +15,7 @@ const CheckoutAddress = ({
   userToken,
   guestSession,
 }) => {
+  const [loadError, setLoadError] = useState("");
   const [userAddress, setUserAddress] = useState([]);
   const [editAddress, setEditAddress] = useState([]);
   const [showAll, setShowAll] = useState(false);
@@ -35,6 +36,7 @@ const CheckoutAddress = ({
 
   // FETCH ALL ADDRESSES
   const fetchAddresses = useCallback(async () => {
+    setLoadError("");
     const guestAddressId = Cookies.get("guestAddressId");
     setGuestAddressId(guestAddressId);
     const endpoint = userToken
@@ -50,9 +52,9 @@ const CheckoutAddress = ({
 
     try {
       const data = await fetchListingData("GET", endpoint, userToken || null);
-      setUserAddress(userToken ? data?.data : [data?.data] || []);
+      setUserAddress(userToken ? data?.data || [] : data?.data ? [data.data] : []);
     } catch (error) {
-      console.error("Error fetching addresses:", error);
+      setLoadError("Unable to load your delivery addresses. Please try again.");
     }
   }, [userToken]);
 
@@ -95,7 +97,7 @@ const CheckoutAddress = ({
         console.error("No data received for the given ID.");
       }
     } catch (error) {
-      console.error("Error fetching address by ID:", error);
+      setLoadError("Unable to load this address. Please try again.");
     }
   };
 
@@ -112,6 +114,7 @@ const CheckoutAddress = ({
 
   return (
     <>
+      {loadError ? <p role="alert">{loadError} <button type="button" onClick={fetchAddresses}>Try again</button></p> : null}
       <div className={`my-3 ${styles.address_section}`}>
         <div className={styles.address_top}>
           <h6 className="p-3">DELIVERY ADDRESS</h6>

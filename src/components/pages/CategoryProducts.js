@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
+import { fetchAllProducts } from "@/lib/apiClient";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { FaChevronDown, FaShoppingBasket, FaSlidersH, FaStar, FaTimes } from "react-icons/fa";
@@ -603,15 +604,9 @@ async function fetchCategoryProducts(categorySlug, userToken, options = {}) {
 
   if (orderBy) params.set("orderby", orderBy);
 
-  const data = await fetchListingData(
-    "GET",
-    `products-by-category?${params.toString()}`,
-    userToken ? userToken : undefined
-  );
-
-  if (!data?.success) return [];
-
-  return unpackProductList(data);
+  return fetchAllProducts(`products-by-category?${params}`, {
+    token: userToken, signal: options.signal,
+  });
 }
 
 function FilterCheckboxGroup({ options, selectedValues, onToggle, className = "" }) {
@@ -870,7 +865,6 @@ export function CategoryProductCard({ product, userToken }) {
 
       setWasAdded(true);
       if (!cartUsesCustomQuantity) setQuantity(cartQuantity);
-      window.setTimeout(() => setWasAdded(false), 1600);
       showToast(customQuantity !== null
         ? `${formatQuantityNumber(customQuantity)} ${formatQuantityUnit(cartWeight.quantityUnit, customQuantity)} added to cart.`
         : `${cartQuantity} item${cartQuantity > 1 ? "s" : ""} added to cart.`, "success");
@@ -1121,26 +1115,30 @@ export default function CategoryProducts({
   const hasProductFilters =
     visiblePriceOptions.length > 0 || visibleAvailabilityOptions.length > 0;
 
+  const requestRef = useRef(null);
+  const loadedCategoryRef = useRef(initialCategoryValue);
   const fetchData = useCallback(async () => {
+    requestRef.current?.abort();
+    const controller = new AbortController();
+    requestRef.current = controller;
+    const requestCategory = activeCategory || category_slug || DEFAULT_CATEGORY;
     setIsLoading(true);
     setLoadError("");
-    setProductCategory([]);
-
+    if (loadedCategoryRef.current !== requestCategory) setProductCategory([]);
+    loadedCategoryRef.current = requestCategory;
     try {
-      const requestCategory = activeCategory || category_slug || DEFAULT_CATEGORY;
-      const products = await fetchCategoryProducts(requestCategory, userToken, { sortOption });
-
-      setProductCategory(products);
-    } catch (error) {
-      console.error("Unable to fetch category products:", error);
-      setLoadError("Unable to load flowers right now.");
+      const products = await fetchCategoryProducts(requestCategory, userToken, { sortOption, signal: controller.signal });
+      if (!controller.signal.aborted) setProductCategory(products);
+    } catch {
+      if (!controller.signal.aborted) setLoadError("Unable to refresh flowers right now. Please try again.");
     } finally {
-      setIsLoading(false);
+      if (!controller.signal.aborted) setIsLoading(false);
     }
-  }, [activeCategory, category_slug, setIsLoading, setLoadError, setProductCategory, sortOption, userToken]);
+  }, [activeCategory, category_slug, sortOption, userToken, setIsLoading, setLoadError, setProductCategory]);
 
   useEffect(() => {
     fetchData();
+    return () => requestRef.current?.abort();
   }, [fetchData]);
 
   useEffect(() => {
@@ -1498,6 +1496,12 @@ export default function CategoryProducts({
                 </div>
               </div>
 
+              {loadError && productCategory.length > 0 ? (
+                <div className={styles.errorState} role="alert">
+                  <p>{loadError} Previously loaded products are shown below.</p>
+                  <button type="button" onClick={fetchData}>TRY AGAIN</button>
+                </div>
+              ) : null}
               {isLoading && !productCategory.length ? (
                 <SkeletonGrid count={pageSize} />
               ) : loadError && !productCategory.length ? (
