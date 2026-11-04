@@ -15,8 +15,13 @@ export function isApiNotFound(error) {
 }
 
 export function getApiBaseUrl() {
-  return String(process.env.NEXT_PUBLIC_MANIDVIPA_URL ||
-    "https://admin.manidvipaflowers.com/api").replace(/\/+$/, "");
+  if (typeof window !== "undefined") return "/api/store";
+
+  return String(
+    process.env.MANIDVIPA_SERVER_API_URL ||
+      process.env.NEXT_PUBLIC_MANIDVIPA_URL ||
+      "https://admin.manidvipaflowers.com/api"
+  ).replace(/\/+$/, "");
 }
 
 export async function requestApi(endpoint, {

@@ -5,8 +5,9 @@ import Toast from "@/components/Toast";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import styles from "@/scss/pages/forgotPassword.module.scss";
 import Banner from "@/components/banner";
+import { getApiBaseUrl } from "@/lib/apiClient";
 
-const url = process.env.NEXT_PUBLIC_MANIDVIPA_URL;
+const url = getApiBaseUrl();
 
 export default function Page() {
   const [formData, setFormData] = useState({

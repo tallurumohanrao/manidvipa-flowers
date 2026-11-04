@@ -1117,6 +1117,9 @@ export default function CategoryProducts({
 
   const requestRef = useRef(null);
   const loadedCategoryRef = useRef(initialCategoryValue);
+  const initialRequestKeyRef = useRef(
+    initialProducts.length ? `${initialCategoryValue}|${DEFAULT_SORT}` : null
+  );
   const fetchData = useCallback(async () => {
     requestRef.current?.abort();
     const controller = new AbortController();
@@ -1137,9 +1140,17 @@ export default function CategoryProducts({
   }, [activeCategory, category_slug, sortOption, userToken, setIsLoading, setLoadError, setProductCategory]);
 
   useEffect(() => {
+    const requestKey = `${activeCategory || category_slug || DEFAULT_CATEGORY}|${sortOption}`;
+
+    // Server rendering already supplied the default category result. Do not
+    // immediately repeat that request in the browser, especially because the
+    // public admin API may be protected by a hosting browser challenge.
+    if (initialRequestKeyRef.current === requestKey) return undefined;
+
+    initialRequestKeyRef.current = null;
     fetchData();
     return () => requestRef.current?.abort();
-  }, [fetchData]);
+  }, [activeCategory, category_slug, fetchData, sortOption]);
 
   useEffect(() => {
     if (!activeCategoryGroupValue) {

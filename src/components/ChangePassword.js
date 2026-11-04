@@ -3,8 +3,9 @@ import styles from "@/scss/pages/register.module.scss";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import { useState } from "react";
+import { getApiBaseUrl } from "@/lib/apiClient";
 
-const url = process.env.NEXT_PUBLIC_MANIDVIPA_URL;
+const url = getApiBaseUrl();
 
 const ChangePassword = ({ userToken }) => {
   const router = useRouter();

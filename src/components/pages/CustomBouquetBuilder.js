@@ -15,9 +15,10 @@ import {
 } from "react-icons/fa";
 import BouquetDesignStudio, { classifyBouquetProduct, createBouquetDesignItem } from "@/components/pages/BouquetDesignStudio";
 import styles from "@/scss/pages/customBouquet.module.scss";
+import { getApiBaseUrl } from "@/lib/apiClient";
 
 const IMG_URL = process.env.NEXT_PUBLIC_IMG_URL;
-const API_URL = process.env.NEXT_PUBLIC_MANIDVIPA_URL;
+const API_URL = getApiBaseUrl();
 
 const occasions = [
   "Birthday",

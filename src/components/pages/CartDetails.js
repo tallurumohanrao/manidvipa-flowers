@@ -23,8 +23,9 @@ import {
   MAX_CART_ITEM_QUANTITY,
 } from "@/lib/purchaseQuantity";
 import { getPerUnitPriceDetails } from "@/lib/unitPricing";
+import { getApiBaseUrl } from "@/lib/apiClient";
 
-const url = process.env.NEXT_PUBLIC_MANIDVIPA_URL;
+const url = getApiBaseUrl();
 const IMG_URL = process.env.NEXT_PUBLIC_IMG_URL;
 const EMPTY_CART_ITEMS = [];
 const DELIVERY_PREFERENCE_STORAGE_KEY = "manidvipaDeliveryPreference";

@@ -7,8 +7,9 @@ import styles from "@/scss/pages/login.module.scss";
 import { useUser } from "@/context/UserContext";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import Link from "next/link";
+import { getApiBaseUrl } from "@/lib/apiClient";
 
-const url = process.env.NEXT_PUBLIC_MANIDVIPA_URL;
+const url = getApiBaseUrl();
 
 export default function Login() {
   const router = useRouter();

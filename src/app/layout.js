@@ -20,7 +20,6 @@ import {
 const googleAnalyticsPattern = /\bG-[A-Z0-9]+\b/i;
 const googleTagManagerPattern = /\bGTM-[A-Z0-9]+\b/i;
 const metaPixelPattern = /^\d{5,25}$/;
-const fallbackFavicon = "/favicon.jpg";
 
 async function fetchGlobalSiteSettings() {
   try {
@@ -76,31 +75,6 @@ function resolveSearchConsoleVerification(settings = {}) {
   return cleanValue.replace(/^google-site-verification[:=]\s*/i, "").trim();
 }
 
-function resolveSiteFavicon(settings = {}) {
-  const value = String(settings.SITE_FAVICON || "").trim();
-
-  if (!value) return fallbackFavicon;
-
-  try {
-    const url = new URL(value);
-    return ["http:", "https:"].includes(url.protocol) ? url.toString() : fallbackFavicon;
-  } catch (error) {
-    return fallbackFavicon;
-  }
-}
-
-function applySiteFavicon(metadata, settings = {}) {
-  const favicon = resolveSiteFavicon(settings);
-
-  metadata.icons = {
-    icon: [{ url: favicon }],
-    shortcut: [{ url: favicon }],
-    apple: [{ url: favicon }],
-  };
-
-  return metadata;
-}
-
 export async function generateMetadata() {
   const headersList = await headers();
   const pathName = normalizePath(headersList.get("x-metadata-pathName") || "/");
@@ -116,7 +90,7 @@ export async function generateMetadata() {
       };
     }
 
-    return applySiteFavicon(metadata, settings);
+    return metadata;
   }
 
   const data = await fetchStaticMetadata(pathName);
@@ -134,7 +108,7 @@ export async function generateMetadata() {
     };
   }
 
-  return applySiteFavicon(metadata, settings);
+  return metadata;
 }
 
 export default async function RootLayout({ children }) {
